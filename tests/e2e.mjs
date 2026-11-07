@@ -178,7 +178,8 @@ async function browserTests() {
     const text = document.getElementById("reply-bubble").textContent || "";
     return text.includes("The reef heard you") && text.includes("Hello sea turtle");
   }, null, { timeout: 20000 });
-  await page.locator("#replySpeak").waitFor({ state: "visible" });
+  const speaker = await page.locator("#replySpeak.is-shown").boundingBox();
+  if (!speaker || speaker.width < 8 || speaker.height < 8) throw new Error("speaker button is not visible");
   console.log("typed turn returned a reply with a speaker button");
 
   await shot(page, 1280, 800, "/opt/cursor/artifacts/simko-1280x800.png", false);

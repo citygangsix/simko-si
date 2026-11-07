@@ -145,7 +145,8 @@
   function listenWithWebSpeech() {
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
-      say("This screen can't use the microphone. Type in the box instead.", true);
+      setMic("idle");
+      showMicNote("This browser has no microphone. Type in the box instead.");
       return;
     }
     unlock();
@@ -166,14 +167,20 @@
       var form = $("composer");
       if (form) form.requestSubmit();
     };
-    rec.onerror = function () { setMic("idle"); };
+    rec.onerror = function () {
+      setMic("idle");
+      showMicNote("The microphone did not start. Type in the box instead.");
+    };
     rec.onend = function () {
       state.webRec = null;
       var b = $("micButton");
       if (b && b.dataset.state === "listening") setMic("idle");
     };
     setMic("listening");
-    try { rec.start(); } catch (e) { setMic("idle"); }
+    try { rec.start(); } catch (e) {
+      setMic("idle");
+      showMicNote("The microphone did not start. Type in the box instead.");
+    }
   }
 
   async function startListening() {
@@ -273,11 +280,25 @@
 
   function setReply(text) { var r = $("reply-bubble"); if (r) r.textContent = text; }
 
+  function signedIn() {
+    return document.documentElement.getAttribute("data-simko-signed") === "1";
+  }
+  function showMicNote(text) {
+    var hint = $("micHint");
+    if (!hint) return;
+    hint.hidden = false;
+    hint.textContent = text;
+  }
   function say(text, force) {
     if (!force && !state.session) return;
     var line = trimForSpeech(text);
     if (!line) { setMic("idle"); return; }
     lastSpoken = line;
+    if (!signedIn()) {
+      showMicNote("Sign in to hear Simko SI. You can still type.");
+      fallbackSpeak(line);
+      return;
+    }
     setMic("speaking");
     play(speakUrl({ voice: state.voice, speed: state.speed.toFixed(2), text: line }));
   }
@@ -312,6 +333,11 @@
     if (state.previewing === id) { stopSpeaking(); return; }
     markPreview(id);
     lastSpoken = "Hello. I am " + (name || "Coral") + ".";
+    if (!signedIn()) {
+      showMicNote("Sign in to hear this voice. A browser voice will try.");
+      fallbackSpeak(lastSpoken);
+      return;
+    }
     play(speakUrl({ voice: id, speed: state.speed.toFixed(2), preview: 1 }));
   }
 

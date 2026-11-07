@@ -43,6 +43,7 @@
   ];
 
   let authToken = "";
+  let signedIn = false;
   let authMode = "signin";
   let activeSessionId = "";
   let chatRows = [];
@@ -174,7 +175,8 @@
     const button = $("replySpeak");
     if (!button) return;
     const show = !!(text && text !== "Working on it…");
-    button.hidden = !show;
+    button.classList.toggle("is-shown", show);
+    button.hidden = false;
     button.dataset.say = show ? text : "";
   }
 
@@ -372,7 +374,8 @@
       sessionCache[row.id] = Object.assign({}, sessionCache[row.id] || {}, row);
     });
     paintChatList(chatRows, false);
-    const wanted = preferId || activeSessionId || (chatRows[0] && chatRows[0].id);
+    const current = activeSessionId && !String(activeSessionId).startsWith("demo-") ? activeSessionId : "";
+    const wanted = preferId || current || (chatRows[0] && chatRows[0].id);
     if (wanted) await showSession(wanted, false);
     cacheSave();
   }
@@ -386,11 +389,21 @@
   }
 
   function paintAccount(email) {
-    const signed = !!email;
-    $("accountSignIn").hidden = signed;
-    $("accountSigned").hidden = !signed;
-    $("accountEmail").textContent = shortEmail(email || "");
-    $("accountEmail").title = email || "";
+    signedIn = !!email;
+    const signIn = $("accountSignIn");
+    const signed = $("accountSigned");
+    const label = $("accountEmail");
+    if (signIn) signIn.hidden = !!email;
+    if (signed) signed.hidden = !email;
+    if (label) {
+      label.textContent = shortEmail(email || "");
+      label.title = email || "";
+    }
+    document.documentElement.setAttribute("data-simko-signed", email ? "1" : "0");
+  }
+
+  function hasSession() {
+    return signedIn || !!authToken;
   }
 
   function showSignedOut() {
@@ -399,8 +412,8 @@
     activeSessionId = "";
     chatRows = [];
     try { sessionStorage.removeItem("podcoderToken"); } catch (e) {}
-    ["authEmail", "authPassword", "signUp", "signIn", "resetPassword"].forEach((id) => { $(id).hidden = false; });
-    ["signOut", "confirmEmail", "authTokenBox", "setPassword"].forEach((id) => { $(id).hidden = true; });
+    ["authEmail", "authPassword", "signUp", "signIn", "resetPassword"].forEach((id) => { const el = $(id); if (el) el.hidden = false; });
+    ["signOut", "confirmEmail", "authTokenBox", "setPassword"].forEach((id) => { const el = $(id); if (el) el.hidden = true; });
     $("authWho").textContent = "";
     $("relay-sheet").hidden = true;
     paintAccount("");
@@ -409,10 +422,11 @@
   }
 
   function showSignedIn(email) {
+    if (String(activeSessionId).startsWith("demo-")) activeSessionId = "";
     window.simcoUserToken = authToken;
     if (window.simcoThemes) window.simcoThemes.syncFromServer();
-    ["authEmail", "authPassword", "signUp", "signIn", "confirmEmail", "resetPassword", "authTokenBox", "setPassword"].forEach((id) => { $(id).hidden = true; });
-    $("signOut").hidden = false;
+    ["authEmail", "authPassword", "signUp", "signIn", "confirmEmail", "resetPassword", "authTokenBox", "setPassword"].forEach((id) => { const el = $(id); if (el) el.hidden = true; });
+    if ($("signOut")) $("signOut").hidden = false;
     $("authWho").textContent = email;
     $("drawer").hidden = true;
     $("toolsToggle").setAttribute("aria-expanded", "false");
@@ -538,13 +552,13 @@
   }
 
   async function newChat() {
-    if (!authToken) {
+    if (!hasSession()) {
       needAccount();
       return;
     }
     const created = await sessionPost({ op: "create", title: "Chat " + (chatRows.length + 1) });
     if (!created.ok && !created.session) {
-      $("reply-bubble").textContent = created.error || "Could not open a chat.";
+      setReply(created.error || "Could not open a chat.");
       return;
     }
     await refreshChats(created.session.id);
@@ -552,7 +566,7 @@
   }
 
   async function rememberTurn(userText, assistantText) {
-    if (!authToken) return;
+    if (!hasSession()) return;
     if (!activeSessionId || String(activeSessionId).indexOf("demo-") === 0) {
       const created = await sessionPost({ op: "create", title: "Chat " + (chatRows.length + 1) });
       if (created.session) {
@@ -568,9 +582,12 @@
   async function onSend(event) {
     if (event) event.preventDefault();
     const text = $("everyday").value.trim();
-    if (!text) return;
+    if (!text) {
+      setReply("Type a message, then Send.");
+      return;
+    }
     if (window.simcoVoice) window.simcoVoice.consumeTurn();
-    if (!authToken) {
+    if (!hasSession()) {
       needAccount();
       return;
     }
@@ -601,12 +618,12 @@
     const text = $("everyday").value.trim();
     const target = $("relayTarget").value;
     if (!text) {
-      $("reply-bubble").textContent = "Type a message, then Send to chat.";
+      setReply("Type a message, then Send to chat.");
       openThread();
       return;
     }
     if (!target) {
-      $("reply-bubble").textContent = "Open another chat first.";
+      setReply("Open another chat first.");
       openThread();
       return;
     }
@@ -618,7 +635,7 @@
     });
     $("relay-sheet").hidden = true;
     if (!data.ok) {
-      $("reply-bubble").textContent = data.error || "Could not send to that chat.";
+      setReply(data.error || "Could not send to that chat.");
       openThread();
       return;
     }
@@ -642,7 +659,7 @@
       chatRows = (data && data.sessions) || [];
       paintChatList(chatRows, false);
     } catch (e) {
-      $("reply-bubble").textContent = "Search could not reach Simko SI.";
+      setReply("Search could not reach Simko SI.");
     }
   }
 
@@ -683,14 +700,15 @@
   }
 
   async function tagTurn(text) {
-    if (!authToken) return;
+    if (!hasSession()) return;
     const data = await postJson("/api/memory", { op: "tag", token: authToken, text: text, session_id: activeSessionId });
     if (data && data.tagged) paintLife(data);
   }
 
   async function retag(category) {
-    if (!authToken) {
+    if (!hasSession()) {
       $("lifeLast").textContent = "Sign in to tag a line.";
+      needAccount();
       return;
     }
     const data = await postJson("/api/memory", { op: "retag", token: authToken, category: category });
@@ -761,7 +779,7 @@
 
   async function detectHardware() {
     const line = await probeMachine();
-    $("reply-bubble").textContent = line;
+    setReply(line);
     $("turtleLog").textContent = line;
     $("turtleLead").textContent = "This is the browser on this computer. Nothing was installed.";
     $("turtleStage").textContent = "Ready";
@@ -776,12 +794,12 @@
     } catch (e) {}
     const links = (data && data.installers) || [];
     if (!links.length) {
-      $("reply-bubble").textContent = "Desktop app download coming soon.";
+      setReply("Desktop app download coming soon.");
       $("installWord").textContent = "Coming soon";
       openThread();
       return;
     }
-    $("reply-bubble").textContent = links.map((link) => link.label + " " + link.url).join("\n");
+    setReply(links.map((link) => link.label + " " + link.url).join("\n"));
     openThread();
   }
 
@@ -794,7 +812,7 @@
   }
 
   function confirmRent() {
-    $("reply-bubble").textContent = "Confirm Rent is turned off on the website. It needs the desktop app. This site does not call a rental service.";
+    setReply("Confirm Rent is turned off on the website. It needs the desktop app. This site does not call a rental service.");
     openThread();
   }
 
@@ -813,10 +831,13 @@
     try { authToken = sessionStorage.getItem("podcoderToken") || ""; } catch (e) { authToken = ""; }
     try {
       let data = await authPost({ op: "me", token: authToken });
-      if (!data.ok && authToken) {
-        authToken = "";
-        try { sessionStorage.removeItem("podcoderToken"); } catch (e) {}
-        data = await authPost({ op: "me" });
+      if (!data.ok) {
+        const cookieSession = await authPost({ op: "me" });
+        if (cookieSession.ok) {
+          authToken = "";
+          try { sessionStorage.removeItem("podcoderToken"); } catch (e) {}
+          data = cookieSession;
+        }
       }
       if (!data.ok) {
         showSignedOut();
@@ -825,7 +846,7 @@
       showSignedIn(data.email);
       await refreshChats();
     } catch (e) {
-      if (!authToken || !restoreCache()) showSignedOut();
+      if (!hasSession() || !restoreCache()) showSignedOut();
     }
   }
 
@@ -908,7 +929,7 @@
   });
   $("chatSearch").addEventListener("input", () => searchChats());
   $("sendToChat").addEventListener("click", async () => {
-    if (!authToken) {
+    if (!hasSession()) {
       needAccount();
       return;
     }
@@ -961,9 +982,10 @@
       $("turtleError").textContent = "Type a question, then Send.";
       return;
     }
-    if (!authToken) {
+    if (!hasSession()) {
       $("turtleError").hidden = false;
       $("turtleError").textContent = "Sign in to ask Simko SI.";
+      needAccount();
       return;
     }
     $("turtleError").hidden = true;

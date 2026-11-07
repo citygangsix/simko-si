@@ -41,7 +41,10 @@ Options -Indexes
     Header set Cache-Control "public, max-age=2592000"
     Header set Accept-Ranges "bytes"
   </FilesMatch>
-  <FilesMatch "\.(jpg|jpeg|css|js)$">
+  <FilesMatch "\.(html)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "\.(jpg|jpeg|css|js|svg)$">
     Header set Cache-Control "public, max-age=86400"
   </FilesMatch>
 </IfModule>

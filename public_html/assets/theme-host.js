@@ -11,7 +11,9 @@
   function apply(id) {
     document.documentElement.setAttribute("data-theme", id);
     var link = document.getElementById("themeStylesheet");
-    if (link) link.href = "/themes/" + encodeURIComponent(id) + "/theme.css";
+    var meta = document.querySelector('meta[name="simko-build"]');
+    var build = meta ? (meta.getAttribute("content") || "") : "";
+    if (link) link.href = "/themes/" + encodeURIComponent(id) + "/theme.css" + (build ? "?v=" + encodeURIComponent(build) : "");
     try { localStorage.setItem("simcoTheme", id); } catch (e) {}
     paint();
   }

@@ -41,7 +41,15 @@ if ($op === 'retag') {
     $latest->execute([$userId]);
     $row = $latest->fetch();
     if (!$row) {
-        simko_fail(400, 'Nothing to tag.');
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+            header('Cache-Control: no-store');
+        }
+        echo json_encode([
+            'ok' => false,
+            'error' => 'Nothing to tag yet. Say something about your life first.',
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
     }
     $update = $db->prepare('UPDATE life_events SET category = ?, label = ? WHERE id = ?');
     $update->execute([$category, $labels[$category], (int) $row['id']]);

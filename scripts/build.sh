@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+BUILD=$(find public_html/assets -type f \( -name '*.js' -o -name '*.css' -o -name '*.svg' \) -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-12)
+python3 - "$BUILD" << 'PY'
+import re, sys, pathlib
+build = sys.argv[1]
+root = pathlib.Path("public_html")
+for path in [root / "index.html", root / "assets" / "theme-host.js"]:
+    text = path.read_text()
+    new = re.sub(r"(\?v=)[A-Za-z0-9_-]+", lambda m: m.group(1) + build, text)
+    new = re.sub(r'(name="simko-build" content=")[^"]*"', lambda m: m.group(1) + build + '"', new)
+    if new != text:
+        path.write_text(new)
+print("asset version", build)
+PY
 rm -rf dist
 mkdir -p dist
 (

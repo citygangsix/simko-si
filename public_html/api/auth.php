@@ -113,7 +113,12 @@ function simko_me(): void
 {
     $user = simko_current_user();
     if (!$user) {
-        simko_fail(401, 'Sign in.');
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+            header('Cache-Control: no-store');
+        }
+        echo json_encode(['ok' => false, 'error' => 'Sign in.'], JSON_UNESCAPED_UNICODE);
+        exit;
     }
     simko_ok(['email' => $user['email'], 'confirmed' => (int) $user['confirmed'] === 1]);
 }

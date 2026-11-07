@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "bash scripts/dev.sh",
-    "test": "node tests/e2e.mjs",
+    "test": "node tests/e2e.mjs && node tests/buttons.mjs",
     "build": "bash scripts/build.sh"
   },
   "devDependencies": {
