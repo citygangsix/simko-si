@@ -67,6 +67,17 @@ switch ($op) {
         }
         simko_ok(['audit' => simko_audit_rows($userId)]);
         break;
+    case 'call-status':
+        if (!simko_flag('calls')) {
+            simko_fail(404, 'Calls are turned off.');
+        }
+        $provider = trim((string) (simko_config_or_empty()['calls']['provider'] ?? ''));
+        simko_ok([
+            'enabled' => false,
+            'provider' => $provider === '' ? null : $provider,
+            'reason' => 'Phone calls are not connected. They cost money per minute, so this screen stays disabled until a provider is chosen.',
+        ]);
+        break;
     case 'publish-template':
         if (!simko_flag('team')) {
             simko_fail(404, 'Templates are turned off.');

@@ -1194,6 +1194,12 @@
     <button id="paywallTrial" type="button">Start a free trial</button>
     <p id="paywallNote" role="status"></p>
   </section>
+  <section id="callCard" class="platformCard" hidden aria-labelledby="callTitle">
+    <button id="callClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="callTitle">Phone call</h2>
+    <p id="callReason" class="platformLead">Phone calls are not connected. They cost money per minute, so this stays off until a provider is chosen.</p>
+    <button id="callStart" type="button" disabled>Start call</button>
+  </section>
   <section id="teamCard" class="platformCard" hidden aria-labelledby="teamTitle">
     <button id="teamClose" class="platformClose" type="button" aria-label="Close">×</button>
     <h2 id="teamTitle">Template and team</h2>
@@ -1488,6 +1494,7 @@
   <button id="connectorOpen" type="button" hidden>Connectors</button>
   <button id="agentOpen" type="button" hidden>Agents</button>
   <button id="teamOpen" type="button" hidden>Team</button>
+  <button id="callOpen" type="button" hidden>Call</button>
   <button id="detectHardware" type="button">Detect</button>
   <button id="downloadNow" type="button">Download</button>
   <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>

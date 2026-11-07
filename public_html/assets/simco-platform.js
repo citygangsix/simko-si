@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard", "agentBoard", "teamCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard", "agentBoard", "teamCard", "callCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,26 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().calls) {
+      var callOpen = $("callOpen");
+      if (callOpen) callOpen.hidden = false;
+      if (callOpen && !callOpen.dataset.bound) {
+        callOpen.dataset.bound = "1";
+        callOpen.addEventListener("click", function () {
+          post({ op: "call-status" }).then(function (data) {
+            if ($("callReason") && data.reason) $("callReason").textContent = data.reason;
+            var start = $("callStart");
+            if (start) start.disabled = true;
+            show("callCard");
+          });
+        });
+      }
+      var callClose = $("callClose");
+      if (callClose && !callClose.dataset.bound) {
+        callClose.dataset.bound = "1";
+        callClose.addEventListener("click", hide);
+      }
     }
     if (flags().team) {
       var teamOpen = $("teamOpen");

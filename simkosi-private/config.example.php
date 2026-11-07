@@ -68,6 +68,12 @@ return [
     // Apple: developer.apple.com, Services ID, Sign in with Apple, same redirect. $99/year membership is Joseph's decision.
     // Connectors. Client ids empty means the buttons stay hidden.
     // Google Drive is read-only. GitHub reads repositories. No Gmail. No banks.
+    // Phone calls stay disabled. Filling a provider does not place a call and does not open an account.
+    'calls' => [
+        'provider' => '',
+        'from_number' => '',
+        'enabled' => false,
+    ],
     'connectors' => [
         'google-drive' => [
             'client_id' => '',
