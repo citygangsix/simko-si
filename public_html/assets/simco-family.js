@@ -145,6 +145,12 @@
 
   function removeChat(id) {
     post({ op: "delete-chat", session_id: id }).then(function (data) {
+      if (data && data.approval && window.simcoPlatform) {
+        window.simcoPlatform.showApproval(data.approval, function (approvalId) {
+          post({ op: "delete-chat", session_id: id, approval_id: approvalId }).then(refresh);
+        });
+        return;
+      }
       if (!data.ok) {
         setError(data.error || "That chat could not be deleted.");
         return;

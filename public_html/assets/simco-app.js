@@ -796,6 +796,24 @@
       to_session_id: target,
       text: text
     });
+    if (data && data.approval && window.simcoPlatform) {
+      window.simcoPlatform.showApproval(data.approval, async (approvalId) => {
+        const again = await sessionPost({
+          op: "relay",
+          from_session_id: activeSessionId,
+          to_session_id: target,
+          text: text,
+          approval_id: approvalId
+        });
+        if (!again.ok) {
+          setReply(again.error || "Could not send to that chat.");
+          return;
+        }
+        revealConversation();
+        setReply("Sent to " + targetTitle + ": " + text);
+      });
+      return;
+    }
     if (!data.ok) {
       revealConversation();
       setReply(data.error || "Could not send to that chat.");

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/usage.php';
+require_once __DIR__ . '/approvals.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -23,6 +24,7 @@ switch ($op) {
         if (!simko_flag('paywall')) {
             simko_fail(404, 'Usage is turned off.');
         }
+        simko_guard_approval($userId, $body, 'spend', 'Pay $9 for the first month of Simko SI', ['op' => 'checkout']);
         $result = simko_square_checkout($userId);
         if (!empty($result['error']) && empty($result['url'])) {
             simko_fail(402, (string) $result['error'], ['connected' => !empty($result['connected'])]);
@@ -38,6 +40,20 @@ switch ($op) {
             simko_fail(402, (string) ($result['error'] ?? 'Nothing was charged.'));
         }
         simko_ok(simko_usage_snapshot($userId));
+        break;
+    case 'decide':
+        if (!simko_flag('approvals')) {
+            simko_fail(404, 'Approvals are turned off.');
+        }
+        $decision = (string) ($body['decision'] ?? '');
+        $decided = simko_decide_approval($userId, (int) ($body['approval_id'] ?? 0), $decision === 'approve' ? 'approved' : 'declined');
+        simko_ok(['approval' => $decided, 'audit' => simko_audit_rows($userId)]);
+        break;
+    case 'audit':
+        if (!simko_flag('approvals')) {
+            simko_fail(404, 'Approvals are turned off.');
+        }
+        simko_ok(['audit' => simko_audit_rows($userId)]);
         break;
     case 'start-trial':
         if (!simko_flag('paywall')) {

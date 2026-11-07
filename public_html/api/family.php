@@ -213,7 +213,12 @@ function simko_family_delete_child(int $parentId, array $body): void
 
 function simko_family_delete_chat(int $parentId, array $body): void
 {
+    require_once __DIR__ . '/approvals.php';
     $chatId = (string) ($body['session_id'] ?? '');
+    simko_guard_approval($parentId, $body, 'delete', 'Delete a child chat', [
+        'op' => 'delete-chat',
+        'session_id' => $chatId,
+    ]);
     $chat = simko_chat_owned($parentId, $chatId);
     if (!$chat || (int) ($chat['child_profile_id'] ?? 0) < 1) {
         simko_fail(404, 'That chat is not on this account.');

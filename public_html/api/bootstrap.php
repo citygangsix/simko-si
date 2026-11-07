@@ -399,6 +399,29 @@ function simko_migrate(PDO $db): void
         )'
     );
     $db->exec('CREATE INDEX IF NOT EXISTS idx_usage_user ON usage_events(user_id, id)');
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS approvals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            action TEXT NOT NULL,
+            summary TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            status TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            decided_at INTEGER
+        )'
+    );
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            action TEXT NOT NULL,
+            summary TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )'
+    );
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_approvals_user ON approvals(user_id, id)');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id, id)');
 }
 
 function simko_add_column(PDO $db, string $table, string $column, string $definition): void

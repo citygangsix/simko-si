@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -59,7 +59,56 @@
       list.appendChild(empty);
     }
   }
+  var pendingApproval = null;
+  function paintAudit(rows) {
+    var list = $("auditList");
+    if (!list) return;
+    list.replaceChildren();
+    (rows || []).forEach(function (row) {
+      var item = document.createElement("li");
+      item.textContent = row.summary;
+      list.appendChild(item);
+    });
+    if (!(rows || []).length) {
+      var empty = document.createElement("li");
+      empty.textContent = "Nothing has been approved or declined yet.";
+      list.appendChild(empty);
+    }
+  }
+  function showApproval(approval, retry) {
+    pendingApproval = { approval: approval, retry: retry };
+    var summary = $("approvalSummary");
+    if (summary) summary.textContent = approval.summary || "Simko SI is waiting for you.";
+    post({ op: "audit" }).then(function (data) { paintAudit(data.audit || []); });
+    show("approvalCard");
+  }
   function boot() {
+    if (flags().approvals) {
+      var yes = $("approvalYes");
+      var no = $("approvalNo");
+      var close = $("approvalClose");
+      if (close && !close.dataset.bound) {
+        close.dataset.bound = "1";
+        close.addEventListener("click", hide);
+      }
+      function decide(decision) {
+        if (!pendingApproval) return;
+        var current = pendingApproval;
+        post({ op: "decide", approval_id: current.approval.id, decision: decision }).then(function (data) {
+          paintAudit((data && data.audit) || []);
+          if (decision === "approve" && data.ok && current.retry) current.retry(current.approval.id);
+          if (decision === "decline") hide();
+        });
+      }
+      if (yes && !yes.dataset.bound) {
+        yes.dataset.bound = "1";
+        yes.addEventListener("click", function () { decide("approve"); });
+      }
+      if (no && !no.dataset.bound) {
+        no.dataset.bound = "1";
+        no.addEventListener("click", function () { decide("decline"); });
+      }
+    }
     if (!flags().paywall) return;
     var usage = $("usageOpen");
     if (usage) usage.hidden = false;
@@ -132,7 +181,7 @@
       }, true);
     }
   }
-  window.simcoPlatform = { boot: boot, showPaywall: showPaywall };
+  window.simcoPlatform = { boot: boot, showPaywall: showPaywall, showApproval: showApproval };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();

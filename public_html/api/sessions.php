@@ -32,6 +32,14 @@ switch ($op) {
         simko_ok(['sessions' => simko_search_chats($userId, (string) ($body['q'] ?? ''))]);
         break;
     case 'relay':
+        require_once __DIR__ . '/approvals.php';
+        $note = trim((string) ($body['text'] ?? ''));
+        simko_guard_approval($userId, $body, 'relay', 'Send this note to another chat: ' . $note, [
+            'op' => 'relay',
+            'text' => $note,
+            'from_session_id' => (string) ($body['from_session_id'] ?? ''),
+            'to_session_id' => (string) ($body['to_session_id'] ?? ''),
+        ]);
         simko_relay($userId, $body);
         simko_ok();
         break;
