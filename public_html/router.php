@@ -14,6 +14,7 @@ $routes = [
     '/api/memory' => ['/api/memory.php', null],
     '/api/platform' => ['/api/platform.php', null],
     '/api/image' => ['/api/image.php', null],
+    '/api/share' => ['/api/share.php', null],
     '/api/health' => ['/api/machine.php', 'health'],
     '/api/installers' => ['/api/machine.php', 'installers'],
 ];

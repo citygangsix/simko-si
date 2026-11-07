@@ -1189,6 +1189,14 @@
     <button id="paywallTrial" type="button">Start a free trial</button>
     <p id="paywallNote" role="status"></p>
   </section>
+  <section id="shareCard" class="platformCard" hidden aria-labelledby="shareTitle">
+    <button id="shareClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="shareTitle">Share a report</h2>
+    <p class="platformLead">A Lifebook progress page with a long, unguessable link. You can revoke it.</p>
+    <button id="shareCreate" type="button">Create report link</button>
+    <p id="shareUrl" class="platformLead"></p>
+    <button id="shareRevoke" type="button" hidden>Revoke link</button>
+  </section>
   <section id="imageCard" class="platformCard" hidden aria-labelledby="imageTitle">
     <button id="imageClose" class="platformClose" type="button" aria-label="Close">×</button>
     <h2 id="imageTitle">Picture</h2>
@@ -1417,6 +1425,7 @@
   <button id="memoryOpen" type="button" hidden>Memory</button>
   <button id="routineOpen" type="button" hidden>Routines</button>
   <button id="imageOpen" type="button" hidden>Picture</button>
+  <button id="shareOpen" type="button" hidden>Share</button>
   <button id="detectHardware" type="button">Detect</button>
   <button id="downloadNow" type="button">Download</button>
   <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>

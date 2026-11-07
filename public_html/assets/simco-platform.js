@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,43 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().shares) {
+      var shareOpen = $("shareOpen");
+      if (shareOpen) shareOpen.hidden = false;
+      var shareToken = "";
+      if (shareOpen && !shareOpen.dataset.bound) {
+        shareOpen.dataset.bound = "1";
+        shareOpen.addEventListener("click", function () { show("shareCard"); });
+      }
+      var shareCreate = $("shareCreate");
+      if (shareCreate && !shareCreate.dataset.bound) {
+        shareCreate.dataset.bound = "1";
+        shareCreate.addEventListener("click", function () {
+          post({ op: "share-lifebook" }).then(function (data) {
+            if (!data.ok) return;
+            shareToken = data.share.token;
+            $("shareUrl").textContent = data.share.url;
+            $("shareRevoke").hidden = false;
+          });
+        });
+      }
+      var shareRevoke = $("shareRevoke");
+      if (shareRevoke && !shareRevoke.dataset.bound) {
+        shareRevoke.dataset.bound = "1";
+        shareRevoke.addEventListener("click", function () {
+          post({ op: "revoke-share", share_token: shareToken }).then(function (data) {
+            if (!data.ok) return;
+            $("shareUrl").textContent = "That link is revoked.";
+            shareRevoke.hidden = true;
+          });
+        });
+      }
+      var shareClose = $("shareClose");
+      if (shareClose && !shareClose.dataset.bound) {
+        shareClose.dataset.bound = "1";
+        shareClose.addEventListener("click", hide);
+      }
     }
     if (flags().images) {
       var imageOpen = $("imageOpen");

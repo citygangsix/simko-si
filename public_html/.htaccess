@@ -21,6 +21,7 @@ Options -Indexes
   RewriteRule ^api/memory/?$ api/memory.php [L]
   RewriteRule ^api/platform/?$ api/platform.php [L]
   RewriteRule ^api/image/?$ api/image.php [L,QSA]
+  RewriteRule ^api/share/?$ api/share.php [L,QSA]
   RewriteRule ^api/health/?$ api/machine.php?op=health [L,QSA]
   RewriteRule ^api/installers/?$ api/machine.php?op=installers [L,QSA]
   RewriteRule ^api/voice/(voices|speak|transcribe)/?$ api/voice.php?op=$1 [L,QSA]

@@ -7,6 +7,7 @@ require_once __DIR__ . '/approvals.php';
 require_once __DIR__ . '/recall.php';
 require_once __DIR__ . '/routines.php';
 require_once __DIR__ . '/images.php';
+require_once __DIR__ . '/shares.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -57,6 +58,19 @@ switch ($op) {
             simko_fail(404, 'Approvals are turned off.');
         }
         simko_ok(['audit' => simko_audit_rows($userId)]);
+        break;
+    case 'share-lifebook':
+        if (!simko_flag('shares')) {
+            simko_fail(404, 'Sharing is turned off.');
+        }
+        simko_ok(['share' => simko_share_create($userId)]);
+        break;
+    case 'revoke-share':
+        if (!simko_flag('shares')) {
+            simko_fail(404, 'Sharing is turned off.');
+        }
+        simko_share_revoke($userId, (string) ($body['share_token'] ?? ''));
+        simko_ok();
         break;
     case 'imagine':
         if (!simko_flag('images')) {
