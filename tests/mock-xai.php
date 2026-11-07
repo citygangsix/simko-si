@@ -16,7 +16,16 @@ if ($path === '/v1/chat/completions') {
         $content = $message['content'] ?? '';
         $text = is_string($content) ? $content : json_encode($content);
     }
+    $system = '';
+    foreach ($body['messages'] ?? [] as $message) {
+        if (is_array($message) && ($message['role'] ?? '') === 'system') {
+            $system = (string) ($message['content'] ?? '');
+        }
+    }
     $text = trim((string) preg_replace('/\s+/', ' ', $text));
+    if (str_contains($system, 'asked you to remember')) {
+        $text .= ' [remembered]';
+    }
     $payload = [
         'id' => 'mock-completion',
         'model' => $body['model'] ?? 'grok-4.7',

@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,49 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().memory) {
+      var memoryOpen = $("memoryOpen");
+      if (memoryOpen) memoryOpen.hidden = false;
+      function paintMemories(rows) {
+        var list = $("memoryList");
+        if (!list) return;
+        list.replaceChildren();
+        (rows || []).forEach(function (row) {
+          var item = document.createElement("li");
+          item.textContent = row.fact + " ";
+          var button = document.createElement("button");
+          button.type = "button";
+          button.textContent = "Delete";
+          button.addEventListener("click", function () {
+            post({ op: "forget", memory_id: row.id }).then(function (data) {
+              if (data.ok) paintMemories(data.memories || []);
+            });
+          });
+          item.appendChild(button);
+          list.appendChild(item);
+        });
+        if (!(rows || []).length) {
+          var empty = document.createElement("li");
+          empty.textContent = "No memories yet.";
+          list.appendChild(empty);
+        }
+      }
+      if (memoryOpen && !memoryOpen.dataset.bound) {
+        memoryOpen.dataset.bound = "1";
+        memoryOpen.addEventListener("click", function () {
+          post({ op: "memories" }).then(function (data) {
+            if (!data.ok) return;
+            paintMemories(data.memories || []);
+            show("memoryCard");
+          });
+        });
+      }
+      var memoryClose = $("memoryClose");
+      if (memoryClose && !memoryClose.dataset.bound) {
+        memoryClose.dataset.bound = "1";
+        memoryClose.addEventListener("click", hide);
+      }
     }
     if (flags().approvals) {
       var yes = $("approvalYes");

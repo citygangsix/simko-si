@@ -4,6 +4,7 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/usage.php';
 require_once __DIR__ . '/search.php';
+require_once __DIR__ . '/recall.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -41,6 +42,14 @@ if ($system === '') {
     $system = 'You are Simko SI, Joseph Simko\'s assistant. Reply in clear everyday English. Be warm and brief.';
 }
 
+$memoryChild = null;
+if (simko_flag('memory') && !empty($body['child_id'])) {
+    $memoryChild = simko_requested_child((int) $user['id'], $body);
+}
+$remembered = simko_memory_prompt((int) $user['id'], $memoryChild);
+if ($remembered !== '') {
+    $system .= "\n\n" . $remembered;
+}
 $messages = [['role' => 'system', 'content' => $system]];
 $sessionId = (string) ($body['session_id'] ?? '');
 $chat = simko_chat_owned((int) $user['id'], $sessionId);
@@ -95,6 +104,7 @@ if ($reply === '') {
 }
 
 simko_usage_record((int) $user['id'], !empty($body['voice']) ? 'voice' : 'message');
+simko_memory_learn((int) $user['id'], $memoryChild, $text);
 
 simko_ok([
     'everyday' => $reply,

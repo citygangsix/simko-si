@@ -117,3 +117,12 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_approvals_user ON approvals(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id, id);
+
+CREATE TABLE IF NOT EXISTS memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    child_profile_id INTEGER,
+    fact TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_id, child_profile_id, id);

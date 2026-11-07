@@ -422,6 +422,16 @@ function simko_migrate(PDO $db): void
     );
     $db->exec('CREATE INDEX IF NOT EXISTS idx_approvals_user ON approvals(user_id, id)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id, id)');
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS memories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            child_profile_id INTEGER,
+            fact TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )'
+    );
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_id, child_profile_id, id)');
 }
 
 function simko_add_column(PDO $db, string $table, string $column, string $definition): void

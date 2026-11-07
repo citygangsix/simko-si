@@ -4,6 +4,7 @@ declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/usage.php';
 require_once __DIR__ . '/approvals.php';
+require_once __DIR__ . '/recall.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -54,6 +55,20 @@ switch ($op) {
             simko_fail(404, 'Approvals are turned off.');
         }
         simko_ok(['audit' => simko_audit_rows($userId)]);
+        break;
+    case 'memories':
+        if (!simko_flag('memory')) {
+            simko_fail(404, 'Memory is turned off.');
+        }
+        $childId = simko_requested_child($userId, $body);
+        simko_ok(['memories' => simko_memory_rows($userId, $childId)]);
+        break;
+    case 'forget':
+        if (!simko_flag('memory')) {
+            simko_fail(404, 'Memory is turned off.');
+        }
+        simko_memory_delete($userId, (int) ($body['memory_id'] ?? 0));
+        simko_ok(['memories' => simko_memory_rows($userId, simko_requested_child($userId, $body))]);
         break;
     case 'start-trial':
         if (!simko_flag('paywall')) {
