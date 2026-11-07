@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/usage.php';
+require_once __DIR__ . '/search.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -57,6 +58,17 @@ $spoken = $text;
 if ($feature !== '') {
     $spoken .= "\n\nThe person is on a " . $feature . " step. Answer in everyday words.";
 }
+$strictSearch = false;
+if (simko_flag('search') && !empty($body['child_id'])) {
+    simko_requested_child((int) $user['id'], $body);
+    $strictSearch = true;
+}
+if (simko_flag('search') && simko_search_blocked($text, $strictSearch)) {
+    simko_fail(400, $strictSearch
+        ? 'That search is blocked for a child profile.'
+        : 'That search is blocked.');
+}
+
 $messages[] = ['role' => 'user', 'content' => $spoken];
 if (count($messages) > 41) {
     $messages = array_merge([$messages[0]], array_slice($messages, -40));
@@ -68,11 +80,15 @@ if ($timeout < 5) {
 }
 @set_time_limit($timeout + 5);
 
-$data = simko_curl_json(simko_xai_url('chat/completions'), [
+$completion = [
     'model' => $model,
     'stream' => false,
     'messages' => $messages,
-], $timeout);
+];
+if (simko_flag('search')) {
+    $completion['search_parameters'] = simko_search_parameters($strictSearch);
+}
+$data = simko_curl_json(simko_xai_url('chat/completions'), $completion, $timeout);
 $reply = simko_choice_text($data);
 if ($reply === '') {
     simko_fail(502, 'No reply came back from Simko SI. Try again in a moment.');
@@ -86,4 +102,5 @@ simko_ok([
     'model' => $model,
     'intent' => $feature === '' ? 'chat' : $feature,
     'usage' => simko_flag('paywall') ? simko_usage_snapshot((int) $user['id']) : null,
+    'sources' => simko_flag('search') ? simko_search_sources($data, $strictSearch) : [],
 ]);

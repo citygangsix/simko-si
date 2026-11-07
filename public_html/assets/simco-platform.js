@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -82,7 +82,33 @@
     post({ op: "audit" }).then(function (data) { paintAudit(data.audit || []); });
     show("approvalCard");
   }
+  function showSources(sources) {
+    var list = $("searchSources");
+    if (!list) return;
+    list.replaceChildren();
+    (sources || []).forEach(function (url) {
+      var item = document.createElement("li");
+      var link = document.createElement("a");
+      link.href = url;
+      link.textContent = url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      item.appendChild(link);
+      list.appendChild(item);
+    });
+    if (!(sources || []).length) {
+      var empty = document.createElement("li");
+      empty.textContent = "No safe sources came back.";
+      list.appendChild(empty);
+    }
+    show("searchCard");
+  }
   function boot() {
+    var searchClose = $("searchClose");
+    if (flags().search && searchClose && !searchClose.dataset.bound) {
+      searchClose.dataset.bound = "1";
+      searchClose.addEventListener("click", hide);
+    }
     if (flags().approvals) {
       var yes = $("approvalYes");
       var no = $("approvalNo");
@@ -181,7 +207,7 @@
       }, true);
     }
   }
-  window.simcoPlatform = { boot: boot, showPaywall: showPaywall, showApproval: showApproval };
+  window.simcoPlatform = { boot: boot, showPaywall: showPaywall, showApproval: showApproval, showSources: showSources };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();
 })();

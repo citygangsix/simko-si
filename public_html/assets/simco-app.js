@@ -751,8 +751,10 @@
         token: authToken,
         session_id: activeSessionId || "",
         feature: detectIntent(text),
-        voice: !!voiceTurn
+        voice: !!voiceTurn,
+        child_id: window.simcoChildId || undefined
       });
+      if (data && data.sources && window.simcoPlatform) window.simcoPlatform.showSources(data.sources);
       if (data && data.paywall) {
         if (window.simcoPlatform) window.simcoPlatform.showPaywall(data);
         setReply(data.error || "The 5 free messages are used up.");

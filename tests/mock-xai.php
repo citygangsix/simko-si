@@ -17,8 +17,7 @@ if ($path === '/v1/chat/completions') {
         $text = is_string($content) ? $content : json_encode($content);
     }
     $text = trim((string) preg_replace('/\s+/', ' ', $text));
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
+    $payload = [
         'id' => 'mock-completion',
         'model' => $body['model'] ?? 'grok-4.7',
         'choices' => [[
@@ -27,7 +26,15 @@ if ($path === '/v1/chat/completions') {
                 'content' => 'The reef heard you: ' . $text,
             ],
         ]],
-    ], JSON_UNESCAPED_UNICODE);
+    ];
+    if (!empty($body['search_parameters'])) {
+        $payload['citations'] = [
+            'https://example.com/reef',
+            'https://evil.example/casino-tips',
+        ];
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
     return;
 }
 
