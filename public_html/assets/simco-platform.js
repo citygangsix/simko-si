@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,47 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().images) {
+      var imageOpen = $("imageOpen");
+      if (imageOpen) imageOpen.hidden = false;
+      function paintImages(rows) {
+        var grid = $("imageGrid");
+        if (!grid) return;
+        grid.replaceChildren();
+        (rows || []).forEach(function (row) {
+          var img = document.createElement("img");
+          img.src = row.url;
+          img.alt = row.prompt;
+          grid.appendChild(img);
+        });
+      }
+      if (imageOpen && !imageOpen.dataset.bound) {
+        imageOpen.dataset.bound = "1";
+        imageOpen.addEventListener("click", function () {
+          post({ op: "images" }).then(function (data) {
+            if (!data.ok) return;
+            paintImages(data.images || []);
+            show("imageCard");
+          });
+        });
+      }
+      var imageForm = $("imageForm");
+      if (imageForm && !imageForm.dataset.bound) {
+        imageForm.dataset.bound = "1";
+        imageForm.addEventListener("submit", function (event) {
+          event.preventDefault();
+          post({ op: "imagine", prompt: $("imagePrompt").value }).then(function (data) {
+            if (!data.ok) return;
+            paintImages(data.images || []);
+          });
+        });
+      }
+      var imageClose = $("imageClose");
+      if (imageClose && !imageClose.dataset.bound) {
+        imageClose.dataset.bound = "1";
+        imageClose.addEventListener("click", hide);
+      }
     }
     if (flags().routines) {
       var routineOpen = $("routineOpen");

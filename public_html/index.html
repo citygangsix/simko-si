@@ -1047,7 +1047,9 @@
   }
   #paywallNote, #usageList { margin: 0.7rem 0 0; line-height: 1.4; }
   #usageList { padding-left: 1.1rem; }
-  #usageOpen[hidden], #memoryOpen[hidden], #routineOpen[hidden] { display: none !important; }
+  #usageOpen[hidden], #memoryOpen[hidden], #routineOpen[hidden], #imageOpen[hidden] { display: none !important; }
+  #imageGrid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.7rem; }
+  #imageGrid img { width: 8rem; height: 8rem; object-fit: cover; border-radius: 0.8rem; background: #03141c; }
   #routineForm { display: flex; flex-direction: column; gap: 0.4rem; }
   #routineForm input, #routineForm select, #familyAddForm input, #familyAddForm select {
     border-radius: 999px;
@@ -1186,6 +1188,17 @@
     <button id="paywallBuy" type="button">$9 first month</button>
     <button id="paywallTrial" type="button">Start a free trial</button>
     <p id="paywallNote" role="status"></p>
+  </section>
+  <section id="imageCard" class="platformCard" hidden aria-labelledby="imageTitle">
+    <button id="imageClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="imageTitle">Picture</h2>
+    <p class="platformLead">A picture from a prompt. Video is not made here. Video stays on a rented GPU, on the desktop app Wan path.</p>
+    <form id="imageForm">
+      <label for="imagePrompt">Prompt</label>
+      <input id="imagePrompt" type="text" maxlength="500" placeholder="A sea turtle over the reef">
+      <button type="submit">Make the picture</button>
+    </form>
+    <div id="imageGrid"></div>
   </section>
   <section id="routineCard" class="platformCard" hidden aria-labelledby="routineTitle">
     <button id="routineClose" class="platformClose" type="button" aria-label="Close">×</button>
@@ -1403,6 +1416,7 @@
   <button id="usageOpen" type="button" hidden>Usage</button>
   <button id="memoryOpen" type="button" hidden>Memory</button>
   <button id="routineOpen" type="button" hidden>Routines</button>
+  <button id="imageOpen" type="button" hidden>Picture</button>
   <button id="detectHardware" type="button">Detect</button>
   <button id="downloadNow" type="button">Download</button>
   <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>

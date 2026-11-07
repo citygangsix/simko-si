@@ -138,6 +138,14 @@ CREATE TABLE IF NOT EXISTS routines (
     last_run INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS generated_images (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    child_profile_id INTEGER,
+    prompt TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS routine_deliveries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     routine_id INTEGER NOT NULL,

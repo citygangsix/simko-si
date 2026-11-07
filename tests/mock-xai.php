@@ -47,6 +47,13 @@ if ($path === '/v1/chat/completions') {
     return;
 }
 
+if ($path === '/v1/images/generations') {
+    header('Content-Type: application/json; charset=utf-8');
+    $png = base64_encode(base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
+    echo json_encode(['data' => [['b64_json' => $png]]]);
+    return;
+}
+
 if ($path === '/v1/tts') {
     header('Content-Type: audio/wav');
     header('Cache-Control: no-store');

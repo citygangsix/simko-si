@@ -13,6 +13,7 @@ $routes = [
     '/api/simco/turn' => ['/api/chat.php', null],
     '/api/memory' => ['/api/memory.php', null],
     '/api/platform' => ['/api/platform.php', null],
+    '/api/image' => ['/api/image.php', null],
     '/api/health' => ['/api/machine.php', 'health'],
     '/api/installers' => ['/api/machine.php', 'installers'],
 ];

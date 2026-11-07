@@ -6,6 +6,7 @@ require_once __DIR__ . '/usage.php';
 require_once __DIR__ . '/approvals.php';
 require_once __DIR__ . '/recall.php';
 require_once __DIR__ . '/routines.php';
+require_once __DIR__ . '/images.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -56,6 +57,23 @@ switch ($op) {
             simko_fail(404, 'Approvals are turned off.');
         }
         simko_ok(['audit' => simko_audit_rows($userId)]);
+        break;
+    case 'imagine':
+        if (!simko_flag('images')) {
+            simko_fail(404, 'Pictures are turned off.');
+        }
+        $childId = simko_requested_child($userId, $body);
+        $image = simko_image_generate($userId, (string) ($body['prompt'] ?? ''), $childId);
+        simko_ok(['image' => $image, 'images' => simko_image_rows($userId)]);
+        break;
+    case 'images':
+        if (!simko_flag('images')) {
+            simko_fail(404, 'Pictures are turned off.');
+        }
+        simko_ok([
+            'images' => simko_image_rows($userId),
+            'video' => 'Video is not made here. Video stays on a rented GPU, on the desktop app Wan path.',
+        ]);
         break;
     case 'routines':
         if (!simko_flag('routines')) {
