@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/usage.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -12,6 +13,15 @@ if ($text === '') {
 $max = simko_max_chars();
 if (simko_len($text) > $max) {
     simko_fail(413, 'That message is too long. Keep it under ' . $max . ' characters.');
+}
+
+$gate = simko_usage_gate((int) $user['id']);
+if (empty($gate['allowed'])) {
+    simko_fail(402, 'The 5 free messages are used up.', [
+        'paywall' => true,
+        'used' => $gate['used'] ?? 0,
+        'limit' => $gate['limit'] ?? 5,
+    ]);
 }
 
 $feature = strtolower((string) ($body['feature'] ?? ''));
@@ -68,9 +78,12 @@ if ($reply === '') {
     simko_fail(502, 'No reply came back from Simko SI. Try again in a moment.');
 }
 
+simko_usage_record((int) $user['id'], !empty($body['voice']) ? 'voice' : 'message');
+
 simko_ok([
     'everyday' => $reply,
     'raw' => '',
     'model' => $model,
     'intent' => $feature === '' ? 'chat' : $feature,
+    'usage' => simko_flag('paywall') ? simko_usage_snapshot((int) $user['id']) : null,
 ]);

@@ -41,6 +41,34 @@ return [
     // Desktop installers. Leave empty until files exist; the site then says
     // "Desktop app download coming soon." Each url must be https.
     'installers' => [],
+    // New screens stay hidden until a flag is true. All default off.
+    // The message cap runs only when platform.paywall is true.
+    'platform' => [
+        'paywall' => false,
+        'approvals' => false,
+        'search' => false,
+        'memory' => false,
+        'routines' => false,
+        'images' => false,
+        'shares' => false,
+        'oauth' => false,
+        'vault' => false,
+        'connectors' => false,
+        'agents' => false,
+        'team' => false,
+        'calls' => false,
+        'browse' => false,
+        'store' => false,
+    ],
+    // Square hosted checkout. Leave the access token empty. Sandbox only.
+    // Nothing is charged until the person taps the pay button and Square takes payment.
+    'square' => [
+        'environment' => 'sandbox',
+        'application_id' => '',
+        'location_id' => '',
+        'access_token' => '',
+        'api_base' => 'https://connect.squareupsandbox.com',
+    ],
     // Optional. Leave enabled false. Only project wxvjajecvklfjxppawdx is honored.
     'supabase' => [
         'enabled' => false,

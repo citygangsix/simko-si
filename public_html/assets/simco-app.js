@@ -65,6 +65,22 @@
     return document.documentElement.getAttribute("data-simko-family") === "1";
   }
 
+  function loadPlatformScript() {
+    const flags = window.simkoPlatformFlags || {};
+    const on = Object.keys(flags).some((name) => flags[name]);
+    if (!on || document.querySelector("script[data-platform='1']")) {
+      if (on && window.simcoPlatform) window.simcoPlatform.boot();
+      return;
+    }
+    const script = document.createElement("script");
+    const build = document.querySelector('meta[name="simko-build"]');
+    const version = build ? build.getAttribute("content") || "" : "";
+    script.src = "/assets/simco-platform.js" + (version ? "?v=" + encodeURIComponent(version) : "");
+    script.dataset.platform = "1";
+    script.onload = () => { if (window.simcoPlatform) window.simcoPlatform.boot(); };
+    document.body.appendChild(script);
+  }
+
   function loadFamilyScript() {
     if (!familyOn() || document.querySelector("script[data-family='1']")) {
       if (familyOn() && window.simcoFamily) window.simcoFamily.boot();
@@ -161,7 +177,9 @@
       setConnected(on);
       $("installWord").textContent = on ? "Ready" : "Waiting";
       if (data && data.family_ui) document.documentElement.setAttribute("data-simko-family", "1");
+      window.simkoPlatformFlags = (data && data.platform) || {};
       loadFamilyScript();
+      loadPlatformScript();
     } catch (e) {
       setConnected(false);
       $("installWord").textContent = "Waiting";
@@ -717,7 +735,7 @@
       setReply("Type a message, then Send.");
       return;
     }
-    if (window.simcoVoice) window.simcoVoice.consumeTurn();
+    const voiceTurn = window.simcoVoice ? window.simcoVoice.consumeTurn() : false;
     if (!hasSession()) {
       needAccount();
       return;
@@ -732,8 +750,14 @@
         text: text,
         token: authToken,
         session_id: activeSessionId || "",
-        feature: detectIntent(text)
+        feature: detectIntent(text),
+        voice: !!voiceTurn
       });
+      if (data && data.paywall) {
+        if (window.simcoPlatform) window.simcoPlatform.showPaywall(data);
+        setReply(data.error || "The 5 free messages are used up.");
+        return;
+      }
       everyday = (data && (data.everyday || data.error)) || "";
       if (data && data.model) model = data.model;
     } catch (e) {

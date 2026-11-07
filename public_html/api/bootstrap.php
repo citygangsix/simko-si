@@ -381,6 +381,24 @@ function simko_migrate(PDO $db): void
     $db->exec('CREATE INDEX IF NOT EXISTS idx_child_parent ON child_profiles(parent_user_id, id)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_chats_child ON chats(user_id, child_profile_id, updated_at DESC)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_mail_email ON mail_log(email, sent_at)');
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS usage_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )'
+    );
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS subscriptions (
+            user_id INTEGER PRIMARY KEY,
+            status TEXT NOT NULL,
+            trial_until INTEGER,
+            square_link_id TEXT,
+            updated_at INTEGER NOT NULL
+        )'
+    );
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_usage_user ON usage_events(user_id, id)');
 }
 
 function simko_add_column(PDO $db, string $table, string $column, string $definition): void
@@ -405,6 +423,30 @@ function simko_add_column(PDO $db, string $table, string $column, string $defini
 function simko_family_ui(): bool
 {
     return !empty(simko_config_or_empty()['family_ui']);
+}
+
+function simko_platform_names(): array
+{
+    return [
+        'paywall', 'approvals', 'search', 'memory', 'routines', 'images',
+        'shares', 'oauth', 'vault', 'connectors', 'agents', 'team',
+        'calls', 'browse', 'store',
+    ];
+}
+
+function simko_flag(string $name): bool
+{
+    $flags = simko_config_or_empty()['platform'] ?? [];
+    return is_array($flags) && !empty($flags[$name]);
+}
+
+function simko_platform_flags(): array
+{
+    $out = [];
+    foreach (simko_platform_names() as $name) {
+        $out[$name] = simko_flag($name);
+    }
+    return $out;
 }
 
 function simko_user_for_token(string $token): ?array

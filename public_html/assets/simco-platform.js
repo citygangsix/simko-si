@@ -1,0 +1,138 @@
+/* Extra Simko SI screens. Loaded only when a platform flag is on. */
+(function () {
+  function $(id) { return document.getElementById(id); }
+  function flags() { return window.simkoPlatformFlags || {}; }
+  function token() {
+    try { return sessionStorage.getItem("podcoderToken") || window.simcoUserToken || ""; }
+    catch (e) { return window.simcoUserToken || ""; }
+  }
+  function signedIn() {
+    return document.documentElement.getAttribute("data-simko-signed") === "1" || !!token();
+  }
+  function post(body) {
+    return fetch("/api/platform", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign({ token: token() }, body))
+    }).then(function (res) { return res.json(); });
+  }
+  function show(id) {
+    ["paywallCard", "usagePage"].forEach(function (name) {
+      var card = $(name);
+      if (card) card.hidden = name !== id;
+    });
+    var stage = $("platformStage");
+    if (stage) stage.hidden = false;
+  }
+  function hide() {
+    var stage = $("platformStage");
+    if (stage) stage.hidden = true;
+  }
+  function showPaywall(data) {
+    var lead = $("paywallLead");
+    if (lead) {
+      var used = data && data.used != null ? data.used : 5;
+      lead.textContent = used + " messages are used. Nothing is charged until you tap pay.";
+    }
+    var note = $("paywallNote");
+    if (note) note.textContent = "";
+    show("paywallCard");
+  }
+  function paintUsage(data) {
+    var summary = $("usageSummary");
+    var list = $("usageList");
+    if (summary) {
+      if (data.status === "paid") summary.textContent = "This month is paid. " + data.used + " messages so far.";
+      else summary.textContent = data.used + " of " + data.limit + " messages used. " + data.remaining + " left.";
+    }
+    if (!list) return;
+    list.replaceChildren();
+    (data.events || []).forEach(function (event) {
+      var item = document.createElement("li");
+      var when = new Date((event.created_at || 0) * 1000);
+      item.textContent = (event.kind === "voice" ? "Voice turn" : "Message") + " · " + when.toLocaleString();
+      list.appendChild(item);
+    });
+    if (!(data.events || []).length) {
+      var empty = document.createElement("li");
+      empty.textContent = "No messages yet.";
+      list.appendChild(empty);
+    }
+  }
+  function boot() {
+    if (!flags().paywall) return;
+    var usage = $("usageOpen");
+    if (usage) usage.hidden = false;
+    if (usage && !usage.dataset.bound) {
+      usage.dataset.bound = "1";
+      usage.addEventListener("click", function () {
+        post({ op: "usage" }).then(function (data) {
+          if (!data.ok) return;
+          paintUsage(data);
+          show("usagePage");
+        });
+      });
+    }
+    [["paywallClose", hide], ["usageClose", hide]].forEach(function (pair) {
+      var button = $(pair[0]);
+      if (button && !button.dataset.bound) {
+        button.dataset.bound = "1";
+        button.addEventListener("click", pair[1]);
+      }
+    });
+    var buy = $("paywallBuy");
+    if (buy && !buy.dataset.bound) {
+      buy.dataset.bound = "1";
+      buy.addEventListener("click", function () {
+        var note = $("paywallNote");
+        post({ op: "checkout" }).then(function (data) {
+          if (data.url) {
+            if (note) note.textContent = "Checkout is ready. Opening Square does not charge you until you pay there.";
+            window.location.href = data.url;
+            return;
+          }
+          if (note) note.textContent = data.error || "Square is not connected yet. Nothing was charged.";
+        });
+      });
+    }
+    var trial = $("paywallTrial");
+    if (trial && !trial.dataset.bound) {
+      trial.dataset.bound = "1";
+      trial.addEventListener("click", function () {
+        post({ op: "start-trial" }).then(function (data) {
+          var note = $("paywallNote");
+          if (!data.ok) {
+            if (note) note.textContent = data.error || "The trial could not start.";
+            return;
+          }
+          if (note) note.textContent = "Free trial started. Nothing was charged.";
+        });
+      });
+    }
+    var box = $("everyday");
+    if (box && !box.dataset.paywallBound) {
+      box.dataset.paywallBound = "1";
+      box.addEventListener("focus", function () {
+        if (!signedIn()) {
+          box.blur();
+          var sign = $("accountSignIn");
+          if (sign) sign.click();
+        }
+      });
+    }
+    var go = $("go");
+    if (go && !go.dataset.paywallBound) {
+      go.dataset.paywallBound = "1";
+      go.addEventListener("click", function (event) {
+        if (signedIn()) return;
+        event.preventDefault();
+        event.stopPropagation();
+        var sign = $("accountSignIn");
+        if (sign) sign.click();
+      }, true);
+    }
+  }
+  window.simcoPlatform = { boot: boot, showPaywall: showPaywall };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();

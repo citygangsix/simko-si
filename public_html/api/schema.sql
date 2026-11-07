@@ -76,3 +76,22 @@ CREATE INDEX IF NOT EXISTS idx_life_user ON life_events(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_tokens_user ON auth_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_child_parent ON child_profiles(parent_user_id, id);
 CREATE INDEX IF NOT EXISTS idx_mail_email ON mail_log(email, sent_at);
+
+-- Paywall. Applied by simko_migrate() on the app's own SQLite file.
+-- Not run against production by hand.
+CREATE TABLE IF NOT EXISTS usage_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+    user_id INTEGER PRIMARY KEY,
+    status TEXT NOT NULL,
+    trial_until INTEGER,
+    square_link_id TEXT,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_user ON usage_events(user_id, id);

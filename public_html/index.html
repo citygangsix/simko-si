@@ -998,6 +998,56 @@
   .familyPerson b { font-size: 1.8rem; line-height: 1; }
   #familyError { margin: 0.45rem 0 0; color: #ffd6c4; }
   #familyError[hidden] { display: none !important; }
+  #platformStage {
+    position: fixed;
+    inset: 0;
+    z-index: 57;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
+    background: rgba(3, 20, 28, 0.55);
+  }
+  #platformStage[hidden] { display: none !important; }
+  .platformCard {
+    width: min(28rem, 100%);
+    max-height: min(40rem, calc(100dvh - 2rem));
+    overflow: auto;
+    position: relative;
+    padding: 1.2rem 1.1rem 1.1rem;
+    border-radius: 1.4rem;
+    background: rgba(3, 20, 28, 0.9);
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    backdrop-filter: blur(18px);
+    color: #fff;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  }
+  .platformCard[hidden] { display: none !important; }
+  .platformCard h2 { margin: 0 2.2rem 0.4rem 0; font-size: 1.45rem; font-weight: 500; }
+  .platformLead { margin: 0 0 0.8rem; line-height: 1.45; }
+  .platformClose {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border-radius: 999px;
+  }
+  #paywallBuy { width: 100%; min-height: 48px; font-size: 1.05rem; }
+  #paywallTrial {
+    display: block;
+    width: 100%;
+    margin-top: 0.45rem;
+    background: transparent;
+    border-color: transparent;
+    color: #ffd6c4;
+    font-size: 0.92rem;
+    text-decoration: underline;
+  }
+  #paywallNote, #usageList { margin: 0.7rem 0 0; line-height: 1.4; }
+  #usageList { padding-left: 1.1rem; }
+  #usageOpen[hidden] { display: none !important; }
   @media (max-width: 480px) {
     .familyCard { padding: 1rem 0.85rem 0.9rem; }
     .familyPerson { width: calc(50% - 0.3rem); }
@@ -1118,6 +1168,22 @@
     <button id="familyOpen" type="button" hidden>Family</button>
     <button id="accountSignOut" type="button">Sign out</button>
   </div>
+</div>
+<div id="platformStage" hidden>
+  <section id="paywallCard" class="platformCard" hidden aria-labelledby="paywallTitle">
+    <button id="paywallClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="paywallTitle">Keep talking with Simko SI</h2>
+    <p id="paywallLead" class="platformLead">The 5 free messages are used up. Nothing is charged until you tap pay.</p>
+    <button id="paywallBuy" type="button">$9 first month</button>
+    <button id="paywallTrial" type="button">Start a free trial</button>
+    <p id="paywallNote" role="status"></p>
+  </section>
+  <section id="usagePage" class="platformCard" hidden aria-labelledby="usageTitle">
+    <button id="usageClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="usageTitle">Usage</h2>
+    <p id="usageSummary" class="platformLead"></p>
+    <ul id="usageList"></ul>
+  </section>
 </div>
 <div id="familyStage" hidden>
   <section class="familyCard" id="familyDash" aria-labelledby="familyDashTitle">
@@ -1283,6 +1349,7 @@
   <button id="roleCoding" type="button" aria-pressed="true">Coding</button>
   <button id="roleVideo" type="button" aria-pressed="false">Video</button>
   <button id="roleImage" type="button" aria-pressed="false">Image</button>
+  <button id="usageOpen" type="button" hidden>Usage</button>
   <button id="detectHardware" type="button">Detect</button>
   <button id="downloadNow" type="button">Download</button>
   <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>
