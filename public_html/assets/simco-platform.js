@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,45 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().connectors) {
+      var connectorOpen = $("connectorOpen");
+      if (connectorOpen) connectorOpen.hidden = false;
+      if (connectorOpen && !connectorOpen.dataset.bound) {
+        connectorOpen.dataset.bound = "1";
+        connectorOpen.addEventListener("click", function () {
+          post({ op: "connectors" }).then(function (data) {
+            var list = $("connectorList");
+            if (!list) return;
+            list.replaceChildren();
+            (data.connectors || []).forEach(function (row) {
+              if (!row.ready) return;
+              var item = document.createElement("li");
+              var button = document.createElement("button");
+              button.type = "button";
+              button.textContent = "Connect " + row.name;
+              button.addEventListener("click", function () {
+                post({ op: "connector-start", provider: row.id }).then(function (started) {
+                  if (started.url) window.location.href = started.url;
+                });
+              });
+              item.appendChild(button);
+              list.appendChild(item);
+            });
+            if (!list.children.length) {
+              var empty = document.createElement("li");
+              empty.textContent = "Connectors stay hidden until their client ids are set.";
+              list.appendChild(empty);
+            }
+            show("connectorCard");
+          });
+        });
+      }
+      var connectorClose = $("connectorClose");
+      if (connectorClose && !connectorClose.dataset.bound) {
+        connectorClose.dataset.bound = "1";
+        connectorClose.addEventListener("click", hide);
+      }
     }
     if (flags().vault) {
       var vaultOpen = $("vaultOpen");

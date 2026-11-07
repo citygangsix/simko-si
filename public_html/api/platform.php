@@ -10,6 +10,7 @@ require_once __DIR__ . '/images.php';
 require_once __DIR__ . '/shares.php';
 require_once __DIR__ . '/oauth.php';
 require_once __DIR__ . '/vault.php';
+require_once __DIR__ . '/connectors.php';
 
 $body = simko_require_post_json();
 $op = (string) ($body['op'] ?? '');
@@ -63,6 +64,18 @@ switch ($op) {
             simko_fail(404, 'Approvals are turned off.');
         }
         simko_ok(['audit' => simko_audit_rows($userId)]);
+        break;
+    case 'connectors':
+        if (!simko_flag('connectors')) {
+            simko_fail(404, 'Connectors are turned off.');
+        }
+        simko_ok(['connectors' => simko_connector_list()]);
+        break;
+    case 'connector-start':
+        if (!simko_flag('connectors')) {
+            simko_fail(404, 'Connectors are turned off.');
+        }
+        simko_ok(simko_connector_start($userId, (string) ($body['provider'] ?? '')));
         break;
     case 'vault-list':
         if (!simko_flag('vault')) {

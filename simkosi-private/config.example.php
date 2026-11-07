@@ -66,6 +66,20 @@ return [
     // Buttons stay hidden while an id is empty, and while platform.oauth is false.
     // Google: Cloud Console, OAuth client, redirect https://simkosi.com/api/oauth/callback
     // Apple: developer.apple.com, Services ID, Sign in with Apple, same redirect. $99/year membership is Joseph's decision.
+    // Connectors. Client ids empty means the buttons stay hidden.
+    // Google Drive is read-only. GitHub reads repositories. No Gmail. No banks.
+    'connectors' => [
+        'google-drive' => [
+            'client_id' => '',
+            'client_secret' => '',
+            'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
+        ],
+        'github' => [
+            'client_id' => '',
+            'client_secret' => '',
+            'authorize_url' => 'https://github.com/login/oauth/authorize',
+        ],
+    ],
     'oauth' => [
         'google' => [
             'client_id' => '',
