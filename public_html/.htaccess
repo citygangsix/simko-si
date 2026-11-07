@@ -1,0 +1,56 @@
+DirectoryIndex index.html index.php default.php
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # If the private folder is ever unpacked inside the site root, refuse it.
+  RewriteRule ^simkosi-private(/|$) - [F,L]
+
+  # HTTPS is terminated on Hostinger. Skip the loopback server used for local tests.
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+  RewriteCond %{HTTP_HOST} !^127\.0\.0\.1(:[0-9]+)?$ [NC]
+  RewriteCond %{HTTP_HOST} !^localhost(:[0-9]+)?$ [NC]
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  RewriteRule ^api/auth/?$ api/auth.php [L]
+  RewriteRule ^api/sessions/?$ api/sessions.php [L]
+  RewriteRule ^api/simco/turn/?$ api/chat.php [L]
+  RewriteRule ^api/memory/?$ api/memory.php [L]
+  RewriteRule ^api/health/?$ api/machine.php?op=health [L,QSA]
+  RewriteRule ^api/installers/?$ api/machine.php?op=installers [L,QSA]
+  RewriteRule ^api/voice/(voices|speak|transcribe)/?$ api/voice.php?op=$1 [L,QSA]
+  RewriteRule ^themes/theme-host\.js$ assets/theme-host.js [L]
+  RewriteRule ^themes/([A-Za-z0-9._-]+)/theme\.css$ assets/themes/$1/theme.css [L]
+</IfModule>
+
+# Optional override when the private directory is not the sibling of public_html:
+# SetEnv SIMKOSI_PRIVATE /home/u667559395/domains/simkosi.com/simkosi-private
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType video/mp4 "access plus 30 days"
+  ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType text/css "access plus 1 day"
+  ExpiresByType application/javascript "access plus 1 day"
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(mp4)$">
+    Header set Cache-Control "public, max-age=2592000"
+    Header set Accept-Ranges "bytes"
+  </FilesMatch>
+  <FilesMatch "\.(jpg|jpeg|css|js)$">
+    Header set Cache-Control "public, max-age=86400"
+  </FilesMatch>
+</IfModule>
+
+<FilesMatch "(^config\.php$|\.sqlite$|\.sqlite-wal$|\.sqlite-shm$)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Deny from all
+  </IfModule>
+</FilesMatch>

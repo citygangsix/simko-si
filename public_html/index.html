@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en" data-simko-web="1">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
+<title>Simko SI</title>
+<script>
+(function () {
+  var id = "reef-live";
+  try {
+    var saved = localStorage.getItem("simcoTheme");
+    if (saved) id = saved;
+  } catch (e) {}
+  document.documentElement.setAttribute("data-theme", id);
+  var link = document.createElement("link");
+  link.id = "themeStylesheet";
+  link.rel = "stylesheet";
+  link.href = "/themes/" + encodeURIComponent(id) + "/theme.css";
+  document.head.appendChild(link);
+})();
+</script>
+<style>
+  /*
+    Book-style foldables.
+    Galaxy Z Fold 7 cover, measured CSS viewport 412×960, landscape 960×412, DPR 2.625
+    (https://breakpane.com/en/devices/galaxy-z-fold7-cover). Physical 6.5 in, 2520×1080
+    (Samsung support). Chrome's first-load visible height on that cover is about 848.
+    Galaxy Z Fold 7 inner, measured CSS viewport 750×832, landscape 832×750, DPR 2.625
+    (https://breakpane.com/en/devices/galaxy-z-fold7-open). Physical 8.0 in, 2184×1968.
+    YesViz also publishes a DPR 2 estimate of 984×1092 (https://yesviz.com/devices/samsung-z-fold7/);
+    that size stays in the two-pane range.
+    motorola razr fold (2026), Motorola's book-style fold: cover 6.6 in 2520×1080,
+    main 8.1 in 2484×2232, aspect 8:7.2
+    (https://en-us.support.motorola.com/app/answers/detail/a_id/193612).
+    No measured CSS viewport is published for it, so the same width and height
+    breakpoints cover that cover screen and that near-square inner screen.
+  */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background-color: #03141c;
+    background-image: url("/assets/sea-turtle-poster.jpg");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    color: #fff;
+    font-family: "Iowan Old Style", Palatino, Georgia, serif;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+    position: relative;
+  }
+  #topbar { display: none; }
+  #backToList { display: none; align-items: center; flex: none; }
+  #advancedLink { margin-left: auto; display: inline-flex; align-items: center; color: #fff; }
+  #authWho { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #sheetBar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0 0 0.6rem;
+    color: #fff;
+  }
+  #foldGap { display: none; }
+  #stackMark { color: #ffb4a2; }
+  #app {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+  }
+  #chats {
+    width: 16rem;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.8rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-right: 1px solid rgba(255, 196, 176, 0.28);
+    backdrop-filter: blur(16px);
+    box-sizing: border-box;
+  }
+  #listDock {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 1.5rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 214, 196, 0.5);
+    backdrop-filter: blur(16px);
+  }
+  #dockIcons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  #newChat, #sendToChat, #searchChats {
+    width: 3rem;
+    height: 3rem;
+    min-width: 3rem;
+    min-height: 3rem;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.14);
+  }
+  #newChat svg, #sendToChat svg, #searchChats svg { display: block; }
+  #chatSearch {
+    width: 100%;
+    margin: 0 0 0.35rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 196, 0.5);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    padding: 0.55rem 0.85rem;
+  }
+  #chatSearch[hidden] { display: none; }
+  #chatSearch::placeholder { color: #f3e6d8; }
+  #listDock #toolsToggle {
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+    font-size: 2.7rem;
+    line-height: 1;
+    min-height: 3rem;
+    padding: 0.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #sessionList .chatEmoji { font-size: 1.2rem; }
+  #sessionList {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  #sessionList button {
+    text-align: left;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    border: 1px solid rgba(255, 214, 196, 0.4);
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 48px;
+  }
+  .chatEmoji { flex: none; font-size: 1.15rem; }
+  #threadHead {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0.7rem 0.85rem 0;
+    padding: 0.65rem 0.9rem;
+    border-radius: 1.2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 214, 196, 0.45);
+    backdrop-filter: blur(14px);
+    color: #fff;
+  }
+  #threadTitle {
+    flex: 1;
+    margin: 0;
+    min-width: 0;
+    color: #fff;
+    font: inherit;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  #thread {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    overflow: auto;
+    padding: 1rem 1rem 0.4rem;
+  }
+  .bubble {
+    max-width: min(40rem, 86%);
+    border-radius: 1.2rem;
+    padding: 0.75rem 1rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .bubble.mine { margin-left: auto; background: rgba(255, 127, 106, 0.22); color: #fff; border: 1px solid rgba(255, 196, 176, 0.55); backdrop-filter: blur(12px); }
+  .bubble.theirs { margin-right: auto; background: rgba(255, 255, 255, 0.08); color: #fff; border: 1px solid rgba(243, 230, 216, 0.35); backdrop-filter: blur(12px); }
+  #reply-bubble {
+    width: min(40rem, 86%);
+    min-height: 6.5rem;
+    margin-right: auto;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.4);
+    backdrop-filter: blur(14px);
+    border-radius: 1.4rem;
+    padding: 1.1rem 1.2rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    box-sizing: border-box;
+  }
+  #reply-bubble:empty::before {
+    content: attr(data-placeholder);
+    color: #f3e6d8;
+  }
+  #raw { display: none; margin-top: 0.8rem; color: #f3e6d8; font-family: ui-monospace, monospace; font-size: 0.82rem; }
+  #raw[open] { display: block; }
+  #raw summary { cursor: pointer; }
+  #raw pre { white-space: pre-wrap; margin: 0.4rem 0 0; }
+  #drawer { padding: 0.7rem 0.8rem 0.2rem; border-bottom: 1px solid rgba(255, 196, 176, 0.35); background: rgba(3, 20, 28, 0.72); backdrop-filter: blur(18px); }
+  #drawer[hidden] { display: none; }
+  #chrome, #auth-bar, #relay-sheet, #rent-sheet {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-items: center;
+    margin: 0 0 0.55rem;
+  }
+  #chrome a, #chrome button, #rent-sheet button, #chats button { font-size: 0.95rem; }
+  #relay-sheet[hidden], #chrome[hidden] { display: none; }
+  #auth-bar [hidden] { display: none; }
+  #lifebook {
+    margin: 0.2rem 0 0.6rem;
+    color: #fff;
+  }
+  #lifebook summary { cursor: pointer; }
+  #lifeTags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem; }
+  #lifeTags button { background: rgba(255, 127, 106, 0.16); color: #fff; border: 1px solid rgba(255, 196, 176, 0.5); padding: 0.3rem 0.55rem; font-size: 0.82rem; }
+  #lifeLast { margin: 0.35rem 0 0; color: #fff; }
+  #auth-bar input {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.35);
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font: inherit;
+    width: 11rem;
+  }
+  #relay-sheet select {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.35);
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font: inherit;
+    max-width: 14rem;
+  }
+  #chrome a { color: #fff; }
+  #rent-sheet[hidden] { display: none; }
+  #rent-sheet select, #rent-sheet input[type="text"] {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.35);
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font: inherit;
+  }
+  #composer {
+    flex: none;
+    padding: 0.4rem max(1rem, env(safe-area-inset-right, 0px)) max(0.85rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  }
+  #input-bubble {
+    width: min(46rem, 100%);
+    min-width: 0;
+    margin: 0;
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-end;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 196, 176, 0.4);
+    backdrop-filter: blur(14px);
+    border-radius: 1.4rem;
+    padding: 0.7rem 0.7rem 0.7rem 1.1rem;
+  }
+  textarea {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    border: 0;
+    resize: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 1.15rem;
+    line-height: 1.4;
+    outline: none;
+    min-height: 1.6rem;
+    max-height: 8rem;
+  }
+  textarea::placeholder { color: #f3e6d8; opacity: 1; }
+  button {
+    border: 1px solid rgba(255, 196, 176, 0.75);
+    border-radius: 999px;
+    background: rgba(255, 127, 106, 0.2);
+    color: #fff;
+    backdrop-filter: blur(10px);
+    font: inherit;
+    padding: 0.55rem 0.95rem;
+    touch-action: manipulation;
+  }
+  button[aria-pressed="true"] { outline: 2px solid #ffd6c4; }
+  #micButton {
+    flex: none;
+    width: 2.9rem;
+    height: 2.9rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+  #micButton[data-state="listening"] { background: rgba(255, 92, 72, 0.75); animation: micPulse 1.2s ease-in-out infinite; }
+  #micButton[data-state="thinking"] { opacity: 0.75; }
+  #micButton[data-state="speaking"] { background: rgba(64, 196, 210, 0.45); border-color: rgba(160, 240, 245, 0.85); }
+  #micButton[data-state="off"] { opacity: 0.45; }
+  @keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 120, 100, 0.55); } 50% { box-shadow: 0 0 0 0.55rem rgba(255, 120, 100, 0); } }
+  #micHint { display: inline-block; max-width: min(46rem, 100%); margin: 0 0 0.4rem; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.95rem; color: #fff; background: rgba(3, 20, 28, 0.62); backdrop-filter: blur(10px); }
+  #micHint[hidden] { display: none; }
+  #voicePicker { margin: 0 0 0.7rem; color: inherit; }
+  #voicePicker h2 { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 500; }
+  #voicePicker h2 #voiceNow { opacity: 0.8; font-weight: 400; }
+  #voiceSpeedRow { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.5rem; flex-wrap: wrap; }
+  #voiceSpeed { flex: 1; min-width: 6rem; max-width: 18rem; accent-color: #ffb49e; }
+  #voiceSpeedReset { padding: 0.3rem 0.7rem; font-size: 0.9rem; }
+  #voiceList { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: 0.45rem; max-height: 15rem; overflow-y: auto; padding-right: 0.2rem; }
+  .voiceRow { display: flex; gap: 0.35rem; min-width: 0; }
+  .voicePick {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: 0.1rem;
+    border-radius: 0.9rem;
+    padding: 0.45rem 0.75rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+  .voicePick[aria-pressed="true"] { background: rgba(64, 196, 210, 0.32); border-color: #a0f0f5; outline: none; }
+  .voiceName { font-weight: 600; }
+  .voiceTone { font-size: 0.8rem; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .voicePlay { flex: none; width: 2.6rem; padding: 0; border-radius: 0.9rem; background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.35); }
+  html[data-theme="plain"] #micHint { color: #fff; background: #1b2430; }
+  #themePicker { margin: 0 0 0.7rem; color: inherit; }
+  #themePicker h2 { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 500; }
+  #themeList { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  #themeList button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    backdrop-filter: blur(12px);
+  }
+  .themeSwatch {
+    width: 2.4rem;
+    height: 1.55rem;
+    border-radius: 0.45rem;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    flex: none;
+  }
+  #shellMark { display: none; width: 1.7rem; height: 1.7rem; flex: none; }
+  #themeStage { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+  html[data-theme="plain"] body { background-image: none !important; background-color: #f7f4ee; color: #1b2430; }
+  html[data-theme="plain"] #themeStage,
+  html[data-theme="plain"] #shellMark { display: none !important; }
+  html[data-theme="plain"] #themeStage,
+  html[data-theme="plain"] #themeStage *,
+  html[data-theme="plain"] .turtle-swim { animation: none !important; }
+  #thread { overscroll-behavior: contain; }
+  @media (max-width: 1200px) {
+    body { background-attachment: scroll; }
+  }
+  /* Cover / narrow phone, including a short landscape cover (Fold 7 closed is 960×412). */
+  @media (max-width: 640px), (max-height: 560px) {
+    body { background-image: url("/assets/sea-turtle-poster.jpg"); }
+    #chats {
+      background: rgba(3, 20, 28, 0.34);
+      backdrop-filter: blur(3px);
+    }
+    #drawer:not([hidden]) {
+      position: absolute;
+      z-index: 6;
+      left: 0;
+      right: 0;
+      top: env(safe-area-inset-top, 0px);
+      max-height: min(70dvh, calc(100dvh - env(safe-area-inset-top, 0px)));
+      overflow: auto;
+    }
+    #app { flex-direction: column; }
+    #chats, #stage {
+      width: auto;
+      max-height: none;
+      flex: 1;
+      min-height: 0;
+      border-right: 0;
+      border-bottom: 0;
+    }
+    body:not(.thread-open) #stage { display: none; }
+    body.thread-open #chats { display: none; }
+    body.thread-open #backToList { display: inline-flex; }
+    #sessionList button, #go, #backToList, #advancedLink {
+      min-height: 48px;
+    }
+    #sessionList button { width: 100%; }
+    #go { min-width: 4.5rem; }
+    #reply-bubble { min-height: 4.5rem; }
+    #installWord { font-size: 0.85rem; }
+  }
+  @media (max-height: 560px) {
+    #reply-bubble { min-height: 3rem; }
+    #thread { padding: 0.45rem 0.7rem 0.2rem; }
+  }
+  /*
+    Unfolded inner screen. Equal panes leave the center gutter on the fold.
+    Fold 7 open is 750×832 and 832×750. The 984×1092 estimate matches too.
+  */
+  @media (min-width: 700px) and (min-height: 620px) and (max-aspect-ratio: 5/4) {
+    #app {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 1.5rem minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+    }
+    #chats {
+      width: auto;
+      grid-column: 1;
+      border-right: 0;
+      min-height: 0;
+    }
+    #stage { grid-column: 3; min-width: 0; min-height: 0; }
+    #drawer:not([hidden]) {
+      position: absolute;
+      z-index: 6;
+      left: 0;
+      top: env(safe-area-inset-top, 0px);
+      width: calc(50% - 0.75rem);
+      max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+      overflow: auto;
+    }
+    #sessionList button, #go, #advancedLink { min-height: 48px; }
+    #sessionList button { width: 100%; }
+    textarea { font-size: 1rem; }
+  }
+  /* Portrait book: hinge is vertical. Put each pane in its own viewport segment. */
+  @media (horizontal-viewport-segments: 2) {
+    #drawer:not([hidden]) {
+      position: absolute;
+      z-index: 6;
+      left: env(viewport-segment-left 0 0, 0px);
+      top: env(viewport-segment-top 0 0, 0px);
+      width: env(viewport-segment-width 0 0, 50vw);
+      max-height: env(viewport-segment-height 0 0, 100dvh);
+      overflow: auto;
+    }
+    #app { display: block; }
+    #chats, body.thread-open #chats {
+      display: flex;
+      position: absolute;
+      left: env(viewport-segment-left 0 0, 0px);
+      top: env(viewport-segment-top 0 0, 0px);
+      width: env(viewport-segment-width 0 0, 50vw);
+      height: env(viewport-segment-height 0 0, 100dvh);
+      border-right: 0;
+    }
+    #stage, body:not(.thread-open) #stage, body.thread-open #stage {
+      display: flex;
+      position: absolute;
+      left: env(viewport-segment-left 1 0, 50vw);
+      top: env(viewport-segment-top 1 0, 0px);
+      width: env(viewport-segment-width 1 0, 50vw);
+      height: env(viewport-segment-height 1 0, 100dvh);
+    }
+    #backToList { display: none; }
+  }
+  /* Landscape book: hinge runs across the middle. Keep list left and thread right. */
+  @media (vertical-viewport-segments: 2) {
+    #chats, #stage, body.thread-open #chats, body:not(.thread-open) #stage { display: flex; }
+    #backToList { display: none; }
+    #foldGap {
+      display: block;
+      position: fixed;
+      pointer-events: none;
+      z-index: 4;
+      left: env(viewport-segment-left 0 0, 0px);
+      width: env(viewport-segment-width 0 0, 100vw);
+      top: env(viewport-segment-bottom 0 0, 50vh);
+      height: max(12px, calc(env(viewport-segment-top 0 1, 50vh) - env(viewport-segment-bottom 0 0, 50vh)));
+      background: linear-gradient(to bottom, transparent, rgba(3, 20, 28, 0.28), transparent);
+    }
+    #thread, #sessionList {
+      scroll-padding-top: 1rem;
+      scroll-padding-bottom: 1rem;
+    }
+  }
+  #turtleScreen {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
+    background: rgba(3, 20, 28, 0.5);
+    color: #fff;
+  }
+  #turtleScreen[hidden] { display: none !important; }
+  #turtleCard {
+    width: min(36rem, 100%);
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+    padding: 1.2rem 1.15rem 1rem;
+    border-radius: 1.6rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  }
+  #turtleCard h2 { margin: 0.2rem 0 0.35rem; font-weight: 500; font-size: 1.7rem; color: #fff; }
+  #turtleCard p { margin: 0.35rem 0; color: #fff; line-height: 1.4; }
+  #turtleLog {
+    white-space: pre-wrap;
+    min-height: 4.5rem;
+    margin: 0.7rem 0;
+    padding: 0.75rem 0.85rem;
+    border-radius: 1rem;
+    background: rgba(3, 20, 28, 0.35);
+    border: 1px solid rgba(255, 196, 176, 0.35);
+    color: #fff;
+  }
+  .turtle-stage { display: flex; justify-content: center; margin-bottom: 0.4rem; }
+  .turtle-swim { width: 11rem; height: 7rem; animation: simco-swim 8s ease-in-out infinite; transform-origin: 50% 60%; }
+  html.simco-turtle-paused .turtle-swim,
+  html.simco-turtle-idle .turtle-swim { animation-play-state: paused; }
+  @keyframes simco-swim {
+    0% { transform: translateX(-10px) translateY(0) rotate(-6deg); }
+    50% { transform: translateX(12px) translateY(-8px) rotate(5deg); }
+    100% { transform: translateX(-10px) translateY(0) rotate(-6deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .turtle-swim { animation: none; }
+  }
+  @media (max-width: 640px), (max-height: 560px) {
+    #turtleCard { width: 100%; padding: 1rem 0.85rem; }
+    .turtle-swim { width: 8.5rem; height: 5.4rem; }
+    #turtleCard h2 { font-size: 1.35rem; }
+  }
+  @media (min-width: 700px) and (min-height: 620px) and (max-aspect-ratio: 5/4) {
+    #turtleCard { width: min(28rem, 92%); }
+  }
+  #turtleActions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  #hostRow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin: 0.7rem 0 0.2rem;
+  }
+  #hostRow[hidden] { display: none !important; }
+  #hostUrl {
+    width: 100%;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font: inherit;
+    padding: 0.65rem 0.9rem;
+  }
+  #hostUrl::placeholder { color: #f3e6d8; }
+  #hostHint { margin: 0; color: #fff; font-size: 0.92rem; }
+  #turtleTools, #turtleAsk { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.65rem; }
+  #turtleAsk { align-items: flex-end; }
+  #turtleAsk label { flex: 1 0 100%; }
+  #turtleQuestion {
+    flex: 1 1 12rem;
+    min-width: 0;
+    min-height: 2.7rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    padding: 0.55rem 0.75rem;
+  }
+  #turtleQuestion::placeholder { color: #f3e6d8; }
+  #turtleStage, #turtleReply, #turtleError { margin: 0.4rem 0 0; color: #fff; white-space: pre-wrap; }
+  #turtleError { color: #ffd6c4; }
+  html.simco-turtle-busy .turtle-swim { animation-play-state: running; }
+
+  #bgVideo {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
+    background: #03141c url("/assets/sea-turtle-poster.jpg") center/cover no-repeat;
+  }
+  #bgShade {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(3, 20, 28, 0.28), rgba(3, 20, 28, 0.55) 42%, rgba(3, 20, 28, 0.72));
+  }
+  #drawer, #app { position: relative; z-index: 2; }
+  @media (min-width: 641px) and (min-height: 561px) {
+    #drawer:not([hidden]) {
+      max-height: min(46dvh, 28rem);
+      overflow: auto;
+    }
+  }
+  #computeCloud, #computeLocal, #rentComputer { display: none !important; }
+  html[data-theme="plain"] #bgVideo,
+  html[data-theme="plain"] #bgShade { display: none !important; }
+  #gallery { margin: 0.35rem 0.85rem 0; }
+  #gallery[hidden] { display: none !important; }
+  #galleryGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.55rem; }
+  #gallery figure {
+    margin: 0;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 214, 196, 0.45);
+  }
+  #gallery video, #gallery img { width: 100%; height: 8.5rem; object-fit: cover; display: block; background: #03141c; }
+  #gallery figcaption { padding: 0.4rem 0.55rem 0.55rem; color: #fff; font-size: 0.9rem; }
+  #advancedNote { margin: 0 0 0.55rem; color: #fff; }
+  #advancedNote[hidden] { display: none !important; }
+  #lifeCounts { margin-top: 0.45rem; }
+  #lifeCountBody { white-space: pre-wrap; margin: 0.35rem 0 0; }
+</style>
+</head>
+<body>
+<video id="bgVideo" aria-hidden="true" muted autoplay loop playsinline poster="/assets/sea-turtle-poster.jpg"><source src="/assets/sea-turtle-loop.mp4" type="video/mp4"></video>
+<div id="bgShade" aria-hidden="true"></div>
+<script src="/assets/simco-client.js"></script>
+<section id="turtleScreen" aria-label="Sea turtle" hidden>
+  <div id="turtleCard">
+    <div class="turtle-stage" aria-hidden="true">
+      <svg class="turtle-swim" viewBox="0 0 200 120" role="img">
+        <title>Sea turtle</title>
+        <ellipse cx="78" cy="78" rx="34" ry="10" fill="rgba(3,20,28,0.35)"/>
+        <ellipse cx="118" cy="62" rx="22" ry="8" fill="#7dcea0" transform="rotate(18 118 62)"/>
+        <ellipse cx="46" cy="70" rx="20" ry="8" fill="#6fbf97" transform="rotate(-16 46 70)"/>
+        <ellipse cx="92" cy="58" rx="36" ry="26" fill="#1f6f5b"/>
+        <ellipse cx="92" cy="58" rx="24" ry="16" fill="#2f8f72"/>
+        <circle cx="78" cy="50" r="4" fill="#ffb4a2"/>
+        <circle cx="96" cy="46" r="3.5" fill="#ffd6c4"/>
+        <circle cx="108" cy="56" r="4" fill="#ffb4a2"/>
+        <circle cx="138" cy="48" r="14" fill="#8fd0ae"/>
+        <circle cx="143" cy="45" r="1.6" fill="#03141c"/>
+        <path d="M150 44c8 2 12 8 10 12" fill="none" stroke="#ffd6c4" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h2>Simko SI</h2>
+    <p id="turtleLead">A sea turtle is crossing the reef while this computer is configured.</p>
+    <details id="turtleDetails">
+      <summary>Details</summary>
+      <div id="turtleLog" aria-live="polite">Reading this computer.</div>
+    </details>
+    <p id="turtleStage" aria-live="polite">Waiting</p>
+    <p id="turtleError" hidden></p>
+    <div id="turtleTools">
+      <button id="turtleRedetect" type="button">Re-detect this computer</button>
+      <button id="turtleCheck" type="button">Run setup check</button>
+    </div>
+    <form id="turtleAsk">
+      <label for="turtleQuestion">Ask the turtle</label>
+      <textarea id="turtleQuestion" rows="2" placeholder="Ask in everyday words"></textarea>
+      <button id="turtleAskSend" type="submit">Send</button>
+    </form>
+    <p id="turtleReply" aria-live="polite"></p>
+    <div id="hostRow" hidden>
+      <label for="hostUrl">Computer</label>
+      <input id="hostUrl" type="url" inputmode="url" placeholder="http://192.168.1.20:8788" autocomplete="off" spellcheck="false">
+      <button id="hostSave" type="button">Connect</button>
+      <p id="hostHint"></p>
+    </div>
+    <div id="turtleActions">
+      <button id="turtleEnter" type="button" hidden>Open chat</button>
+      <button id="turtlePeek" type="button">Look at the chats</button>
+    </div>
+  </div>
+</section>
+<header id="topbar"></header>
+<section id="drawer" hidden>
+<details id="lifebook">
+  <summary>Lifebook</summary>
+  <div id="lifeTags"></div>
+  <p id="lifeLast"></p>
+  <details id="lifeCounts"><summary>Counts</summary><p id="lifeCountBody">No counts yet.</p></details>
+</details>
+<section id="themePicker" aria-label="Theme">
+  <h2>Theme</h2>
+  <div id="themeList"></div>
+</section>
+<section id="voicePicker" aria-label="Voice">
+  <h2>Voice · <span id="voiceNow">Coral</span></h2>
+  <div id="voiceSpeedRow">
+    <label for="voiceSpeed">Speed</label>
+    <input id="voiceSpeed" type="range" min="0.7" max="1.5" step="0.05" value="1">
+    <output id="voiceSpeedOut" for="voiceSpeed">1×  (normal)</output>
+    <button id="voiceSpeedReset" type="button">Normal</button>
+  </div>
+  <div id="voiceList" role="list"></div>
+</section>
+<div id="sheetBar">
+  <span id="stackMark" aria-label="Not connected" title="Not connected">○</span>
+  <span id="installWord">Waiting</span>
+  <span id="authWho"></span>
+  <a id="advancedLink" href="#advanced">Advanced</a>
+  <button id="openTurtle" type="button">Sea turtle</button>
+  <button id="openHost" type="button">Computer</button>
+</div>
+<p id="advancedNote" hidden>Advanced tools, including the translator, run in the desktop app. On the website they stay closed. Renting a GPU computer is confirmed only in the desktop app.</p>
+<button id="whatRent" type="button">What renting would do</button>
+<nav id="chrome">
+  <button id="roleCoding" type="button" aria-pressed="true">Coding</button>
+  <button id="roleVideo" type="button" aria-pressed="false">Video</button>
+  <button id="roleImage" type="button" aria-pressed="false">Image</button>
+  <button id="detectHardware" type="button">Detect</button>
+  <button id="downloadNow" type="button">Download</button>
+  <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>
+  <button id="computeLocal" type="button" aria-pressed="false">Local</button>
+  <button id="rentComputer" type="button">Rent</button>
+</nav>
+<section id="auth-bar">
+  <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
+  <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
+  <button id="signUp" type="button">Sign up</button>
+  <button id="signIn" type="button">Sign in</button>
+  <button id="confirmEmail" type="button" hidden>Confirm email</button>
+  <button id="resetPassword" type="button" hidden>Reset password</button>
+  <input id="authTokenBox" type="text" placeholder="Dev inbox token" hidden autocomplete="off">
+  <button id="setPassword" type="button" hidden>Set password</button>
+  <button id="signOut" type="button" hidden>Sign out</button>
+</section>
+<section id="relay-sheet" hidden>
+  <select id="relayTarget" aria-label="Other chat"></select>
+  <button id="relayGo" type="button">Send</button>
+</section>
+<section id="rent-sheet" hidden>
+  <p id="autoOffer"></p>
+  <input id="rentSsh" type="text" placeholder="SSH host of this computer" autocomplete="off">
+  <label><input id="rentWords" type="checkbox"> I confirm RENT</label>
+  <button id="confirmRentGo" type="button">Confirm Rent</button>
+</section>
+</section>
+<div id="app">
+<aside id="chats">
+  <div id="listDock">
+    <div id="dockIcons">
+      <button id="newChat" type="button" aria-label="New chat">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="searchChats" type="button" aria-label="Search">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.25" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14.6 14.6L19 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="sendToChat" type="button" aria-label="Send to chat">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 12h12M12 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <button id="toolsToggle" type="button" aria-expanded="false" aria-label="Tools">💬</button>
+  </div>
+  <input id="chatSearch" type="search" placeholder="Search chats" aria-label="Search chats" hidden>
+  <nav id="sessionList" aria-label="Chats"></nav>
+</aside>
+<section id="stage">
+<header id="threadHead">
+  <button id="backToList" type="button">Back</button>
+  <span id="shellMark" aria-hidden="true"><svg viewBox="0 0 32 32" width="28" height="28"><path d="M16 4c2 4 2 6 0 8 3-1 6-1 8 1-3 1-4 3-4 6 3 0 6 1 7 4-4 0-6 2-7 5-1-4-3-6-7-7 2-2 3-5 2-8-3 1-6 0-8-2 3-1 5-3 5-7z" fill="currentColor"/></svg></span>
+  <h1 id="threadTitle">New chat</h1>
+</header>
+<section id="gallery" hidden aria-label="Gallery">
+  <div id="galleryGrid">
+    <figure>
+      <video muted loop playsinline preload="metadata" poster="/assets/sea-turtle-poster.jpg">
+        <source src="/assets/sea-turtle-loop.mp4" type="video/mp4">
+      </video>
+      <figcaption>Sea turtle</figcaption>
+    </figure>
+    <figure>
+      <img src="/assets/sea-turtle-poster.jpg" alt="Sea turtle, still">
+      <figcaption>Sea turtle, still</figcaption>
+    </figure>
+  </div>
+</section>
+<main id="thread">
+  <div id="historyBubbles"></div>
+  <div id="reply-bubble" aria-label="Reply" data-placeholder="Reply"></div>
+</main>
+<form id="composer">
+  <p id="micHint" aria-live="polite" hidden></p>
+  <div id="input-bubble">
+    <textarea id="everyday" rows="1" placeholder="Type everyday English"></textarea>
+    <button id="micButton" type="button" data-state="idle" aria-label="Talk to Simko SI" title="Talk to Simko SI"><span class="micGlyph" aria-hidden="true">🎙</span></button>
+    <button id="go" type="submit">Send</button>
+  </div>
+</form>
+<details id="raw"><summary>Raw</summary><pre id="raw-text"></pre></details>
+</section>
+</div>
+<div id="foldGap" aria-hidden="true"></div>
+<script src="/assets/theme-host.js"></script>
+<script src="/assets/simco-voice.js"></script>
+<script src="/assets/simco-app.js"></script>
+
+</body>
+</html>

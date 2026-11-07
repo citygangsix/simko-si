@@ -1,0 +1,13 @@
+{
+  "name": "simkosi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bash scripts/dev.sh",
+    "test": "node tests/e2e.mjs",
+    "build": "bash scripts/build.sh"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

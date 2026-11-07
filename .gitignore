@@ -1,0 +1,8 @@
+simkosi-private/config.php
+simkosi-private/data/*
+!simkosi-private/data/.gitkeep
+public_html/api/private-path.php
+node_modules/
+test-results/
+playwright-report/
+*.log
