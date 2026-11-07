@@ -9,7 +9,7 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'GET') {
 }
 
 if ($op === 'health') {
-    simko_ok(['service' => 'simko-si']);
+    simko_ok(['service' => 'simko-si', 'family_ui' => simko_family_ui()]);
 }
 
 if ($op === 'installers') {

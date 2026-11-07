@@ -357,6 +357,54 @@ function simko_migrate(PDO $db): void
     $db->exec('CREATE INDEX IF NOT EXISTS idx_messages_chat ON messages(chat_id, id)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_life_user ON life_events(user_id, id)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_tokens_user ON auth_tokens(user_id)');
+    simko_add_column($db, 'users', 'role', "TEXT NOT NULL DEFAULT 'adult'");
+    simko_add_column($db, 'users', 'parent_consent_at', 'INTEGER');
+    simko_add_column($db, 'chats', 'child_profile_id', 'INTEGER');
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS child_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            parent_user_id INTEGER NOT NULL,
+            display_name TEXT NOT NULL,
+            avatar TEXT NOT NULL,
+            age_band TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )'
+    );
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS mail_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            sent_at INTEGER NOT NULL
+        )'
+    );
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_child_parent ON child_profiles(parent_user_id, id)');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_chats_child ON chats(user_id, child_profile_id, updated_at DESC)');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_mail_email ON mail_log(email, sent_at)');
+}
+
+function simko_add_column(PDO $db, string $table, string $column, string $definition): void
+{
+    $allowed = [
+        'users' => ['role' => true, 'parent_consent_at' => true],
+        'chats' => ['child_profile_id' => true],
+    ];
+    if (!isset($allowed[$table][$column])) {
+        return;
+    }
+    $info = $db->query('PRAGMA table_info(' . $table . ')');
+    $rows = $info ? $info->fetchAll() : [];
+    foreach ($rows as $row) {
+        if (($row['name'] ?? '') === $column) {
+            return;
+        }
+    }
+    $db->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $definition);
+}
+
+function simko_family_ui(): bool
+{
+    return !empty(simko_config_or_empty()['family_ui']);
 }
 
 function simko_user_for_token(string $token): ?array
@@ -365,7 +413,7 @@ function simko_user_for_token(string $token): ?array
         return null;
     }
     $stmt = simko_db()->prepare(
-        'SELECT u.id, u.email, u.confirmed, u.created_at
+        'SELECT u.id, u.email, u.confirmed, u.created_at, u.role, u.parent_consent_at
          FROM auth_tokens t
          JOIN users u ON u.id = t.user_id
          WHERE t.token_hash = ? AND t.expires_at > ?'
@@ -414,12 +462,40 @@ function simko_revoke_token(string $token): void
     $stmt->execute([hash('sha256', $token)]);
 }
 
+function simko_child_owned(int $parentId, int $childId): ?array
+{
+    if ($childId < 1) {
+        return null;
+    }
+    $stmt = simko_db()->prepare(
+        'SELECT id, parent_user_id, display_name, avatar, age_band, created_at
+         FROM child_profiles WHERE id = ? AND parent_user_id = ?'
+    );
+    $stmt->execute([$childId, $parentId]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+function simko_requested_child(int $userId, array $body): ?int
+{
+    if (!array_key_exists('child_id', $body) || $body['child_id'] === '' || $body['child_id'] === null) {
+        return null;
+    }
+    $childId = (int) $body['child_id'];
+    if (!simko_child_owned($userId, $childId)) {
+        simko_fail(404, 'That child profile is not on this account.');
+    }
+    return $childId;
+}
+
 function simko_chat_owned(int $userId, string $chatId): ?array
 {
     if ($chatId === '' || str_starts_with($chatId, 'demo-')) {
         return null;
     }
-    $stmt = simko_db()->prepare('SELECT id, user_id, title, created_at, updated_at FROM chats WHERE id = ? AND user_id = ?');
+    $stmt = simko_db()->prepare(
+        'SELECT id, user_id, title, created_at, updated_at, child_profile_id FROM chats WHERE id = ? AND user_id = ?'
+    );
     $stmt->execute([$chatId, $userId]);
     $row = $stmt->fetch();
     return $row ?: null;

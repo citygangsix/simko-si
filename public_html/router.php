@@ -8,6 +8,7 @@ $uri = urldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/')
 
 $routes = [
     '/api/auth' => ['/api/auth.php', null],
+    '/api/family' => ['/api/family.php', null],
     '/api/sessions' => ['/api/sessions.php', null],
     '/api/simco/turn' => ['/api/chat.php', null],
     '/api/memory' => ['/api/memory.php', null],

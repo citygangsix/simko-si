@@ -55,6 +55,30 @@
 
   function $(id) { return document.getElementById(id); }
 
+  try {
+    if (new URLSearchParams(location.search).get("family") === "1") {
+      document.documentElement.setAttribute("data-simko-family", "1");
+    }
+  } catch (e) {}
+
+  function familyOn() {
+    return document.documentElement.getAttribute("data-simko-family") === "1";
+  }
+
+  function loadFamilyScript() {
+    if (!familyOn() || document.querySelector("script[data-family='1']")) {
+      if (familyOn() && window.simcoFamily) window.simcoFamily.boot();
+      return;
+    }
+    const script = document.createElement("script");
+    const build = document.querySelector('meta[name="simko-build"]');
+    const version = build ? build.getAttribute("content") || "" : "";
+    script.src = "/assets/simco-family.js" + (version ? "?v=" + encodeURIComponent(version) : "");
+    script.dataset.family = "1";
+    script.onload = () => { if (window.simcoFamily) window.simcoFamily.boot(); };
+    document.body.appendChild(script);
+  }
+
   function voiceReply(text) {
     if (window.simcoVoice) window.simcoVoice.reply(text);
   }
@@ -90,7 +114,8 @@
   }
 
   function sessionPost(body) {
-    return postJson("/api/sessions", Object.assign({ token: authToken }, body));
+    const extra = window.simcoChildId ? { child_id: window.simcoChildId } : {};
+    return postJson("/api/sessions", Object.assign({ token: authToken }, extra, body));
   }
 
   function cacheSave() {
@@ -135,6 +160,8 @@
       const on = !!(data && data.ok);
       setConnected(on);
       $("installWord").textContent = on ? "Ready" : "Waiting";
+      if (data && data.family_ui) document.documentElement.setAttribute("data-simko-family", "1");
+      loadFamilyScript();
     } catch (e) {
       setConnected(false);
       $("installWord").textContent = "Waiting";
@@ -503,6 +530,8 @@
     $("authModalTitle").textContent = creating ? "Create account" : "Sign in";
     $("authModalSubmit").textContent = creating ? "Create account" : "Sign in";
     $("modalPassword").setAttribute("autocomplete", creating ? "new-password" : "current-password");
+    const consent = $("parentConsentRow");
+    if (consent) consent.hidden = !(familyOn() && creating);
   }
 
   function openAuthModal(mode) {
@@ -534,7 +563,14 @@
   }
 
   async function submitAuth(op, email, password) {
-    const data = await authPost({ op: op, email: email, password: password });
+    const payload = { op: op, email: email, password: password };
+    const consent = $("parentConsent");
+    const row = $("parentConsentRow");
+    if (op === "signup" && consent && row && !row.hidden && consent.checked) {
+      payload.parent = true;
+      payload.consent = true;
+    }
+    const data = await authPost(payload);
     if (!data.ok || !data.token) {
       setAuthError(data.error || (op === "signup" ? "Could not create the account." : "Sign in failed."));
       return;
@@ -1127,10 +1163,16 @@
     $("turtleQuestion").value = "";
   });
 
+  window.addEventListener("simko-child", () => {
+    activeSessionId = "";
+    refreshChats(null, { stayOnList: true });
+  });
+
   bindFold();
   armTurtleMotion();
   showDemoList();
   autoConnect();
   bootAuth();
+  loadFamilyScript();
   window.simcoApp = { needAccount: needAccount };
 })();

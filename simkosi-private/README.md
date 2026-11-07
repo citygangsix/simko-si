@@ -27,6 +27,14 @@ The key must never be committed, never be placed under `public_html`, and never 
 
 There is no per-IP limit and no daily message cap.
 
+## Email
+
+`mail_mode` is `dev` until a mailbox is ready. `dev` shows confirm and reset codes on screen. `smtp` sends them and does not return the code. Set `smtp.host`, `smtp.port`, `smtp.user`, `smtp.password`, and `smtp.from` in `config.php` only. Port 587 uses STARTTLS. Port 465 uses SSL. The sender name is Simko SI. Each address can receive 5 of these emails an hour.
+
+## Family
+
+`family_ui` defaults to false, so parent and child screens stay hidden. Child profiles store a display name, a character, and an age band. They do not store a child email, birthdate, or last name. A parent has to consent, and that consent time is stored, and the parent email has to be confirmed before a child profile can be added.
+
 ## Supabase
 
 `supabase` in the config is optional and off. If you turn it on, the only project ref the code will call is `wxvjajecvklfjxppawdx`, and only when `url` and `service_key` are both set. Chat does not wait on that call.

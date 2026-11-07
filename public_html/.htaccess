@@ -15,6 +15,7 @@ Options -Indexes
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
   RewriteRule ^api/auth/?$ api/auth.php [L]
+  RewriteRule ^api/family/?$ api/family.php [L]
   RewriteRule ^api/sessions/?$ api/sessions.php [L]
   RewriteRule ^api/simco/turn/?$ api/chat.php [L]
   RewriteRule ^api/memory/?$ api/memory.php [L]

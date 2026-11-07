@@ -4,8 +4,8 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
 <title>Simko SI</title>
-<meta name="simko-build" content="03022d5a56c0"/>
-<link rel="icon" href="/assets/favicon.svg?v=03022d5a56c0" type="image/svg+xml"/>
+<meta name="simko-build" content="971b21ff3edd"/>
+<link rel="icon" href="/assets/favicon.svg?v=971b21ff3edd" type="image/svg+xml"/>
 <script>
 (function () {
   var id = "reef-live";
@@ -898,6 +898,110 @@
   #authModalError, #authResetError { margin: 0.15rem 0; color: #ffd6c4; }
   #authModalError[hidden], #authResetError[hidden] { display: none !important; }
   #authForgot, #authResetBack { background: transparent; }
+  #parentConsentRow {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    text-align: left;
+    line-height: 1.4;
+    margin: 0.2rem 0 0.15rem;
+  }
+  #parentConsentRow[hidden] { display: none !important; }
+  #parentConsentRow input {
+    width: 1.15rem;
+    height: 1.15rem;
+    min-width: 1.15rem;
+    margin-top: 0.15rem;
+    padding: 0;
+    accent-color: #ffb49e;
+  }
+  #familyOpen[hidden] { display: none !important; }
+  #familyStage {
+    position: fixed;
+    inset: 0;
+    z-index: 58;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
+    background: rgba(3, 20, 28, 0.55);
+  }
+  #familyStage[hidden] { display: none !important; }
+  .familyCard {
+    width: min(40rem, 100%);
+    max-height: min(40rem, calc(100dvh - 2rem));
+    overflow: auto;
+    position: relative;
+    padding: 1.15rem 1.1rem 1.1rem;
+    border-radius: 1.4rem;
+    background: rgba(3, 20, 28, 0.88);
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    backdrop-filter: blur(18px);
+    color: #fff;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  }
+  .familyCard[hidden] { display: none !important; }
+  .familyCard h2 { margin: 0 2.4rem 0.35rem 0; font-size: 1.45rem; font-weight: 500; }
+  .familyLead { margin: 0 0 0.85rem; line-height: 1.4; color: #fff; }
+  .familyClose {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 1.3rem;
+    line-height: 1;
+  }
+  .familyActions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.85rem; }
+  #familyKids { display: flex; flex-direction: column; gap: 0.7rem; }
+  .familyKid {
+    border: 1px solid rgba(255, 214, 196, 0.4);
+    border-radius: 1rem;
+    padding: 0.75rem 0.8rem;
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .familyKid h3 { margin: 0; font-size: 1.1rem; font-weight: 500; }
+  .familyMeta { margin: 0.15rem 0 0.45rem; color: #f3e6d8; font-size: 0.92rem; }
+  .familyChat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+  }
+  .familyChat span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .familyEmpty { margin: 0.2rem 0 0; color: #f3e6d8; }
+  #familyAddForm, #familyPickList { display: flex; flex-direction: column; gap: 0.45rem; }
+  #familyAddForm input, #familyAddForm select {
+    width: 100%;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    padding: 0.65rem 0.9rem;
+  }
+  #familyPickList { flex-direction: row; flex-wrap: wrap; }
+  .familyPerson {
+    width: 7.2rem;
+    min-height: 7.2rem;
+    border-radius: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.55rem;
+  }
+  .familyPerson b { font-size: 1.8rem; line-height: 1; }
+  #familyError { margin: 0.45rem 0 0; color: #ffd6c4; }
+  #familyError[hidden] { display: none !important; }
+  @media (max-width: 480px) {
+    .familyCard { padding: 1rem 0.85rem 0.9rem; }
+    .familyPerson { width: calc(50% - 0.3rem); }
+  }
   #replyWrap {
     position: relative;
     width: min(40rem, 86%);
@@ -1011,8 +1115,42 @@
   <button id="accountSignIn" type="button">Sign in</button>
   <div id="accountSigned" hidden>
     <span id="accountEmail"></span>
+    <button id="familyOpen" type="button" hidden>Family</button>
     <button id="accountSignOut" type="button">Sign out</button>
   </div>
+</div>
+<div id="familyStage" hidden>
+  <section class="familyCard" id="familyDash" aria-labelledby="familyDashTitle">
+    <button id="familyClose" class="familyClose" type="button" aria-label="Close">×</button>
+    <h2 id="familyDashTitle">Your kids</h2>
+    <p class="familyLead">Each child has a display name, a character, and an age band. You can see their chats and delete them. No child email or birthdate is stored.</p>
+    <div id="familyKids"></div>
+    <div class="familyActions">
+      <button id="familyAddOpen" type="button">Add a child</button>
+      <button id="familyPickOpen" type="button">Switch profile</button>
+    </div>
+    <p id="familyError" role="alert" hidden></p>
+  </section>
+  <section class="familyCard" id="familyAdd" hidden aria-labelledby="familyAddTitle">
+    <button id="familyAddClose" class="familyClose" type="button" aria-label="Close">×</button>
+    <h2 id="familyAddTitle">Add a child</h2>
+    <p class="familyLead">Only a display name, a sea character, and an age band. This stays on your parent account.</p>
+    <form id="familyAddForm">
+      <label for="childName">Display name</label>
+      <input id="childName" name="display_name" type="text" maxlength="24" autocomplete="off" required>
+      <label for="childAvatar">Character</label>
+      <select id="childAvatar" name="avatar"></select>
+      <label for="childAge">Age band</label>
+      <select id="childAge" name="age_band"></select>
+      <button id="childSave" type="submit">Save child</button>
+    </form>
+  </section>
+  <section class="familyCard" id="familyPick" hidden aria-labelledby="familyPickTitle">
+    <button id="familyPickClose" class="familyClose" type="button" aria-label="Close">×</button>
+    <h2 id="familyPickTitle">Who is chatting?</h2>
+    <p class="familyLead">Pick a child to open only their chats, or stay on your own.</p>
+    <div id="familyPickList"></div>
+  </section>
 </div>
 <div id="authModal" hidden>
   <div id="authModalCard" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
@@ -1027,6 +1165,10 @@
       <input id="modalEmail" name="email" type="email" autocomplete="username" required>
       <label for="modalPassword">Password</label>
       <input id="modalPassword" name="password" type="password" autocomplete="current-password" required>
+      <label id="parentConsentRow" hidden>
+        <input id="parentConsent" type="checkbox">
+        <span>I am the parent or guardian. I agree Simko SI may store a child's display name, character, and age band, and I consent to that.</span>
+      </label>
       <p id="authModalError" role="alert" hidden></p>
       <button id="authModalSubmit" type="submit">Sign in</button>
       <button id="authForgot" type="button">Forgot password?</button>
@@ -1056,7 +1198,7 @@
     <p id="relayError" role="alert" hidden></p>
   </div>
 </div>
-<script src="/assets/simco-client.js?v=03022d5a56c0"></script>
+<script src="/assets/simco-client.js?v=971b21ff3edd"></script>
 <section id="turtleScreen" aria-label="Sea turtle" hidden>
   <div id="turtleCard">
     <div class="turtle-stage" aria-hidden="true">
@@ -1243,9 +1385,9 @@
   });
 })();
 </script>
-<script src="/assets/theme-host.js?v=03022d5a56c0"></script>
-<script src="/assets/simco-voice.js?v=03022d5a56c0"></script>
-<script src="/assets/simco-app.js?v=03022d5a56c0"></script>
+<script src="/assets/theme-host.js?v=971b21ff3edd"></script>
+<script src="/assets/simco-voice.js?v=971b21ff3edd"></script>
+<script src="/assets/simco-app.js?v=971b21ff3edd"></script>
 
 </body>
 </html>

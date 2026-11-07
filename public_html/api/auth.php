@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
+require __DIR__ . '/smtp.php';
 
 $body = simko_require_post_json();
 $op = (string) ($body['op'] ?? '');
@@ -63,18 +64,41 @@ function simko_signup(array $body): void
     if ($existing->fetch()) {
         simko_fail(400, 'That email is already registered.');
     }
+    $parent = !empty($body['parent']) || !empty($body['consent']);
+    if (!empty($body['parent']) && empty($body['consent'])) {
+        simko_fail(400, 'A parent has to agree before a child profile can be added.');
+    }
+    if (simko_mail_is_smtp()) {
+        simko_mail_rate_limit($email);
+    }
     $confirm = bin2hex(random_bytes(16));
     $now = time();
     $insert = $db->prepare(
-        'INSERT INTO users (email, password_hash, confirmed, confirm_token, created_at)
-         VALUES (?, ?, 0, ?, ?)'
+        'INSERT INTO users (email, password_hash, confirmed, confirm_token, created_at, role, parent_consent_at)
+         VALUES (?, ?, 0, ?, ?, ?, ?)'
     );
-    $insert->execute([$email, password_hash($password, PASSWORD_DEFAULT), $confirm, $now]);
+    $insert->execute([
+        $email,
+        password_hash($password, PASSWORD_DEFAULT),
+        $confirm,
+        $now,
+        $parent ? 'parent' : 'adult',
+        $parent ? $now : null,
+    ]);
     $id = (int) $db->lastInsertId();
     $token = simko_issue_token($id);
     simko_supabase_hook('signup', ['id' => $id, 'email' => $email]);
-    $out = ['token' => $token, 'email' => $email];
-    if ((simko_config_or_empty()['mail_mode'] ?? 'dev') !== 'smtp') {
+    if (simko_mail_is_smtp()) {
+        try {
+            simko_mail_confirm($email, $confirm, false);
+        } catch (Throwable $e) {
+            $db->prepare('DELETE FROM auth_tokens WHERE user_id = ?')->execute([$id]);
+            $db->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
+            simko_fail(502, 'The email could not be sent. Try again in a moment.');
+        }
+    }
+    $out = ['token' => $token, 'email' => $email, 'parent' => $parent];
+    if (!simko_mail_is_smtp()) {
         $out['dev_token'] = $confirm;
     }
     simko_ok($out);
@@ -120,7 +144,12 @@ function simko_me(): void
         echo json_encode(['ok' => false, 'error' => 'Sign in.'], JSON_UNESCAPED_UNICODE);
         exit;
     }
-    simko_ok(['email' => $user['email'], 'confirmed' => (int) $user['confirmed'] === 1]);
+    simko_ok([
+        'email' => $user['email'],
+        'confirmed' => (int) $user['confirmed'] === 1,
+        'parent' => (int) ($user['parent_consent_at'] ?? 0) > 0,
+        'consent_at' => (int) ($user['parent_consent_at'] ?? 0),
+    ]);
 }
 
 function simko_confirm(array $body): void
@@ -148,10 +177,19 @@ function simko_request_reset(array $body): void
     $row = $stmt->fetch();
     $out = [];
     if ($row) {
+        if (simko_mail_is_smtp()) {
+            simko_mail_rate_limit($email);
+        }
         $reset = bin2hex(random_bytes(16));
         $update = $db->prepare('UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?');
         $update->execute([$reset, time() + 3600, (int) $row['id']]);
-        if ((simko_config_or_empty()['mail_mode'] ?? 'dev') !== 'smtp') {
+        if (simko_mail_is_smtp()) {
+            try {
+                simko_mail_reset($email, $reset, false);
+            } catch (Throwable $e) {
+                simko_fail(502, 'The email could not be sent. Try again in a moment.');
+            }
+        } else {
             $out['dev_token'] = $reset;
         }
     }
