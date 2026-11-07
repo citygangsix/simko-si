@@ -11,6 +11,7 @@ require_once __DIR__ . '/shares.php';
 require_once __DIR__ . '/oauth.php';
 require_once __DIR__ . '/vault.php';
 require_once __DIR__ . '/connectors.php';
+require_once __DIR__ . '/agents.php';
 
 $body = simko_require_post_json();
 $op = (string) ($body['op'] ?? '');
@@ -64,6 +65,25 @@ switch ($op) {
             simko_fail(404, 'Approvals are turned off.');
         }
         simko_ok(['audit' => simko_audit_rows($userId)]);
+        break;
+    case 'agents':
+        if (!simko_flag('agents')) {
+            simko_fail(404, 'Side-by-side agents are turned off.');
+        }
+        simko_ok(['agents' => simko_agent_rows($userId)]);
+        break;
+    case 'create-agent':
+        if (!simko_flag('agents')) {
+            simko_fail(404, 'Side-by-side agents are turned off.');
+        }
+        simko_ok(['agent' => simko_agent_create($userId, (string) ($body['name'] ?? ''), (string) ($body['persona'] ?? '')), 'agents' => simko_agent_rows($userId)]);
+        break;
+    case 'hand-agent':
+        if (!simko_flag('agents')) {
+            simko_fail(404, 'Side-by-side agents are turned off.');
+        }
+        simko_agent_hand($userId, (int) ($body['from_id'] ?? 0), (int) ($body['to_id'] ?? 0), (string) ($body['text'] ?? ''));
+        simko_ok();
         break;
     case 'connectors':
         if (!simko_flag('connectors')) {

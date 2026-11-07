@@ -1050,6 +1050,11 @@
   #usageOpen[hidden], #memoryOpen[hidden], #routineOpen[hidden], #imageOpen[hidden] { display: none !important; }
   #imageGrid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.7rem; }
   #imageGrid img { width: 8rem; height: 8rem; object-fit: cover; border-radius: 0.8rem; background: #03141c; }
+  #agentBoard { width: min(52rem, 100%); }
+  #agentPanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.6rem; margin-top: 0.7rem; }
+  .agentPane { border: 1px solid rgba(255,214,196,.4); border-radius: 1rem; padding: 0.7rem; background: rgba(255,255,255,.06); }
+  .agentPane h3 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+  .agentPane p { margin: 0; color: #f3e6d8; font-size: 0.9rem; }
   #routineForm { display: flex; flex-direction: column; gap: 0.4rem; }
   #routineForm input, #routineForm select, #familyAddForm input, #familyAddForm select {
     border-radius: 999px;
@@ -1188,6 +1193,17 @@
     <button id="paywallBuy" type="button">$9 first month</button>
     <button id="paywallTrial" type="button">Start a free trial</button>
     <p id="paywallNote" role="status"></p>
+  </section>
+  <section id="agentBoard" class="platformCard" hidden aria-labelledby="agentTitle">
+    <button id="agentClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="agentTitle">Agents side by side</h2>
+    <p class="platformLead">Two to four named agents. One can hand a message to another.</p>
+    <form id="agentForm">
+      <input id="agentName" type="text" placeholder="Name" maxlength="40">
+      <input id="agentPersona" type="text" placeholder="Persona" maxlength="240">
+      <button type="submit">Add agent</button>
+    </form>
+    <div id="agentPanes"></div>
   </section>
   <section id="connectorCard" class="platformCard" hidden aria-labelledby="connectorTitle">
     <button id="connectorClose" class="platformClose" type="button" aria-label="Close">×</button>
@@ -1456,6 +1472,7 @@
   <button id="shareOpen" type="button" hidden>Share</button>
   <button id="vaultOpen" type="button" hidden>Vault</button>
   <button id="connectorOpen" type="button" hidden>Connectors</button>
+  <button id="agentOpen" type="button" hidden>Agents</button>
   <button id="detectHardware" type="button">Detect</button>
   <button id="downloadNow" type="button">Download</button>
   <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>

@@ -433,6 +433,16 @@ function simko_migrate(PDO $db): void
     );
     $db->exec('CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_id, child_profile_id, id)');
     $db->exec(
+        'CREATE TABLE IF NOT EXISTS agents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            persona TEXT NOT NULL,
+            chat_id TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )'
+    );
+    $db->exec(
         'CREATE TABLE IF NOT EXISTS connector_states (
             state TEXT PRIMARY KEY,
             user_id INTEGER NOT NULL,

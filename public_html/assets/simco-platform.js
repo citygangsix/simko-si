@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard", "agentBoard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,61 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().agents) {
+      var agentOpen = $("agentOpen");
+      if (agentOpen) agentOpen.hidden = false;
+      function paintAgents(rows) {
+        var board = $("agentPanes");
+        if (!board) return;
+        board.replaceChildren();
+        (rows || []).forEach(function (agent, index) {
+          var pane = document.createElement("article");
+          pane.className = "agentPane";
+          var title = document.createElement("h3");
+          title.textContent = agent.name;
+          var persona = document.createElement("p");
+          persona.textContent = agent.persona;
+          pane.append(title, persona);
+          if (index > 0) {
+            var hand = document.createElement("button");
+            hand.type = "button";
+            hand.textContent = "Hand to " + agent.name;
+            hand.addEventListener("click", function () {
+              var text = window.prompt("Message to hand to " + agent.name) || "";
+              if (!text) return;
+              post({ op: "hand-agent", from_id: rows[0].id, to_id: agent.id, text: text });
+            });
+            pane.appendChild(hand);
+          }
+          board.appendChild(pane);
+        });
+      }
+      if (agentOpen && !agentOpen.dataset.bound) {
+        agentOpen.dataset.bound = "1";
+        agentOpen.addEventListener("click", function () {
+          post({ op: "agents" }).then(function (data) {
+            if (!data.ok) return;
+            paintAgents(data.agents || []);
+            show("agentBoard");
+          });
+        });
+      }
+      var agentForm = $("agentForm");
+      if (agentForm && !agentForm.dataset.bound) {
+        agentForm.dataset.bound = "1";
+        agentForm.addEventListener("submit", function (event) {
+          event.preventDefault();
+          post({ op: "create-agent", name: $("agentName").value, persona: $("agentPersona").value }).then(function (data) {
+            if (data.ok) paintAgents(data.agents || []);
+          });
+        });
+      }
+      var agentClose = $("agentClose");
+      if (agentClose && !agentClose.dataset.bound) {
+        agentClose.dataset.bound = "1";
+        agentClose.addEventListener("click", hide);
+      }
     }
     if (flags().connectors) {
       var connectorOpen = $("connectorOpen");
