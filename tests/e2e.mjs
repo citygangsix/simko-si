@@ -166,8 +166,10 @@ async function browserTests() {
   await page.waitForFunction((address) => (document.getElementById("accountEmail").textContent || "").length > 0 && (document.getElementById("accountEmail").title || "").includes(address), email);
   await page.locator("#authModal").waitFor({ state: "hidden" });
   await page.waitForFunction(() => {
+    const empty = document.getElementById("chatEmpty");
     const button = document.querySelector("#sessionList button");
-    return button && !String(button.dataset.id || "").startsWith("demo-");
+    const real = button && !String(button.dataset.id || "").startsWith("demo-");
+    return real || (empty && !empty.hidden);
   });
 
   const box = page.locator("#everyday");

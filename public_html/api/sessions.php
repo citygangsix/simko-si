@@ -40,7 +40,7 @@ switch ($op) {
 function simko_list_chats(int $userId): array
 {
     $stmt = simko_db()->prepare(
-        'SELECT id, title, updated_at FROM chats WHERE user_id = ? ORDER BY updated_at DESC LIMIT 10'
+        'SELECT id, title, updated_at FROM chats WHERE user_id = ? ORDER BY updated_at DESC'
     );
     $stmt->execute([$userId]);
     $rows = [];
@@ -130,8 +130,7 @@ function simko_search_chats(int $userId, string $query): array
          FROM chats c
          LEFT JOIN messages m ON m.chat_id = c.id
          WHERE c.user_id = ? AND (c.title LIKE ? ESCAPE '!' OR m.body LIKE ? ESCAPE '!')
-         ORDER BY c.updated_at DESC
-         LIMIT 10"
+         ORDER BY c.updated_at DESC"
     );
     $stmt->execute([$userId, $like, $like]);
     $rows = [];

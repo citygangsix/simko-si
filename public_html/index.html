@@ -4,8 +4,8 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
 <title>Simko SI</title>
-<meta name="simko-build" content="28b106dbeef7"/>
-<link rel="icon" href="/assets/favicon.svg?v=28b106dbeef7" type="image/svg+xml"/>
+<meta name="simko-build" content="03022d5a56c0"/>
+<link rel="icon" href="/assets/favicon.svg?v=03022d5a56c0" type="image/svg+xml"/>
 <script>
 (function () {
   var id = "reef-live";
@@ -78,38 +78,53 @@
     min-width: 0;
   }
   #chats {
-    width: 16rem;
+    width: min(22rem, 100%);
     flex: none;
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
-    padding: 0.8rem;
-    background: rgba(255, 255, 255, 0.05);
+    gap: 0.55rem;
+    padding: 0.75rem 0.75rem max(0.75rem, env(safe-area-inset-bottom, 0px));
+    background: rgba(3, 20, 28, 0.62);
     border-right: 1px solid rgba(255, 196, 176, 0.28);
     backdrop-filter: blur(16px);
     box-sizing: border-box;
   }
   #listDock {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.7rem 0.85rem;
-    border-radius: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    flex: none;
+    padding: 0.7rem 0.75rem 0.75rem;
+    border-radius: 1.2rem;
     background: rgba(255, 255, 255, 0.12);
     border: 1px solid rgba(255, 214, 196, 0.5);
     backdrop-filter: blur(16px);
   }
+  #listHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  #listTitle {
+    margin: 0;
+    min-width: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
   #dockIcons {
     display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
   }
   #newChat, #sendToChat, #searchChats {
-    width: 3rem;
-    height: 3rem;
-    min-width: 3rem;
-    min-height: 3rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
     padding: 0;
     border-radius: 50%;
     display: inline-flex;
@@ -131,17 +146,30 @@
   #chatSearch[hidden] { display: none; }
   #chatSearch::placeholder { color: #f3e6d8; }
   #listDock #toolsToggle {
-    border: 0;
-    background: transparent;
-    backdrop-filter: none;
-    font-size: 2.7rem;
+    flex: none;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(10px);
+    font-size: 0.95rem;
     line-height: 1;
-    min-height: 3rem;
-    padding: 0.15rem;
-    display: flex;
+    min-height: 2.75rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
   }
+  #chatEmpty {
+    flex: none;
+    margin: 0.15rem 0 0;
+    padding: 0.9rem 1rem;
+    border-radius: 1rem;
+    background: rgba(3, 20, 28, 0.55);
+    border: 1px solid rgba(255, 214, 196, 0.35);
+    color: #fff;
+    line-height: 1.4;
+  }
+  #chatEmpty[hidden] { display: none; }
   #sessionList .chatEmoji { font-size: 1.2rem; }
   #sessionList {
     flex: 1;
@@ -155,7 +183,7 @@
   }
   #sessionList button {
     text-align: left;
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.08);
     color: #fff;
     border: 1px solid rgba(255, 214, 196, 0.4);
     width: 100%;
@@ -163,6 +191,13 @@
     align-items: center;
     gap: 0.55rem;
     min-height: 48px;
+    padding: 0.55rem 0.85rem;
+  }
+  #sessionList button span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .chatEmoji { flex: none; font-size: 1.15rem; }
   #threadHead {
@@ -344,6 +379,111 @@
   #micButton[data-state="thinking"] { opacity: 0.75; }
   #micButton[data-state="speaking"] { background: rgba(64, 196, 210, 0.45); border-color: rgba(160, 240, 245, 0.85); }
   #micButton[data-state="off"] { opacity: 0.45; }
+  #go {
+    flex: none;
+    min-height: 2.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  #go .goWave {
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 3px;
+    height: 1.15rem;
+    width: 1.35rem;
+  }
+  #go:not(.has-text) {
+    width: 2.9rem;
+    min-width: 2.9rem;
+    padding: 0;
+  }
+  #go:not(.has-text) .goLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  #go:not(.has-text) .goWave { display: inline-flex; }
+  #go.has-text { min-width: 4.5rem; padding: 0.55rem 0.95rem; }
+  #go.has-text .goWave { display: none; }
+  #go .goWave i {
+    display: block;
+    width: 3px;
+    height: 35%;
+    border-radius: 999px;
+    background: currentColor;
+    transform-origin: center bottom;
+    animation: eqIdle 0.9s ease-in-out infinite;
+  }
+  #go .goWave i:nth-child(2) { animation-delay: 0.12s; }
+  #go .goWave i:nth-child(3) { animation-delay: 0.24s; }
+  #go .goWave i:nth-child(4) { animation-delay: 0.08s; }
+  #go .goWave i:nth-child(5) { animation-delay: 0.2s; }
+  #go.is-live:not(.has-text) {
+    background: rgba(64, 196, 210, 0.45);
+    border-color: rgba(160, 240, 245, 0.85);
+  }
+  #go.is-live .goWave i { animation-duration: 0.45s; }
+  @keyframes eqIdle {
+    0%, 100% { height: 30%; }
+    50% { height: 100%; }
+  }
+  #liveVoice {
+    position: fixed;
+    z-index: 34;
+    top: calc(env(safe-area-inset-top, 0px) + 7.15rem);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: min(20rem, calc(100vw - 1.25rem));
+    padding: 0.4rem 0.45rem 0.4rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(3, 20, 28, 0.78);
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    backdrop-filter: blur(16px);
+    color: #fff;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  }
+  #liveVoice[hidden] { display: none !important; }
+  #liveBars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 1.35rem;
+    width: 1.7rem;
+    flex: none;
+  }
+  #liveBars i {
+    display: block;
+    width: 3px;
+    height: 20%;
+    border-radius: 999px;
+    background: #a0f0f5;
+  }
+  #liveVoiceState {
+    flex: 1;
+    margin: 0;
+    font-size: 0.98rem;
+    min-width: 0;
+  }
+  #liveVoiceClose {
+    flex: none;
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+  @media (min-width: 900px) {
+    #liveVoice { left: 68%; }
+  }
   @keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 120, 100, 0.55); } 50% { box-shadow: 0 0 0 0.55rem rgba(255, 120, 100, 0); } }
   #micHint { display: inline-block; max-width: min(46rem, 100%); margin: 0 0 0.4rem; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.95rem; color: #fff; background: rgba(3, 20, 28, 0.62); backdrop-filter: blur(10px); }
   #micHint[hidden] { display: none; }
@@ -431,11 +571,19 @@
     body:not(.thread-open) #stage { display: none; }
     body.thread-open #chats { display: none; }
     body.thread-open #backToList { display: inline-flex; }
-    #sessionList button, #go, #backToList, #advancedLink {
+    #sessionList button, #go.has-text, #backToList, #advancedLink {
       min-height: 48px;
     }
     #sessionList button { width: 100%; }
-    #go { min-width: 4.5rem; }
+    #go.has-text { min-width: 4.5rem; }
+    body:not(.thread-open) #chats {
+      background: rgba(6, 24, 32, 0.94);
+    }
+    .bubble { max-width: 100%; }
+    #replyWrap, #reply-bubble { width: 100%; max-width: 100%; }
+    #thread { padding: 0.7rem 0.75rem 0.25rem; }
+    #threadHead { margin: 0.4rem 0.65rem 0; padding: 0.5rem 0.7rem; }
+    #composer { padding-left: max(0.75rem, env(safe-area-inset-left, 0px)); padding-right: max(0.75rem, env(safe-area-inset-right, 0px)); }
     #reply-bubble { min-height: 4.5rem; }
     #installWord { font-size: 0.85rem; }
   }
@@ -854,6 +1002,11 @@
 <body>
 <video id="bgVideo" aria-hidden="true" muted autoplay loop playsinline poster="/assets/sea-turtle-poster.jpg"><source src="/assets/sea-turtle-loop.mp4" type="video/mp4"></video>
 <div id="bgShade" aria-hidden="true"></div>
+<div id="liveVoice" hidden role="status" aria-live="polite">
+  <div id="liveBars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+  <p id="liveVoiceState">Listening</p>
+  <button id="liveVoiceClose" type="button" aria-label="Close voice">×</button>
+</div>
 <div id="accountBar">
   <button id="accountSignIn" type="button">Sign in</button>
   <div id="accountSigned" hidden>
@@ -903,7 +1056,7 @@
     <p id="relayError" role="alert" hidden></p>
   </div>
 </div>
-<script src="/assets/simco-client.js?v=28b106dbeef7"></script>
+<script src="/assets/simco-client.js?v=03022d5a56c0"></script>
 <section id="turtleScreen" aria-label="Sea turtle" hidden>
   <div id="turtleCard">
     <div class="turtle-stage" aria-hidden="true">
@@ -1015,6 +1168,10 @@
 <div id="app">
 <aside id="chats">
   <div id="listDock">
+    <div id="listHead">
+      <h2 id="listTitle">Chats</h2>
+      <button id="toolsToggle" type="button" aria-expanded="false" aria-label="Tools">Tools</button>
+    </div>
     <div id="dockIcons">
       <button id="newChat" type="button" aria-label="New chat">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -1026,9 +1183,9 @@
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 12h12M12 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
-    <button id="toolsToggle" type="button" aria-expanded="false" aria-label="Tools">💬</button>
   </div>
   <input id="chatSearch" type="search" placeholder="Search chats" aria-label="Search chats" hidden>
+  <p id="chatEmpty" hidden>No chats yet. Tap New chat to start one.</p>
   <nav id="sessionList" aria-label="Chats"></nav>
 </aside>
 <section id="stage">
@@ -1063,7 +1220,10 @@
   <div id="input-bubble">
     <textarea id="everyday" rows="1" placeholder="Type everyday English"></textarea>
     <button id="micButton" type="button" data-state="idle" aria-label="Talk to Simko SI" title="Talk to Simko SI"><span class="micGlyph" aria-hidden="true">🎙</span></button>
-    <button id="go" type="submit">Send</button>
+    <button id="go" type="submit" aria-label="Start voice conversation">
+      <span class="goLabel">Send</span>
+      <span class="goWave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+    </button>
   </div>
 </form>
 <details id="raw"><summary>Raw</summary><pre id="raw-text"></pre></details>
@@ -1083,9 +1243,9 @@
   });
 })();
 </script>
-<script src="/assets/theme-host.js?v=28b106dbeef7"></script>
-<script src="/assets/simco-voice.js?v=28b106dbeef7"></script>
-<script src="/assets/simco-app.js?v=28b106dbeef7"></script>
+<script src="/assets/theme-host.js?v=03022d5a56c0"></script>
+<script src="/assets/simco-voice.js?v=03022d5a56c0"></script>
+<script src="/assets/simco-app.js?v=03022d5a56c0"></script>
 
 </body>
 </html>

@@ -84,7 +84,11 @@ async function openTools(page) {
 
 async function ensureThread(page) {
   if (await page.locator("#everyday").isVisible()) return;
-  await page.locator("#sessionList button").first().click();
+  if (await page.locator("#sessionList button").count()) {
+    await page.locator("#sessionList button").first().click();
+  } else {
+    await page.getByRole("button", { name: "New chat" }).click();
+  }
   await page.locator("#everyday").waitFor({ state: "visible" });
 }
 

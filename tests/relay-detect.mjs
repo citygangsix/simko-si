@@ -84,10 +84,17 @@ async function detectCase(page, label) {
   console.log("detect visible", label);
 }
 
-async function newChatCase(page) {
-  if (!(await page.locator("#everyday").isVisible())) {
+async function openComposer(page) {
+  if (await page.locator("#everyday").isVisible()) return;
+  if (await page.locator("#sessionList button").count()) {
     await page.locator("#sessionList button").first().click();
+    return;
   }
+  await page.getByRole("button", { name: "New chat" }).click();
+}
+
+async function newChatCase(page) {
+  await openComposer(page);
   await page.locator("#everyday").click();
   await page.locator("#everyday").pressSequentially("Hi", { delay: 15 });
   await page.click("#go");
@@ -114,9 +121,7 @@ async function newChatCase(page) {
 }
 
 async function relayCase(page) {
-  if (!(await page.locator("#everyday").isVisible())) {
-    await page.locator("#sessionList button").first().click();
-  }
+  await openComposer(page);
   await page.locator("#everyday").click();
   await page.locator("#everyday").pressSequentially("Hello in chat one", { delay: 12 });
   await page.click("#go");

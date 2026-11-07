@@ -10,7 +10,8 @@
   var state = {
     voices: [], ready: false, voice: "coral", speed: 1.0, min: 0.7, max: 1.5,
     recorder: null, stream: null, chunks: [], session: false, pendingTurn: false,
-    player: null, previewing: "", silenceTimer: null, audioCtx: null
+    player: null, previewing: "", silenceTimer: null, audioCtx: null,
+    live: false, liveGen: 0, livePhase: "off"
   };
   var lastSpoken = "";
   var fallbackUsed = false;
@@ -45,7 +46,7 @@
     {id:"whale",name:"Whale",tone:"Grounded and luminous"}
   ];
   function fallbackSpeak(text) {
-    if (!text || !window.speechSynthesis) { setMic("idle"); markPreview(""); return; }
+    if (!text || !window.speechSynthesis) { setMic("idle"); markPreview(""); resumeLiveAfterSpeech(); return; }
     var u = new SpeechSynthesisUtterance(text);
     u.rate = Math.min(1.5, Math.max(0.7, state.speed || 1));
     var voices = window.speechSynthesis.getVoices() || [];
@@ -54,7 +55,7 @@
       for (var i = 0; i < state.voices.length; i++) if (state.voices[i].id === state.voice) idx = i;
       u.voice = voices[idx % voices.length];
     }
-    u.onend = function () { setMic(state.recorder ? "listening" : "idle"); markPreview(""); };
+    u.onend = function () { setMic(state.recorder ? "listening" : "idle"); markPreview(""); resumeLiveAfterSpeech(); };
     window.speechSynthesis.cancel();
     setMic("speaking");
     window.speechSynthesis.speak(u);
@@ -80,7 +81,7 @@
       state.player = new Audio();
       state.player.preload = "auto";
       state.player.setAttribute("playsinline", "");
-      state.player.addEventListener("ended", function () { setMic(state.recorder ? "listening" : "idle"); markPreview(""); });
+      state.player.addEventListener("ended", function () { setMic(state.recorder ? "listening" : "idle"); markPreview(""); resumeLiveAfterSpeech(); });
       state.player.addEventListener("error", function () { useFallback(); });
     }
     return state.player;
@@ -115,6 +116,7 @@
   }
 
   function setMic(mode) {
+    if (state.live) mode = "idle";
     var b = $("micButton");
     if (!b) return;
     b.dataset.state = mode;
@@ -290,10 +292,19 @@
     hint.textContent = text;
   }
   function say(text, force) {
-    if (!force && !state.session) return;
+    if (!force && !state.session && !state.live) return;
     var line = trimForSpeech(text);
-    if (!line) { setMic("idle"); return; }
+    if (!line) {
+      setMic("idle");
+      if (state.live) listenTurn(state.liveGen);
+      return;
+    }
     lastSpoken = line;
+    if (state.live) {
+      setLivePhase("speaking");
+      enableMic(false);
+      stopRecognition();
+    }
     if (!signedIn()) {
       showMicNote("Sign in to hear Simko SI. You can still type.");
       fallbackSpeak(line);
@@ -306,6 +317,7 @@
   function micTap() {
     var b = $("micButton");
     var mode = b ? b.dataset.state : "idle";
+    if (state.live) stopLive();
     if (mode === "off") { setReply("Voice needs Grok set up on the computer Simko SI runs from."); return; }
     if (mode === "listening") {
       if (state.recorder) state.recorder.stop();
@@ -407,6 +419,17 @@
     state.speed = parseFloat(load(SPEED_KEY, "1")) || 1;
     var mic = $("micButton");
     if (mic) mic.addEventListener("click", micTap);
+    var box = $("everyday");
+    if (box) box.addEventListener("input", paintGo);
+    var live = $("liveVoice");
+    if (live) live.addEventListener("click", onLiveBoxClick);
+    var liveClose = $("liveVoiceClose");
+    if (liveClose) liveClose.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      stopLive();
+    });
+    paintGo();
     var s = $("voiceSpeed");
     if (s) s.addEventListener("input", function () {
       state.speed = Math.min(state.max, Math.max(state.min, parseFloat(s.value) || 1));
@@ -434,14 +457,343 @@
     setMic("idle");
   }
 
+  function paintGo() {
+    var go = $("go");
+    var box = $("everyday");
+    if (!go) return;
+    var has = !!(box && String(box.value || "").trim());
+    go.classList.toggle("has-text", has);
+    go.classList.toggle("is-live", !!state.live);
+    var label = has ? "Send" : (state.live ? "Stop voice conversation" : "Start voice conversation");
+    go.setAttribute("aria-label", label);
+    go.title = label;
+  }
+
+  function setLivePhase(phase) {
+    state.livePhase = phase;
+    var box = $("liveVoice");
+    var label = $("liveVoiceState");
+    if (box) {
+      box.hidden = !state.live;
+      box.dataset.phase = phase;
+    }
+    if (label) {
+      label.textContent = phase === "listening" ? "Listening" : phase === "thinking" ? "Thinking" : phase === "speaking" ? "Speaking" : "";
+    }
+    paintGo();
+  }
+
+  function enableMic(on) {
+    if (!state.vizStream) return;
+    state.vizStream.getTracks().forEach(function (track) { track.enabled = !!on; });
+  }
+
+  function stopRecognition() {
+    var rec = state.liveRec;
+    state.liveRec = null;
+    if (!rec) return;
+    rec.onresult = null;
+    rec.onerror = null;
+    rec.onend = null;
+    try { if (rec.abort) rec.abort(); else rec.stop(); } catch (e) {}
+  }
+
+  function stopServerRec() {
+    var rec = state.serverRec;
+    state.serverRec = null;
+    if (state.serverSilence) cancelAnimationFrame(state.serverSilence);
+    state.serverSilence = 0;
+    if (!rec) return;
+    rec.onstop = null;
+    rec.ondataavailable = null;
+    try { if (rec.state === "recording") rec.stop(); } catch (e) {}
+  }
+
+  function stopViz() {
+    if (state.vizRaf) cancelAnimationFrame(state.vizRaf);
+    state.vizRaf = 0;
+    if (state.vizStream) {
+      state.vizStream.getTracks().forEach(function (track) { try { track.stop(); } catch (e) {} });
+      state.vizStream = null;
+    }
+    state.analyser = null;
+  }
+
+  function stopLive() {
+    state.live = false;
+    state.liveGen = (state.liveGen || 0) + 1;
+    state.livePhase = "off";
+    state.session = false;
+    state.pendingTurn = false;
+    stopRecognition();
+    stopServerRec();
+    stopViz();
+    stopSpeaking();
+    if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (e) {} }
+    var box = $("liveVoice");
+    if (box) box.hidden = true;
+    paintGo();
+    setMic("idle");
+  }
+
+  function resumeLiveAfterSpeech() {
+    if (!state.live || state.livePhase !== "speaking") return;
+    listenTurn(state.liveGen);
+  }
+
+  function toggleLive() {
+    if (state.live) { stopLive(); return; }
+    if (!signedIn()) {
+      if (window.simcoApp && window.simcoApp.needAccount) window.simcoApp.needAccount();
+      else showMicNote("Sign in to talk with Simko SI. You can still type.");
+      return;
+    }
+    unlock();
+    state.live = true;
+    state.liveGen = (state.liveGen || 0) + 1;
+    var gen = state.liveGen;
+    var panel = $("liveVoice");
+    if (panel) panel.hidden = false;
+    listenTurn(gen);
+  }
+
+  function onLiveBoxClick(event) {
+    if (event.target && event.target.closest && event.target.closest("#liveVoiceClose")) return;
+    if (!state.live || state.livePhase !== "speaking") return;
+    stopSpeaking();
+    if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (e) {} }
+    listenTurn(state.liveGen);
+  }
+
+  function submitTranscript(said, gen) {
+    if (!state.live || gen !== state.liveGen) return;
+    said = String(said || "").trim();
+    if (!said) { listenTurn(gen); return; }
+    setLivePhase("thinking");
+    enableMic(false);
+    stopRecognition();
+    stopServerRec();
+    state.session = true;
+    state.pendingTurn = true;
+    var box = $("everyday");
+    if (box) {
+      box.value = said;
+      paintGo();
+    }
+    var form = $("composer");
+    if (form && form.requestSubmit) form.requestSubmit();
+  }
+
+  function startBars() {
+    var bars = document.querySelectorAll("#liveBars i");
+    var data = state.analyser ? new Uint8Array(state.analyser.frequencyBinCount) : null;
+    if (state.vizRaf) cancelAnimationFrame(state.vizRaf);
+    var frames = 0;
+    var tick = function () {
+      if (!state.live) return;
+      frames += 1;
+      var holder = $("liveBars");
+      if (holder) holder.dataset.tick = String(frames);
+      var level = state.livePhase === "speaking" ? 0.62 : state.livePhase === "thinking" ? 0.22 : 0.16;
+      if (data && state.analyser && state.livePhase === "listening") {
+        try {
+          state.analyser.getByteFrequencyData(data);
+          var sum = 0;
+          for (var i = 0; i < data.length; i++) sum += data[i];
+          var measured = (sum / data.length) / 90;
+          if (measured > level) level = Math.min(1, measured);
+        } catch (e) {}
+      }
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      for (var b = 0; b < bars.length; b++) {
+        var wobble = 0.35 + 0.65 * Math.abs(Math.sin(now / 170 + b * 0.9));
+        bars[b].style.height = Math.round(14 + level * 86 * wobble) + "%";
+      }
+      state.vizRaf = requestAnimationFrame(tick);
+    };
+    state.vizRaf = requestAnimationFrame(tick);
+  }
+
+  function openViz() {
+    if (state.vizStream && state.vizStream.getTracks().some(function (track) { return track.readyState === "live"; })) {
+      enableMic(true);
+      startBars();
+      return Promise.resolve();
+    }
+    var devices = navigator.mediaDevices;
+    if (!devices || !devices.getUserMedia) {
+      startBars();
+      return Promise.resolve();
+    }
+    return devices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
+      state.vizStream = stream;
+      try {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) {
+          state.vizCtx = state.vizCtx || new Ctx();
+          if (state.vizCtx.state === "suspended" && state.vizCtx.resume) state.vizCtx.resume();
+          var src = state.vizCtx.createMediaStreamSource(stream);
+          var an = state.vizCtx.createAnalyser();
+          an.fftSize = 256;
+          src.connect(an);
+          state.analyser = an;
+        }
+      } catch (e) {}
+      startBars();
+    }).catch(function () {
+      startBars();
+    });
+  }
+
+  function startWebRec(gen) {
+    if (!state.live || gen !== state.liveGen || state.livePhase !== "listening") return;
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { startServerRec(gen); return; }
+    stopRecognition();
+    var rec = new SR();
+    state.liveRec = rec;
+    rec.lang = "en-US";
+    rec.interimResults = false;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = function (ev) {
+      if (!state.live || gen !== state.liveGen) return;
+      var said = "";
+      try { said = ev.results[0][0].transcript || ""; } catch (e) { said = ""; }
+      stopRecognition();
+      submitTranscript(said, gen);
+    };
+    rec.onerror = function (ev) {
+      if (!state.live || gen !== state.liveGen || state.livePhase !== "listening") return;
+      var code = ev && ev.error;
+      if (code === "aborted" || code === "no-speech") return;
+      stopRecognition();
+      startServerRec(gen);
+    };
+    rec.onend = function () {
+      if (state.liveRec === rec) state.liveRec = null;
+      if (state.live && gen === state.liveGen && state.livePhase === "listening") {
+        setTimeout(function () {
+          if (state.live && gen === state.liveGen && state.livePhase === "listening" && !state.liveRec) startWebRec(gen);
+        }, 300);
+      }
+    };
+    try { rec.start(); } catch (e) { stopRecognition(); startServerRec(gen); }
+  }
+
+  function watchServerSilence(rec, gen) {
+    try {
+      if (!state.analyser) return;
+      var heard = false, quietSince = 0;
+      var buf = new Uint8Array(state.analyser.fftSize || 256);
+      var tick = function () {
+        if (!state.live || gen !== state.liveGen || !rec || rec.state !== "recording") return;
+        state.analyser.getByteTimeDomainData(buf);
+        var peak = 0;
+        for (var i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i] - 128));
+        var now = Date.now();
+        if (peak > 14) { heard = true; quietSince = 0; }
+        else if (heard) {
+          quietSince = quietSince || now;
+          if (now - quietSince > 1200) { try { rec.stop(); } catch (e) {} return; }
+        }
+        state.serverSilence = requestAnimationFrame(tick);
+      };
+      state.serverSilence = requestAnimationFrame(tick);
+    } catch (e) {}
+  }
+
+  function startServerRec(gen) {
+    if (!state.live || gen !== state.liveGen || state.livePhase !== "listening") return;
+    if (!state.vizStream || typeof MediaRecorder === "undefined") {
+      showMicNote("This browser has no microphone. Type in the box instead.");
+      return;
+    }
+    stopServerRec();
+    var chunks = [];
+    var rec;
+    try { rec = new MediaRecorder(state.vizStream); }
+    catch (e) {
+      showMicNote("This browser has no microphone. Type in the box instead.");
+      return;
+    }
+    state.serverRec = rec;
+    rec.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    rec.onstop = function () {
+      if (state.serverRec === rec) state.serverRec = null;
+      if (!state.live || gen !== state.liveGen || state.livePhase !== "listening") return;
+      var blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+      if (!blob.size) { listenTurn(gen); return; }
+      setLivePhase("thinking");
+      enableMic(false);
+      var reader = new FileReader();
+      reader.onload = async function () {
+        var audio = String(reader.result || "").split(",")[1] || "";
+        var data = null;
+        try {
+          var res = await fetch(apiUrl("/api/voice/transcribe"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ audio: audio, mime: (rec.mimeType || "audio/webm").split(";")[0] })
+          });
+          data = await res.json();
+        } catch (err) { data = null; }
+        if (!state.live || gen !== state.liveGen) return;
+        var text = data && data.ok && data.text ? String(data.text).trim() : "";
+        if (!text) { listenTurn(gen); return; }
+        submitTranscript(text, gen);
+      };
+      reader.onerror = function () { if (state.live && gen === state.liveGen) listenTurn(gen); };
+      reader.readAsDataURL(blob);
+    };
+    try { rec.start(); } catch (e) {
+      showMicNote("This browser has no microphone. Type in the box instead.");
+      return;
+    }
+    watchServerSilence(rec, gen);
+  }
+
+  function listenTurn(gen) {
+    if (!state.live || gen !== state.liveGen) return;
+    if (state.livePhase === "listening" && (state.liveRec || (state.serverRec && state.serverRec.state === "recording"))) return;
+    stopRecognition();
+    stopServerRec();
+    setLivePhase("listening");
+    enableMic(true);
+    startBars();
+    openViz().then(function () {
+      if (!state.live || gen !== state.liveGen || state.livePhase !== "listening") return;
+      var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SR) startWebRec(gen);
+      else startServerRec(gen);
+    });
+  }
+
   window.simcoVoice = {
     // chat.html calls these so voice turns use the exact same send/reply code as typing.
-    consumeTurn: function () { var v = state.pendingTurn; state.pendingTurn = false; if (!v) state.session = false; return v; },
+    consumeTurn: function () {
+      var v = state.pendingTurn;
+      state.pendingTurn = false;
+      if (state.live) {
+        state.session = true;
+        if (state.livePhase === "listening") {
+          stopRecognition();
+          stopServerRec();
+          enableMic(false);
+          setLivePhase("thinking");
+        }
+        return true;
+      }
+      if (!v) state.session = false;
+      return v;
+    },
     reply: function (text) {
-      if (state.session) { say(text); return; }
+      if (state.live || state.session) { say(text, !!state.live); return; }
       var b = $("micButton");
       if (b && b.dataset.state === "thinking") setMic("idle");
     },
+    toggleLive: toggleLive,
+    stopLive: stopLive,
     say: say,
     stop: stopSpeaking,
     choose: choose,

@@ -46,6 +46,7 @@
   let signedIn = false;
   let authMode = "signin";
   let creatingChat = false;
+  let listEpoch = 0;
   let activeSessionId = "";
   let chatRows = [];
   let sessionCache = {};
@@ -111,7 +112,7 @@
     const bag = cacheLoad();
     if (!bag || !bag.sessions) return false;
     const order = bag.order || Object.keys(bag.sessions);
-    chatRows = order.map((id) => bag.sessions[id]).filter(Boolean).slice(0, 10);
+    chatRows = order.map((id) => bag.sessions[id]).filter(Boolean);
     sessionCache = bag.sessions;
     if (!chatRows.length) return false;
     $("authWho").textContent = bag.email || "";
@@ -303,7 +304,14 @@
 
   function paintChatList(rows, demo) {
     const list = $("sessionList");
+    const empty = $("chatEmpty");
     list.replaceChildren();
+    if (empty) {
+      const search = $("chatSearch");
+      const searching = search && !search.hidden && search.value.trim();
+      empty.hidden = rows.length > 0;
+      empty.textContent = searching ? "No chats match that search." : "No chats yet. Tap New chat to start one.";
+    }
     rows.forEach((row) => {
       const button = document.createElement("button");
       button.type = "button";
@@ -388,25 +396,44 @@
     if (open) openThread();
   }
 
-  async function refreshChats(preferId) {
+  async function refreshChats(preferId, options) {
+    const stayOnList = !!(options && options.stayOnList);
+    const epoch = ++listEpoch;
     const data = await sessionPost({ op: "list" });
-    chatRows = (data && data.sessions) || [];
+    if (epoch !== listEpoch) return;
     if (!data || data.ok === false) {
       if (!restoreCache()) showDemoList();
       return;
     }
-    if (!chatRows.length) {
-      const created = await sessionPost({ op: "create", title: "Chat 1" });
-      if (created.session) chatRows = [created.session];
-    }
+    chatRows = data.sessions || [];
     chatRows.forEach((row) => {
       sessionCache[row.id] = Object.assign({}, sessionCache[row.id] || {}, row);
     });
     paintChatList(chatRows, false);
-    const current = activeSessionId && !String(activeSessionId).startsWith("demo-") ? activeSessionId : "";
-    const wanted = preferId || current || (chatRows[0] && chatRows[0].id);
-    if (wanted) await showSession(wanted, false);
+    if (!stayOnList) {
+      const current = activeSessionId && !String(activeSessionId).startsWith("demo-") ? activeSessionId : "";
+      const wanted = preferId || current;
+      const cover = window.matchMedia("(max-width: 640px), (max-height: 560px)").matches;
+      if (wanted && chatRows.some((row) => row.id === wanted)) await showSession(wanted, false);
+      else if (!cover && chatRows[0]) await showSession(chatRows[0].id, false);
+    }
     cacheSave();
+  }
+
+  async function backToList() {
+    document.body.dataset.listReady = "0";
+    document.body.classList.remove("thread-open");
+    const search = $("chatSearch");
+    if (search && search.value) search.value = "";
+    try {
+      if (!hasSession()) {
+        showDemoList();
+        return;
+      }
+      await refreshChats(null, { stayOnList: true });
+    } finally {
+      document.body.dataset.listReady = "1";
+    }
   }
 
   function shortEmail(email) {
@@ -637,6 +664,8 @@
     }
     await sessionPost({ op: "append", session_id: activeSessionId, role: "user", text: userText });
     await sessionPost({ op: "append", session_id: activeSessionId, role: "assistant", text: assistantText });
+    const listed = [...document.querySelectorAll("#sessionList button")].some((button) => button.dataset.id === activeSessionId);
+    if (!listed) paintChatList(chatRows, false);
     await showSession(activeSessionId, false);
   }
 
@@ -644,6 +673,11 @@
     if (event) event.preventDefault();
     const text = $("everyday").value.trim();
     if (!text) {
+      const fromWave = event && event.submitter && event.submitter.id === "go";
+      if (fromWave && window.simcoVoice && window.simcoVoice.toggleLive) {
+        window.simcoVoice.toggleLive();
+        return;
+      }
       setReply("Type a message, then Send.");
       return;
     }
@@ -654,6 +688,7 @@
     }
     showMyMessage(text);
     $("everyday").value = "";
+    $("everyday").dispatchEvent(new Event("input", { bubbles: true }));
     setReply("Working on it…");
     let everyday = "";
     try {
@@ -714,7 +749,7 @@
 
   async function searchChats() {
     const q = $("chatSearch").value.trim();
-    if (!authToken) {
+    if (!hasSession()) {
       const rows = DEMO_CHATS.filter((row) => {
         if (!q) return true;
         const blob = (row.title + " " + (row.messages || []).map((message) => message.text).join(" ")).toLowerCase();
@@ -1036,7 +1071,7 @@
     if (event.target === $("relayOverlay")) $("relayOverlay").hidden = true;
   });
   $("relayGo").addEventListener("click", sendToOtherChat);
-  $("backToList").addEventListener("click", () => document.body.classList.remove("thread-open"));
+  $("backToList").addEventListener("click", () => { backToList(); });
   $("roleCoding").addEventListener("click", () => setRole("coding"));
   $("roleVideo").addEventListener("click", () => setRole("video"));
   $("roleImage").addEventListener("click", () => setRole("image"));
@@ -1097,4 +1132,5 @@
   showDemoList();
   autoConnect();
   bootAuth();
+  window.simcoApp = { needAccount: needAccount };
 })();
