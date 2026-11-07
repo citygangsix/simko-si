@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard", "agentBoard", "teamCard", "callCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard", "agentBoard", "teamCard", "callCard", "browseCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,29 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().browse) {
+      var browseOpen = $("browseOpen");
+      if (browseOpen) browseOpen.hidden = false;
+      if (browseOpen && !browseOpen.dataset.bound) {
+        browseOpen.dataset.bound = "1";
+        browseOpen.addEventListener("click", function () { show("browseCard"); });
+      }
+      var browseForm = $("browseForm");
+      if (browseForm && !browseForm.dataset.bound) {
+        browseForm.dataset.bound = "1";
+        browseForm.addEventListener("submit", function (event) {
+          event.preventDefault();
+          post({ op: "browse", url: $("browseUrl").value }).then(function (data) {
+            $("browseText").textContent = data.ok ? data.text : (data.error || "That page could not be read.");
+          });
+        });
+      }
+      var browseClose = $("browseClose");
+      if (browseClose && !browseClose.dataset.bound) {
+        browseClose.dataset.bound = "1";
+        browseClose.addEventListener("click", hide);
+      }
     }
     if (flags().calls) {
       var callOpen = $("callOpen");

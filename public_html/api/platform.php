@@ -13,6 +13,7 @@ require_once __DIR__ . '/vault.php';
 require_once __DIR__ . '/connectors.php';
 require_once __DIR__ . '/agents.php';
 require_once __DIR__ . '/team.php';
+require_once __DIR__ . '/browse.php';
 
 $body = simko_require_post_json();
 $op = (string) ($body['op'] ?? '');
@@ -66,6 +67,12 @@ switch ($op) {
             simko_fail(404, 'Approvals are turned off.');
         }
         simko_ok(['audit' => simko_audit_rows($userId)]);
+        break;
+    case 'browse':
+        if (!simko_flag('browse')) {
+            simko_fail(404, 'Page reading is turned off.');
+        }
+        simko_ok(simko_browse_fetch((string) ($body['url'] ?? '')));
         break;
     case 'call-status':
         if (!simko_flag('calls')) {

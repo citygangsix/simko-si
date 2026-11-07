@@ -69,6 +69,8 @@ return [
     // Connectors. Client ids empty means the buttons stay hidden.
     // Google Drive is read-only. GitHub reads repositories. No Gmail. No banks.
     // Phone calls stay disabled. Filling a provider does not place a call and does not open an account.
+    // Hosts the page reader may fetch. No logins. Full browser automation is not on shared hosting.
+    'browse_allow' => [],
     'calls' => [
         'provider' => '',
         'from_number' => '',
