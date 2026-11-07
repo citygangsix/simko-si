@@ -84,6 +84,35 @@ async function detectCase(page, label) {
   console.log("detect visible", label);
 }
 
+async function newChatCase(page) {
+  if (!(await page.locator("#everyday").isVisible())) {
+    await page.locator("#sessionList button").first().click();
+  }
+  await page.locator("#everyday").click();
+  await page.locator("#everyday").pressSequentially("Hi", { delay: 15 });
+  await page.click("#go");
+  await page.waitForFunction(() => (document.getElementById("reply-bubble").textContent || "").includes("Hi"));
+  const newChat = page.getByRole("button", { name: "New chat" });
+  if (!(await newChat.isVisible()) && await page.locator("#backToList").isVisible()) {
+    await page.click("#backToList");
+  }
+  const before = await page.locator("#sessionList button").count();
+  await newChat.dblclick();
+  await page.waitForFunction((n) => document.querySelectorAll("#sessionList button").length === n + 1, before);
+  await page.waitForTimeout(500);
+  const mid = await page.locator("#sessionList button").count();
+  if (mid !== before + 1) throw new Error("one New Chat gesture created " + (mid - before) + " chats");
+  if (!(await newChat.isVisible()) && await page.locator("#backToList").isVisible()) {
+    await page.click("#backToList");
+  }
+  await newChat.click();
+  await page.waitForFunction(() => document.activeElement && document.activeElement.id === "everyday");
+  await page.waitForTimeout(400);
+  const after = await page.locator("#sessionList button").count();
+  if (after !== mid) throw new Error("New Chat on an empty chat created another");
+  console.log("new chat stayed at one blank chat");
+}
+
 async function relayCase(page) {
   if (!(await page.locator("#everyday").isVisible())) {
     await page.locator("#sessionList button").first().click();
@@ -160,6 +189,7 @@ try {
     await detectCase(page, "signed-out " + width);
     const email = `relay-${width}-${Date.now()}@simkosi.test`;
     await signUp(page, email);
+    await newChatCase(page);
     await relayCase(page);
     await detectCase(page, "signed-in " + width);
     await page.close();

@@ -45,6 +45,7 @@
   let authToken = "";
   let signedIn = false;
   let authMode = "signin";
+  let creatingChat = false;
   let activeSessionId = "";
   let chatRows = [];
   let sessionCache = {};
@@ -579,18 +580,50 @@
     setReply("");
   }
 
+  function currentChatIsEmpty() {
+    if (!activeSessionId || String(activeSessionId).indexOf("demo-") === 0) return false;
+    const history = $("historyBubbles");
+    const reply = $("reply-bubble");
+    const historyText = history ? history.textContent.trim() : "";
+    const replyText = reply ? reply.textContent.trim() : "";
+    if (historyText || replyText) return false;
+    const cached = sessionCache[activeSessionId];
+    if (cached && Array.isArray(cached.messages)) return cached.messages.length === 0;
+    return true;
+  }
+
+  function focusComposer() {
+    openThread();
+    const box = $("everyday");
+    if (box) box.focus();
+  }
+
   async function newChat() {
     if (!hasSession()) {
       needAccount();
       return;
     }
-    const created = await sessionPost({ op: "create", title: "Chat " + (chatRows.length + 1) });
-    if (!created.ok && !created.session) {
-      setReply(created.error || "Could not open a chat.");
+    if (creatingChat) return;
+    if (currentChatIsEmpty()) {
+      focusComposer();
       return;
     }
-    await refreshChats(created.session.id);
-    openThread();
+    creatingChat = true;
+    const button = $("newChat");
+    if (button) button.disabled = true;
+    try {
+      const created = await sessionPost({ op: "create", title: "Chat " + (chatRows.length + 1) });
+      if (!created.session) {
+        setReply(created.error || "Could not open a chat.");
+        return;
+      }
+      if (created.session) sessionCache[created.session.id] = created.session;
+      await refreshChats(created.session.id);
+      focusComposer();
+    } finally {
+      creatingChat = false;
+      if (button) button.disabled = false;
+    }
   }
 
   async function rememberTurn(userText, assistantText) {

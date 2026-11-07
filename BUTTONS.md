@@ -18,7 +18,7 @@ Clicked signed out and signed in at 390×844 and 1280×800 (`node tests/buttons.
 | Sign out (tools drawer) | Same as the header sign out | works | Shown only while signed in. |
 | Confirm email (tools drawer) | Would confirm a code | hidden | Not shown. Sign-up already starts the session. An empty confirm no longer writes “Confirm failed.” into the chat. |
 | Set password (tools drawer) | Old reset control | hidden | Reset lives in the sign-in box. |
-| New Chat | Starts a chat, or opens sign-in | works | |
+| New Chat | Starts a chat, or opens sign-in | works | A second click while create is in flight is ignored. If this chat is already empty, New Chat focuses it instead of adding another blank chat. |
 | Search | Shows the search field and filters the list | works | |
 | Send to chat | Opens sign-in, or the relay picker | works | The picker defaults to another chat. Send closes the tools drawer and shows “Sent to …”. Opening that chat shows “From …”. |
 | Relay Send | Copies the typed note, or the latest line, into the selected chat | works | Confirmation is written in the reply, not left behind the open drawer. |
