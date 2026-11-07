@@ -102,7 +102,9 @@ function simko_signin(array $body): void
 
 function simko_signout(): void
 {
-    simko_revoke_token(simko_request_token());
+    foreach (simko_token_candidates() as $token) {
+        simko_revoke_token($token);
+    }
     simko_clear_cookie();
     simko_ok();
 }
@@ -120,7 +122,7 @@ function simko_confirm(array $body): void
 {
     $token = trim((string) ($body['confirm_token'] ?? ''));
     if ($token === '') {
-        simko_fail(400, 'Confirm failed.');
+        simko_fail(400, 'Enter the confirm code first.');
     }
     $stmt = simko_db()->prepare(
         'UPDATE users SET confirmed = 1, confirm_token = NULL WHERE confirm_token = ?'

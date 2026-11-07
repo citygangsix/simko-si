@@ -43,6 +43,7 @@
   ];
 
   let authToken = "";
+  let authMode = "signin";
   let activeSessionId = "";
   let chatRows = [];
   let sessionCache = {};
@@ -164,26 +165,96 @@
     return message.text;
   }
 
+  const SPEAKER_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16.5 8.5a4.5 4.5 0 010 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  let replyAudio = null;
+
+  function setReply(text) {
+    const reply = $("reply-bubble");
+    reply.textContent = text || "";
+    const button = $("replySpeak");
+    if (!button) return;
+    const show = !!(text && text !== "Working on it…");
+    button.hidden = !show;
+    button.dataset.say = show ? text : "";
+  }
+
+  function chosenVoice() {
+    if (window.simcoVoice && window.simcoVoice.state && window.simcoVoice.state.voice) return window.simcoVoice.state.voice;
+    try { return localStorage.getItem("simcoVoice") || "coral"; } catch (e) { return "coral"; }
+  }
+
+  function chosenSpeed() {
+    let speed = 1;
+    try { speed = parseFloat(localStorage.getItem("simcoVoiceSpeed") || "1") || 1; } catch (e) {}
+    return Math.min(1.5, Math.max(0.7, speed));
+  }
+
+  function speakLine(text, button) {
+    const line = String(text || "").replace(/\s+/g, " ").trim().slice(0, 1200);
+    if (!line) return;
+    if (replyAudio) { replyAudio.pause(); replyAudio = null; }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    const speed = chosenSpeed();
+    let fellBack = false;
+    function fallback() {
+      if (fellBack) return;
+      fellBack = true;
+      if (button) button.setAttribute("aria-pressed", "false");
+      if (!window.speechSynthesis) return;
+      const utterance = new SpeechSynthesisUtterance(line);
+      utterance.rate = speed;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    }
+    const url = "/api/voice/speak?voice=" + encodeURIComponent(chosenVoice())
+      + "&speed=" + speed.toFixed(2)
+      + "&text=" + encodeURIComponent(line);
+    const audio = new Audio(url);
+    replyAudio = audio;
+    if (button) button.setAttribute("aria-pressed", "true");
+    audio.addEventListener("ended", () => { if (button) button.setAttribute("aria-pressed", "false"); });
+    audio.addEventListener("error", fallback);
+    audio.play().catch(fallback);
+  }
+
+  function speakButton(text) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "speakReply";
+    button.setAttribute("aria-label", "Play reply");
+    button.innerHTML = SPEAKER_SVG;
+    button.addEventListener("click", () => speakLine(text, button));
+    return button;
+  }
+
+  function makeBubble(message) {
+    const mine = message.role === "user" || message.role === "relay_out";
+    const bubble = document.createElement("div");
+    bubble.className = mine ? "bubble mine" : "bubble theirs";
+    const words = document.createElement("div");
+    words.className = "bubbleText";
+    words.textContent = messageText(message);
+    bubble.appendChild(words);
+    if (!mine) bubble.appendChild(speakButton(messageText(message)));
+    return bubble;
+  }
+
   function renderHistory(session) {
     if (session && session.title) setThreadTitle(session.title);
     const history = $("historyBubbles");
-    const reply = $("reply-bubble");
     history.replaceChildren();
     const messages = (session && session.messages) || [];
     messages.forEach((message, index) => {
       const last = index === messages.length - 1;
       const mine = message.role === "user" || message.role === "relay_out";
       if (last && !mine) {
-        reply.textContent = messageText(message);
+        setReply(messageText(message));
         return;
       }
-      const bubble = document.createElement("div");
-      bubble.className = mine ? "bubble mine" : "bubble theirs";
-      bubble.textContent = messageText(message);
-      history.appendChild(bubble);
+      history.appendChild(makeBubble(message));
     });
     const tail = messages[messages.length - 1];
-    if (!tail || tail.role === "user" || tail.role === "relay_out") reply.textContent = "";
+    if (!tail || tail.role === "user" || tail.role === "relay_out") setReply("");
   }
 
   function fillChatSelect(select, rows, skipId) {
@@ -236,23 +307,17 @@
     paintChatList(DEMO_CHATS, true);
     setThreadTitle("New chat");
     $("historyBubbles").replaceChildren();
-    $("reply-bubble").textContent = "";
+    setReply("");
   }
 
   function showMyMessage(text) {
     const history = $("historyBubbles");
     const reply = $("reply-bubble");
     if (reply.textContent.trim() && reply.textContent !== "Working on it…") {
-      const prev = document.createElement("div");
-      prev.className = "bubble theirs";
-      prev.textContent = reply.textContent;
-      history.appendChild(prev);
+      history.appendChild(makeBubble({ role: "assistant", text: reply.textContent }));
     }
-    const bubble = document.createElement("div");
-    bubble.className = "bubble mine";
-    bubble.textContent = text;
-    history.appendChild(bubble);
-    reply.textContent = "";
+    history.appendChild(makeBubble({ role: "user", text: text }));
+    setReply("");
     const thread = $("thread");
     if (thread) thread.scrollTop = thread.scrollHeight;
   }
@@ -312,6 +377,22 @@
     cacheSave();
   }
 
+  function shortEmail(email) {
+    const value = String(email || "");
+    if (value.length <= 22) return value;
+    const at = value.indexOf("@");
+    if (at < 1) return value.slice(0, 18) + "…";
+    return value.slice(0, 8) + "…@" + value.slice(at + 1);
+  }
+
+  function paintAccount(email) {
+    const signed = !!email;
+    $("accountSignIn").hidden = signed;
+    $("accountSigned").hidden = !signed;
+    $("accountEmail").textContent = shortEmail(email || "");
+    $("accountEmail").title = email || "";
+  }
+
   function showSignedOut() {
     authToken = "";
     window.simcoUserToken = "";
@@ -322,6 +403,7 @@
     ["signOut", "confirmEmail", "authTokenBox", "setPassword"].forEach((id) => { $(id).hidden = true; });
     $("authWho").textContent = "";
     $("relay-sheet").hidden = true;
+    paintAccount("");
     showDemoList();
     loadLife();
   }
@@ -329,89 +411,135 @@
   function showSignedIn(email) {
     window.simcoUserToken = authToken;
     if (window.simcoThemes) window.simcoThemes.syncFromServer();
-    ["authEmail", "authPassword", "signUp", "signIn", "confirmEmail", "resetPassword"].forEach((id) => { $(id).hidden = true; });
+    ["authEmail", "authPassword", "signUp", "signIn", "confirmEmail", "resetPassword", "authTokenBox", "setPassword"].forEach((id) => { $(id).hidden = true; });
     $("signOut").hidden = false;
     $("authWho").textContent = email;
     $("drawer").hidden = true;
     $("toolsToggle").setAttribute("aria-expanded", "false");
+    paintAccount(email);
     loadLife();
   }
 
-  async function submitAuth(op) {
-    const email = $("authEmail").value.trim();
-    const password = $("authPassword").value;
-    const data = await authPost({ op: op, email: email, password: password });
-    if (!data.ok || !data.token) {
-      $("reply-bubble").textContent = data.error || "Sign in failed.";
-      openThread();
-      return;
-    }
+  function setAuthError(message) {
+    const line = $("authModalError");
+    line.hidden = !message;
+    line.textContent = message || "";
+  }
+
+  function paintAuthMode() {
+    const creating = authMode === "signup";
+    $("authTabIn").setAttribute("aria-selected", creating ? "false" : "true");
+    $("authTabUp").setAttribute("aria-selected", creating ? "true" : "false");
+    $("authModalTitle").textContent = creating ? "Create account" : "Sign in";
+    $("authModalSubmit").textContent = creating ? "Create account" : "Sign in";
+    $("modalPassword").setAttribute("autocomplete", creating ? "new-password" : "current-password");
+  }
+
+  function openAuthModal(mode) {
+    authMode = mode === "signup" ? "signup" : "signin";
+    paintAuthMode();
+    setAuthError("");
+    $("authResetForm").hidden = true;
+    $("authModalForm").hidden = false;
+    $("authModal").hidden = false;
+    const email = $("modalEmail");
+    if (email) email.focus();
+  }
+
+  function closeAuthModal() {
+    $("authModal").hidden = true;
+    setAuthError("");
+  }
+
+  function needAccount() {
+    openAuthModal("signin");
+  }
+
+  async function finishAuth(data, email) {
     authToken = data.token;
     try { sessionStorage.setItem("podcoderToken", authToken); } catch (e) {}
-    $("authPassword").value = "";
     showSignedIn(data.email || email);
-    if (data.dev_token) {
-      $("authTokenBox").value = data.dev_token;
-      $("authTokenBox").hidden = false;
-      $("confirmEmail").hidden = false;
-      $("drawer").hidden = false;
-      $("toolsToggle").setAttribute("aria-expanded", "true");
-    }
+    closeAuthModal();
     await refreshChats();
   }
 
+  async function submitAuth(op, email, password) {
+    const data = await authPost({ op: op, email: email, password: password });
+    if (!data.ok || !data.token) {
+      setAuthError(data.error || (op === "signup" ? "Could not create the account." : "Sign in failed."));
+      return;
+    }
+    await finishAuth(data, email);
+  }
+
   async function confirmEmail() {
-    const data = await authPost({ op: "confirm-email", confirm_token: $("authTokenBox").value.trim(), token: authToken });
-    $("reply-bubble").textContent = data.ok ? "Email confirmed." : (data.error || "Confirm failed.");
-    openThread();
+    const code = $("authTokenBox").value.trim();
+    if (!code) return;
+    const data = await authPost({ op: "confirm-email", confirm_token: code, token: authToken });
+    if (data.ok) $("confirmEmail").hidden = true;
   }
 
-  async function resetPassword() {
-    const data = await authPost({ op: "request-reset", email: $("authEmail").value.trim() });
+  function setResetError(message) {
+    const line = $("authResetError");
+    line.hidden = !message;
+    line.textContent = message || "";
+  }
+
+  function openReset() {
+    setAuthError("");
+    setResetError("");
+    $("authModalForm").hidden = true;
+    $("authResetForm").hidden = false;
+    $("authModalTitle").textContent = "Reset password";
+    $("modalResetEmail").value = $("modalEmail").value.trim();
+    $("authModal").hidden = false;
+    $("modalResetEmail").focus();
+  }
+
+  async function submitReset(event) {
+    if (event) event.preventDefault();
+    setResetError("");
+    const email = $("modalResetEmail").value.trim();
+    const code = $("modalResetToken").value.trim();
+    const password = $("modalResetPassword").value;
+    if (!code) {
+      const data = await authPost({ op: "request-reset", email: email });
+      if (!data.ok) {
+        setResetError(data.error || "Reset failed.");
+        return;
+      }
+      if (data.dev_token) {
+        $("modalResetToken").value = data.dev_token;
+        setResetError("No mail server is set up, so the reset code is filled in. Type a new password, then update.");
+        return;
+      }
+      setResetError("If that email is registered, a reset code was sent. Paste it here with a new password.");
+      return;
+    }
+    const data = await authPost({ op: "reset-password", reset_token: code, password: password });
     if (!data.ok) {
-      $("reply-bubble").textContent = data.error || "Reset failed.";
-      openThread();
+      setResetError(data.error || "Reset failed.");
       return;
     }
-    if (data.dev_token) {
-      $("authTokenBox").value = data.dev_token;
-      $("authTokenBox").hidden = false;
-      $("setPassword").hidden = false;
-      $("reply-bubble").textContent = "No mail server. The reset token is on screen. Type a new password, then Set password.";
-      openThread();
-      return;
-    }
-    $("reply-bubble").textContent = "If that email is registered, a reset note was sent.";
-    openThread();
-  }
-
-  async function setPassword() {
-    const data = await authPost({
-      op: "reset-password",
-      reset_token: $("authTokenBox").value.trim(),
-      password: $("authPassword").value
-    });
-    $("reply-bubble").textContent = data.ok ? "Password updated. Sign in with the new one." : (data.error || "Reset failed.");
-    if (data.ok) {
-      $("authPassword").value = "";
-      $("authTokenBox").value = "";
-      $("setPassword").hidden = true;
-    }
-    openThread();
+    $("modalResetToken").value = "";
+    $("modalResetPassword").value = "";
+    $("modalEmail").value = email;
+    $("authResetForm").hidden = true;
+    $("authModalForm").hidden = false;
+    authMode = "signin";
+    paintAuthMode();
+    setAuthError("Password updated. Sign in with the new one.");
   }
 
   async function signOut() {
     if (authToken) await authPost({ op: "signout", token: authToken });
     showSignedOut();
-    $("reply-bubble").textContent = "";
+    setReply("");
   }
 
   async function newChat() {
     if (!authToken) {
-      $("drawer").hidden = false;
-      $("toolsToggle").setAttribute("aria-expanded", "true");
-      $("reply-bubble").textContent = "Sign in to open a chat.";
-      openThread();
+      needAccount();
       return;
     }
     const created = await sessionPost({ op: "create", title: "Chat " + (chatRows.length + 1) });
@@ -443,16 +571,12 @@
     if (!text) return;
     if (window.simcoVoice) window.simcoVoice.consumeTurn();
     if (!authToken) {
-      $("drawer").hidden = false;
-      $("toolsToggle").setAttribute("aria-expanded", "true");
-      $("reply-bubble").textContent = "Sign in to talk with Simko SI.";
-      openThread();
+      needAccount();
       return;
     }
-    const reply = $("reply-bubble");
     showMyMessage(text);
     $("everyday").value = "";
-    reply.textContent = "Working on it…";
+    setReply("Working on it…");
     let everyday = "";
     try {
       const data = await postJson("/api/simco/turn", {
@@ -467,7 +591,7 @@
       everyday = "Simko SI could not be reached. Try again in a moment.";
     }
     const line = everyday || "No reply came back from Simko SI. Try again in a moment.";
-    reply.textContent = line;
+    setReply(line);
     voiceReply(line);
     await rememberTurn(text, line);
     await tagTurn(text);
@@ -688,7 +812,12 @@
   async function bootAuth() {
     try { authToken = sessionStorage.getItem("podcoderToken") || ""; } catch (e) { authToken = ""; }
     try {
-      const data = await authPost({ op: "me", token: authToken });
+      let data = await authPost({ op: "me", token: authToken });
+      if (!data.ok && authToken) {
+        authToken = "";
+        try { sessionStorage.removeItem("podcoderToken"); } catch (e) {}
+        data = await authPost({ op: "me" });
+      }
       if (!data.ok) {
         showSignedOut();
         return;
@@ -743,12 +872,30 @@
       $("composer").requestSubmit();
     }
   });
-  $("signUp").addEventListener("click", () => submitAuth("signup"));
-  $("signIn").addEventListener("click", () => submitAuth("signin"));
+  $("signUp").addEventListener("click", () => openAuthModal("signup"));
+  $("signIn").addEventListener("click", () => openAuthModal("signin"));
   $("confirmEmail").addEventListener("click", confirmEmail);
-  $("resetPassword").addEventListener("click", resetPassword);
-  $("setPassword").addEventListener("click", setPassword);
+  $("resetPassword").addEventListener("click", () => openReset());
+  $("setPassword").addEventListener("click", () => openReset());
   $("signOut").addEventListener("click", signOut);
+  $("accountSignIn").addEventListener("click", () => openAuthModal("signin"));
+  $("accountSignOut").addEventListener("click", signOut);
+  $("authTabIn").addEventListener("click", () => { authMode = "signin"; paintAuthMode(); setAuthError(""); });
+  $("authTabUp").addEventListener("click", () => { authMode = "signup"; paintAuthMode(); setAuthError(""); });
+  $("authModalClose").addEventListener("click", closeAuthModal);
+  $("authModal").addEventListener("click", (event) => { if (event.target === $("authModal")) closeAuthModal(); });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !$("authModal").hidden) closeAuthModal();
+  });
+  $("authModalForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    setAuthError("");
+    submitAuth(authMode === "signup" ? "signup" : "signin", $("modalEmail").value.trim(), $("modalPassword").value);
+  });
+  $("authForgot").addEventListener("click", () => openReset());
+  $("authResetBack").addEventListener("click", () => openAuthModal("signin"));
+  $("authResetForm").addEventListener("submit", submitReset);
+  $("replySpeak").addEventListener("click", () => speakLine($("replySpeak").dataset.say || $("reply-bubble").textContent, $("replySpeak")));
   $("toolsToggle").addEventListener("click", () => {
     const drawer = $("drawer");
     drawer.hidden = !drawer.hidden;
@@ -762,9 +909,7 @@
   $("chatSearch").addEventListener("input", () => searchChats());
   $("sendToChat").addEventListener("click", async () => {
     if (!authToken) {
-      $("drawer").hidden = false;
-      $("reply-bubble").textContent = "Sign in to send to another chat.";
-      openThread();
+      needAccount();
       return;
     }
     await refreshChats(activeSessionId);

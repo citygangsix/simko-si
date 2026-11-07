@@ -142,20 +142,32 @@ async function browserTests() {
   page.on("pageerror", (error) => console.log("PAGE", error.message));
   const email = `ui-${Date.now()}@simkosi.test`;
   await page.goto(SITE + "/", { waitUntil: "domcontentloaded" });
-  await page.click("#toolsToggle");
-  await page.locator("#authEmail").waitFor({ state: "visible" });
-  await page.fill("#authEmail", email);
-  await page.fill("#authPassword", "reef-turtle-8");
-  await page.click("#signUp");
-  await page.waitForFunction((address) => (document.getElementById("authWho").textContent || "").includes(address), email);
+  for (const [width, height] of [[390, 844], [412, 848], [750, 832], [1280, 800]]) {
+    await page.setViewportSize({ width, height });
+    const box = await page.locator("#accountSignIn").boundingBox();
+    const vp = page.viewportSize();
+    if (!box || box.width < 8 || box.y < 0 || box.x < 0 || box.x + box.width > vp.width + 1 || box.y + box.height > vp.height + 1) {
+      throw new Error("Sign in button is not on screen at " + width + "x" + height);
+    }
+  }
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.click("#accountSignIn");
+  await page.locator("#authModal").waitFor({ state: "visible" });
+  await page.click("#authTabUp");
+  await page.locator("#authModalTitle").waitFor();
+  await shot(page, 1280, 800, "/opt/cursor/artifacts/simko-signin-1280x800.png");
+  await shot(page, 390, 844, "/opt/cursor/artifacts/simko-signin-390x844.png");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.locator("#modalEmail").click();
+  await page.locator("#modalEmail").pressSequentially(email, { delay: 12 });
+  await page.locator("#modalPassword").click();
+  await page.locator("#modalPassword").pressSequentially("reef-turtle-8", { delay: 12 });
+  await page.click("#authModalSubmit");
+  await page.waitForFunction((address) => (document.getElementById("accountEmail").textContent || "").length > 0 && (document.getElementById("accountEmail").title || "").includes(address), email);
+  await page.locator("#authModal").waitFor({ state: "hidden" });
   await page.waitForFunction(() => {
     const button = document.querySelector("#sessionList button");
     return button && !String(button.dataset.id || "").startsWith("demo-");
-  });
-  await page.evaluate(() => {
-    const drawer = document.getElementById("drawer");
-    drawer.hidden = true;
-    document.getElementById("toolsToggle").setAttribute("aria-expanded", "false");
   });
 
   const box = page.locator("#everyday");
@@ -166,7 +178,8 @@ async function browserTests() {
     const text = document.getElementById("reply-bubble").textContent || "";
     return text.includes("The reef heard you") && text.includes("Hello sea turtle");
   }, null, { timeout: 20000 });
-  console.log("typed turn returned a reply");
+  await page.locator("#replySpeak").waitFor({ state: "visible" });
+  console.log("typed turn returned a reply with a speaker button");
 
   await shot(page, 1280, 800, "/opt/cursor/artifacts/simko-1280x800.png", false);
   await shot(page, 390, 844, "/opt/cursor/artifacts/simko-390x844.png", true);

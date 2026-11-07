@@ -7,7 +7,7 @@ The page keeps the uploaded messenger: left chat list, right conversation, folda
 | New Chat, about 10 recent chats, switch chats | works | SQLite in `simkosi-private/data`. The list is the 10 most recently updated chats. Older chats stay stored. |
 | Send to other chat (relay) | works | `api/sessions.php` writes a "sent to" line on the source chat and a "from" line on the destination. Both must belong to the signed-in user. |
 | Search chats | works | Signed out, the 10 sample chats filter on this page. Signed in, search hits that account's titles and messages. |
-| Email and password sign up, sign in, sign out | works | `password_hash` / `password_verify`. An HttpOnly `simko` cookie plus the token the existing page already stores in `sessionStorage`. |
+| Email and password sign up, sign in, sign out | works | A Sign in button stays in the top corner on phone and desktop. It opens a sign-in / create-account box. `password_hash` / `password_verify`. An HttpOnly `simko` cookie plus the token the page stores in `sessionStorage`. |
 | Email confirm | partial | No mail server is wired up. In `mail_mode=dev` (the default) the confirm token is shown in the tools drawer, same idea as the original dev inbox. Set `mail_mode` to `smtp` only after a mailer exists; this build does not send mail. |
 | Password reset | partial | Same dev-token path. The token expires after one hour. Real delivery needs a mailer this host does not run. |
 | Chats scoped to the account, with a browser cache | works | Server rows are the source of truth. The browser also keeps `localStorage` key `simko.cache.v1` so a failed reload can still show the last list. |

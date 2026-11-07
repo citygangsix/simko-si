@@ -249,20 +249,33 @@ function simko_clear_cookie(): void
     simko_set_cookie('', time() - 42000);
 }
 
-function simko_request_token(): string
+function simko_token_candidates(): array
 {
+    $found = [];
     $body = simko_body();
     if (!empty($body['token']) && is_string($body['token'])) {
-        return $body['token'];
+        $found[] = $body['token'];
     }
     if (!empty($_COOKIE['simko']) && is_string($_COOKIE['simko'])) {
-        return $_COOKIE['simko'];
+        $found[] = $_COOKIE['simko'];
     }
     $header = (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? '');
     if (str_starts_with($header, 'Bearer ')) {
-        return trim(substr($header, 7));
+        $found[] = trim(substr($header, 7));
     }
-    return '';
+    $unique = [];
+    foreach ($found as $token) {
+        if ($token !== '' && !in_array($token, $unique, true)) {
+            $unique[] = $token;
+        }
+    }
+    return $unique;
+}
+
+function simko_request_token(): string
+{
+    $tokens = simko_token_candidates();
+    return $tokens[0] ?? '';
 }
 
 function simko_db(): PDO
@@ -346,9 +359,8 @@ function simko_migrate(PDO $db): void
     $db->exec('CREATE INDEX IF NOT EXISTS idx_tokens_user ON auth_tokens(user_id)');
 }
 
-function simko_current_user(): ?array
+function simko_user_for_token(string $token): ?array
 {
-    $token = simko_request_token();
     if ($token === '') {
         return null;
     }
@@ -361,6 +373,17 @@ function simko_current_user(): ?array
     $stmt->execute([hash('sha256', $token), time()]);
     $row = $stmt->fetch();
     return $row ?: null;
+}
+
+function simko_current_user(): ?array
+{
+    foreach (simko_token_candidates() as $token) {
+        $user = simko_user_for_token($token);
+        if ($user) {
+            return $user;
+        }
+    }
+    return null;
 }
 
 function simko_require_user(): array
