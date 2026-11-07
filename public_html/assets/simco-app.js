@@ -281,7 +281,7 @@
     if (drawer) drawer.hidden = true;
     const toggle = $("toolsToggle");
     if (toggle) toggle.setAttribute("aria-expanded", "false");
-    const sheet = $("relay-sheet");
+    const sheet = $("relayOverlay");
     if (sheet) sheet.hidden = true;
     openThread();
     const reply = $("reply-bubble");
@@ -442,8 +442,8 @@
     try { sessionStorage.removeItem("podcoderToken"); } catch (e) {}
     ["authEmail", "authPassword", "signUp", "signIn", "resetPassword"].forEach((id) => { const el = $(id); if (el) el.hidden = false; });
     ["signOut", "confirmEmail", "authTokenBox", "setPassword"].forEach((id) => { const el = $(id); if (el) el.hidden = true; });
-    $("authWho").textContent = "";
-    $("relay-sheet").hidden = true;
+    if ($("authWho")) $("authWho").textContent = "";
+    if ($("relayOverlay")) $("relayOverlay").hidden = true;
     paintAccount("");
     showDemoList();
     loadLife();
@@ -975,16 +975,32 @@
     $("chatSearch").focus();
   });
   $("chatSearch").addEventListener("input", () => searchChats());
-  $("sendToChat").addEventListener("click", async () => {
+  $("sendToChat").addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     if (!hasSession()) {
       needAccount();
       return;
     }
-    await refreshChats(activeSessionId);
-    $("drawer").hidden = false;
-    $("toolsToggle").setAttribute("aria-expanded", "true");
-    $("relay-sheet").hidden = false;
+    const typed = $("everyday").value.trim();
+    const note = typed || latestNote();
+    const preview = $("relayPreview");
+    if (preview) {
+      preview.textContent = note
+        ? ("Send this note: " + note)
+        : "Type a message in the box, then send it to another chat.";
+    }
+    const error = $("relayError");
+    if (error) {
+      error.hidden = true;
+      error.textContent = "";
+    }
     fillChatSelect($("relayTarget"), chatRows, activeSessionId);
+    $("relayOverlay").hidden = false;
+  });
+  $("relayClose").addEventListener("click", () => { $("relayOverlay").hidden = true; });
+  $("relayOverlay").addEventListener("click", (event) => {
+    if (event.target === $("relayOverlay")) $("relayOverlay").hidden = true;
   });
   $("relayGo").addEventListener("click", sendToOtherChat);
   $("backToList").addEventListener("click", () => document.body.classList.remove("thread-open"));

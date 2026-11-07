@@ -107,12 +107,24 @@ async function relayCase(page) {
   if (!(await page.locator("#sendToChat").isVisible()) && await page.locator("#backToList").isVisible()) {
     await page.click("#backToList");
   }
-  await page.click("#sendToChat");
+  const arrow = page.getByRole("button", { name: "Send to chat" });
+  const arrowBox = await arrow.boundingBox();
+  const vp = page.viewportSize();
+  if (!arrowBox || arrowBox.width < 8) throw new Error("sidebar Send to chat is not visible");
+  if (vp.width >= 1000 && arrowBox.x > vp.width * 0.4) throw new Error("Send to chat is not in the sidebar");
+  const appBefore = await page.locator("#app").boundingBox();
+  await arrow.click();
+  await page.locator("#relayOverlay").waitFor({ state: "visible" });
+  if (await page.locator("#drawer").isVisible()) throw new Error("Send to chat opened the tools drawer");
+  const appAfter = await page.locator("#app").boundingBox();
+  if (Math.abs(appBefore.y - appAfter.y) > 2 || Math.abs(appBefore.height - appAfter.height) > 2) {
+    throw new Error("Send to chat shifted the chat layout");
+  }
   await page.locator("#relayTarget").waitFor({ state: "visible" });
   const destination = await page.locator("#relayTarget option:checked").innerText();
   if (!destination || destination === secondTitle) throw new Error("relay destination defaulted wrong: " + destination);
-  await page.click("#relayGo");
-  await page.locator("#drawer").waitFor({ state: "hidden" });
+  await page.locator("#relayOverlay").getByRole("button", { name: "Send" }).click();
+  await page.locator("#relayOverlay").waitFor({ state: "hidden" });
   const sent = await visibleText(page, "#reply-bubble");
   if (!sent.includes("Sent to " + destination)) throw new Error("missing confirmation: " + sent);
   if (!sent.includes("Note for the other chat")) throw new Error("confirmation dropped the note: " + sent);
@@ -124,6 +136,13 @@ async function relayCase(page) {
   const from = await visibleText(page, "#reply-bubble");
   if (!from.includes("From " + secondTitle)) throw new Error("destination missing from-line: " + from);
   if (!from.includes("Note for the other chat")) throw new Error("destination dropped the note: " + from);
+  const tools = page.getByRole("button", { name: "Tools" });
+  if (!(await tools.isVisible()) && await page.locator("#backToList").isVisible()) await page.click("#backToList");
+  const yBefore = (await page.locator("#app").boundingBox()).y;
+  await tools.click();
+  const yAfter = (await page.locator("#app").boundingBox()).y;
+  if (Math.abs(yBefore - yAfter) > 2) throw new Error("Tools panel shifted the layout");
+  await page.evaluate(() => { document.getElementById("drawer").hidden = true; });
   console.log("relay visible", secondTitle, "->", destination);
 }
 
