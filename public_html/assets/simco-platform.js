@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,55 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().routines) {
+      var routineOpen = $("routineOpen");
+      if (routineOpen) routineOpen.hidden = false;
+      function paintRoutines(data) {
+        var list = $("routineList");
+        if (!list) return;
+        list.replaceChildren();
+        (data.deliveries || []).forEach(function (row) {
+          var item = document.createElement("li");
+          item.textContent = row.body;
+          list.appendChild(item);
+        });
+        (data.routines || []).forEach(function (row) {
+          var item = document.createElement("li");
+          item.textContent = row.label + " at " + String(row.hour).padStart(2, "0") + ":" + String(row.minute).padStart(2, "0");
+          list.appendChild(item);
+        });
+      }
+      if (routineOpen && !routineOpen.dataset.bound) {
+        routineOpen.dataset.bound = "1";
+        routineOpen.addEventListener("click", function () {
+          post({ op: "routines" }).then(function (data) {
+            if (!data.ok) return;
+            paintRoutines(data);
+            show("routineCard");
+          });
+        });
+      }
+      var routineForm = $("routineForm");
+      if (routineForm && !routineForm.dataset.bound) {
+        routineForm.dataset.bound = "1";
+        routineForm.addEventListener("submit", function (event) {
+          event.preventDefault();
+          post({
+            op: "save-routine",
+            kind: $("routineKind").value,
+            hour: Number($("routineHour").value),
+            minute: Number($("routineMinute").value)
+          }).then(function () {
+            post({ op: "routines" }).then(function (data) { if (data.ok) paintRoutines(data); });
+          });
+        });
+      }
+      var routineClose = $("routineClose");
+      if (routineClose && !routineClose.dataset.bound) {
+        routineClose.dataset.bound = "1";
+        routineClose.addEventListener("click", hide);
+      }
     }
     if (flags().memory) {
       var memoryOpen = $("memoryOpen");

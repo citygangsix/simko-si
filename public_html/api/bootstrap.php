@@ -432,6 +432,29 @@ function simko_migrate(PDO $db): void
         )'
     );
     $db->exec('CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_id, child_profile_id, id)');
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS routines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            child_profile_id INTEGER,
+            kind TEXT NOT NULL,
+            hour INTEGER NOT NULL,
+            minute INTEGER NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            last_run INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL
+        )'
+    );
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS routine_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            routine_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            body TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            read_at INTEGER
+        )'
+    );
 }
 
 function simko_add_column(PDO $db, string $table, string $column, string $definition): void

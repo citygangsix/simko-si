@@ -5,6 +5,7 @@ require __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/usage.php';
 require_once __DIR__ . '/approvals.php';
 require_once __DIR__ . '/recall.php';
+require_once __DIR__ . '/routines.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -55,6 +56,22 @@ switch ($op) {
             simko_fail(404, 'Approvals are turned off.');
         }
         simko_ok(['audit' => simko_audit_rows($userId)]);
+        break;
+    case 'routines':
+        if (!simko_flag('routines')) {
+            simko_fail(404, 'Routines are turned off.');
+        }
+        simko_ok([
+            'routines' => simko_routine_rows($userId),
+            'deliveries' => simko_routine_deliveries($userId),
+            'kinds' => simko_routine_kinds(),
+        ]);
+        break;
+    case 'save-routine':
+        if (!simko_flag('routines')) {
+            simko_fail(404, 'Routines are turned off.');
+        }
+        simko_ok(['routine' => simko_routine_save($userId, $body), 'routines' => simko_routine_rows($userId)]);
         break;
     case 'memories':
         if (!simko_flag('memory')) {

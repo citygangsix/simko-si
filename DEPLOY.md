@@ -124,3 +124,13 @@ bash scripts/dev.sh
 ```
 
 Then open `http://127.0.0.1:8741`. Replies come from the mock until you point `xai_base_url` back at `https://api.x.ai/v1` and set a real key.
+
+## Routines cron
+
+Do not add this until the routines flag is meant to be on. In hPanel, Cron Jobs, every 15 minutes:
+
+```bash
+0,15,30,45 * * * * /usr/bin/php /home/u667559395/domains/simkosi.com/public_html/api/routines-worker.php
+```
+
+The worker writes the in-app note. It also emails when `mail_mode` is `smtp`.
