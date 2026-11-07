@@ -24,6 +24,8 @@ Options -Indexes
   RewriteRule ^api/share/?$ api/share.php [L,QSA]
   RewriteRule ^api/template/?$ api/template.php [L,QSA]
   RewriteRule ^api/oauth/callback/?$ api/oauth-callback.php [L,QSA]
+  RewriteRule ^api/connector/callback/?$ api/connector-callback.php [L,QSA]
+  RewriteRule ^api/agent-stream/?$ api/agent-stream.php [L]
   RewriteRule ^api/health/?$ api/machine.php?op=health [L,QSA]
   RewriteRule ^api/installers/?$ api/machine.php?op=installers [L,QSA]
   RewriteRule ^api/voice/(voices|speak|transcribe)/?$ api/voice.php?op=$1 [L,QSA]

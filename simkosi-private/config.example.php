@@ -77,15 +77,20 @@ return [
         'enabled' => false,
     ],
     'connectors' => [
+        'token_key' => '',
         'google-drive' => [
             'client_id' => '',
             'client_secret' => '',
             'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
+            'token_url' => 'https://oauth2.googleapis.com/token',
+            'revoke_url' => 'https://oauth2.googleapis.com/revoke',
         ],
         'github' => [
             'client_id' => '',
             'client_secret' => '',
             'authorize_url' => 'https://github.com/login/oauth/authorize',
+            'token_url' => 'https://github.com/login/oauth/access_token',
+            'revoke_url' => '',
         ],
     ],
     'oauth' => [
@@ -100,10 +105,12 @@ return [
         ],
         'apple' => [
             'client_id' => '',
-            'client_secret' => '',
+            'team_id' => '',
+            'key_id' => '',
+            'p8_path' => '',
             'authorize_url' => 'https://appleid.apple.com/auth/authorize',
             'token_url' => 'https://appleid.apple.com/auth/token',
-            'userinfo_url' => '',
+            'jwks_url' => 'https://appleid.apple.com/auth/keys',
             'redirect_url' => 'https://simkosi.com/api/oauth/callback',
             'scope' => 'name email',
         ],

@@ -26,6 +26,24 @@ if ($path === '/v1/chat/completions') {
     if (str_contains($system, 'asked you to remember')) {
         $text .= ' [remembered]';
     }
+    if (!empty($body['stream'])) {
+        header('Content-Type: text/event-stream; charset=utf-8');
+        $delay = (int) ($body['stream_delay_ms'] ?? 0);
+        $persona = '';
+        if (preg_match('/You are ([^.]+)\./', $system, $match)) {
+            $persona = $match[1];
+        }
+        $parts = [$persona . ':', $text];
+        foreach ($parts as $part) {
+            if ($delay > 0) {
+                usleep($delay * 1000);
+            }
+            echo 'data: ' . json_encode(['choices' => [['delta' => ['content' => $part]]]]) . "\n\n";
+            flush();
+        }
+        echo "data: [DONE]\n\n";
+        return;
+    }
     $payload = [
         'id' => 'mock-completion',
         'model' => $body['model'] ?? 'grok-4.7',

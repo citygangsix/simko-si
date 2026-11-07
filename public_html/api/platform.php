@@ -152,13 +152,26 @@ switch ($op) {
         if (!simko_flag('connectors')) {
             simko_fail(404, 'Connectors are turned off.');
         }
-        simko_ok(['connectors' => simko_connector_list()]);
+        simko_ok(['connectors' => simko_connector_list($userId)]);
         break;
     case 'connector-start':
         if (!simko_flag('connectors')) {
             simko_fail(404, 'Connectors are turned off.');
         }
         simko_ok(simko_connector_start($userId, (string) ($body['provider'] ?? '')));
+        break;
+    case 'connector-refresh':
+        if (!simko_flag('connectors')) {
+            simko_fail(404, 'Connectors are turned off.');
+        }
+        simko_ok(simko_connector_refresh($userId, (string) ($body['provider'] ?? '')));
+        break;
+    case 'connector-disconnect':
+        if (!simko_flag('connectors')) {
+            simko_fail(404, 'Connectors are turned off.');
+        }
+        simko_connector_disconnect($userId, (string) ($body['provider'] ?? ''));
+        simko_ok(['connectors' => simko_connector_list($userId)]);
         break;
     case 'vault-list':
         if (!simko_flag('vault')) {

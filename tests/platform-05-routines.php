@@ -12,7 +12,7 @@ $saved = platform_api($sitePort, '/api/platform', [
     'op' => 'save-routine',
     'kind' => 'bedtime',
     'hour' => (int) date('G', $now),
-    'minute' => (int) date('i', $now),
+    'minute' => 0,
 ], $user['token']);
 platform_assert($saved['status'] === 200 && ($saved['data']['routine']['kind'] ?? '') === 'bedtime', 'bedtime routine is saved');
 $worker = dirname(__DIR__) . '/public_html/api/routines-worker.php';

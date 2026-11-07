@@ -551,6 +551,22 @@ function simko_migrate(PDO $db): void
             read_at INTEGER
         )'
     );
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS connector_grants (
+            user_id INTEGER NOT NULL,
+            provider TEXT NOT NULL,
+            access_nonce BLOB NOT NULL,
+            access_cipher BLOB NOT NULL,
+            refresh_nonce BLOB,
+            refresh_cipher BLOB,
+            expires_at INTEGER NOT NULL DEFAULT 0,
+            scope TEXT NOT NULL DEFAULT "",
+            updated_at INTEGER NOT NULL,
+            PRIMARY KEY (user_id, provider)
+        )'
+    );
+    simko_add_column($db, 'oauth_states', 'nonce', 'TEXT');
+    simko_add_column($db, 'oauth_identities', 'email_relay', 'INTEGER NOT NULL DEFAULT 0');
 }
 
 function simko_add_column(PDO $db, string $table, string $column, string $definition): void
@@ -558,6 +574,8 @@ function simko_add_column(PDO $db, string $table, string $column, string $defini
     $allowed = [
         'users' => ['role' => true, 'parent_consent_at' => true],
         'chats' => ['child_profile_id' => true],
+        'oauth_states' => ['nonce' => true],
+        'oauth_identities' => ['email_relay' => true],
     ];
     if (!isset($allowed[$table][$column])) {
         return;

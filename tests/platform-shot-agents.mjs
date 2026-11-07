@@ -13,9 +13,17 @@ export default async function agentShot(page, shot, token) {
     (data.agents || []).forEach((agent) => {
       const pane = document.createElement("article");
       pane.className = "agentPane";
-      pane.innerHTML = "<h3></h3><p></p>";
+      pane.innerHTML = "<h3></h3><p class='persona'></p><p class='agentReply'></p>";
       pane.querySelector("h3").textContent = agent.name;
-      pane.querySelector("p").textContent = agent.persona;
+      pane.querySelector(".persona").textContent = agent.persona;
+      pane.querySelector(".agentReply").textContent = agent.name + ": ready";
+      const ask = document.createElement("button");
+      ask.type = "button";
+      ask.textContent = "Ask";
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.textContent = "Cancel";
+      pane.append(ask, cancel);
       board.appendChild(pane);
     });
     document.getElementById("agentBoard").hidden = false;

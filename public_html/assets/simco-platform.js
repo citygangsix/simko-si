@@ -227,7 +227,67 @@
           title.textContent = agent.name;
           var persona = document.createElement("p");
           persona.textContent = agent.persona;
-          pane.append(title, persona);
+          var reply = document.createElement("p");
+          reply.className = "agentReply";
+          reply.textContent = "";
+          var box = document.createElement("input");
+          box.type = "text";
+          box.placeholder = "Message " + agent.name;
+          var send = document.createElement("button");
+          send.type = "button";
+          send.textContent = "Ask";
+          var cancel = document.createElement("button");
+          cancel.type = "button";
+          cancel.textContent = "Cancel";
+          cancel.disabled = true;
+          var control = null;
+          send.addEventListener("click", function () {
+            var text = box.value.trim();
+            if (!text) return;
+            if (control) control.abort();
+            control = new AbortController();
+            cancel.disabled = false;
+            reply.textContent = "";
+            fetch("/api/agent-stream", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: token(), agent_id: agent.id, text: text }),
+              signal: control.signal
+            }).then(function (res) {
+              var reader = res.body && res.body.getReader ? res.body.getReader() : null;
+              if (!reader) return;
+              var decoder = new TextDecoder();
+              var pending = "";
+              function pump() {
+                return reader.read().then(function (chunk) {
+                  if (chunk.done) {
+                    cancel.disabled = true;
+                    return;
+                  }
+                  pending += decoder.decode(chunk.value, { stream: true });
+                  var blocks = pending.split("\n\n");
+                  pending = blocks.pop() || "";
+                  blocks.forEach(function (block) {
+                    var line = block.trim();
+                    if (line.indexOf("data:") !== 0) return;
+                    var data = {};
+                    try { data = JSON.parse(line.slice(5)); } catch (e) { return; }
+                    if (data.agent_id !== agent.id || !data.delta) return;
+                    reply.textContent += data.delta;
+                  });
+                  return pump();
+                });
+              }
+              return pump();
+            }).catch(function () {
+              cancel.disabled = true;
+            });
+          });
+          cancel.addEventListener("click", function () {
+            if (control) control.abort();
+            cancel.disabled = true;
+          });
+          pane.append(title, persona, reply, box, send, cancel);
           if (index > 0) {
             var hand = document.createElement("button");
             hand.type = "button";
@@ -281,10 +341,17 @@
             (data.connectors || []).forEach(function (row) {
               if (!row.ready) return;
               var item = document.createElement("li");
+              item.textContent = row.name + (row.connected ? " · Connected" : " · Not connected") + " ";
               var button = document.createElement("button");
               button.type = "button";
-              button.textContent = "Connect " + row.name;
+              button.textContent = row.connected ? "Disconnect" : "Connect " + row.name;
               button.addEventListener("click", function () {
+                if (row.connected) {
+                  post({ op: "connector-disconnect", provider: row.id }).then(function () {
+                    item.textContent = row.name + " · Not connected";
+                  });
+                  return;
+                }
                 post({ op: "connector-start", provider: row.id }).then(function (started) {
                   if (started.url) window.location.href = started.url;
                 });

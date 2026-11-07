@@ -9,7 +9,7 @@ export default async function connectorShot(page, shot, token) {
     list.replaceChildren();
     (data.connectors || []).forEach((row) => {
       const item = document.createElement("li");
-      item.textContent = row.ready ? row.name + " · " + row.scope : row.name + " is hidden until its client id is set.";
+      item.textContent = row.name + (row.connected ? " · Connected" : " · Not connected");
       list.appendChild(item);
     });
     document.getElementById("connectorCard").hidden = false;
