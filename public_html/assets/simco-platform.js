@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,41 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().oauth) {
+      var oauthButtons = window.simkoOauth || {};
+      var google = $("googleSignIn");
+      var apple = $("appleSignIn");
+      if (google) google.hidden = !oauthButtons.google;
+      if (apple) apple.hidden = !oauthButtons.apple;
+      if ((oauthButtons.google || oauthButtons.apple) && $("accountSignIn") && !$("accountSignIn").dataset.oauth) {
+        $("accountSignIn").dataset.oauth = "1";
+        $("accountSignIn").addEventListener("click", function () {
+          setTimeout(function () { show("oauthCard"); }, 0);
+        });
+      }
+      function begin(provider) {
+        fetch("/api/platform", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ op: "oauth-start", provider: provider })
+        }).then(function (res) { return res.json(); }).then(function (data) {
+          if (data.url) window.location.href = data.url;
+        });
+      }
+      if (google && !google.dataset.bound) {
+        google.dataset.bound = "1";
+        google.addEventListener("click", function () { begin("google"); });
+      }
+      if (apple && !apple.dataset.bound) {
+        apple.dataset.bound = "1";
+        apple.addEventListener("click", function () { begin("apple"); });
+      }
+      var oauthClose = $("oauthClose");
+      if (oauthClose && !oauthClose.dataset.bound) {
+        oauthClose.dataset.bound = "1";
+        oauthClose.addEventListener("click", hide);
+      }
     }
     if (flags().shares) {
       var shareOpen = $("shareOpen");

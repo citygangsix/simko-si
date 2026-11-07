@@ -178,6 +178,7 @@
       $("installWord").textContent = on ? "Ready" : "Waiting";
       if (data && data.family_ui) document.documentElement.setAttribute("data-simko-family", "1");
       window.simkoPlatformFlags = (data && data.platform) || {};
+      window.simkoOauth = (data && data.oauth_buttons) || {};
       loadFamilyScript();
       loadPlatformScript();
     } catch (e) {

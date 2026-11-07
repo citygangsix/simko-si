@@ -9,10 +9,15 @@ if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'GET') {
 }
 
 if ($op === 'health') {
+    require_once __DIR__ . '/oauth.php';
     simko_ok([
         'service' => 'simko-si',
         'family_ui' => simko_family_ui(),
         'platform' => simko_platform_flags(),
+        'oauth_buttons' => [
+            'google' => simko_oauth_ready('google'),
+            'apple' => simko_oauth_ready('apple'),
+        ],
     ]);
 }
 

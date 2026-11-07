@@ -8,10 +8,14 @@ require_once __DIR__ . '/recall.php';
 require_once __DIR__ . '/routines.php';
 require_once __DIR__ . '/images.php';
 require_once __DIR__ . '/shares.php';
+require_once __DIR__ . '/oauth.php';
 
 $body = simko_require_post_json();
-$user = simko_require_user();
 $op = (string) ($body['op'] ?? '');
+if ($op === 'oauth-start') {
+    simko_ok(simko_oauth_start((string) ($body['provider'] ?? '')));
+}
+$user = simko_require_user();
 $userId = (int) $user['id'];
 
 switch ($op) {

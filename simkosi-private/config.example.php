@@ -62,6 +62,30 @@ return [
     ],
     // Square hosted checkout. Leave the access token empty. Sandbox only.
     // Nothing is charged until the person taps the pay button and Square takes payment.
+    // Apple and Google sign-in. Leave the client ids empty until Joseph registers them.
+    // Buttons stay hidden while an id is empty, and while platform.oauth is false.
+    // Google: Cloud Console, OAuth client, redirect https://simkosi.com/api/oauth/callback
+    // Apple: developer.apple.com, Services ID, Sign in with Apple, same redirect. $99/year membership is Joseph's decision.
+    'oauth' => [
+        'google' => [
+            'client_id' => '',
+            'client_secret' => '',
+            'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
+            'token_url' => 'https://oauth2.googleapis.com/token',
+            'userinfo_url' => 'https://openidconnect.googleapis.com/v1/userinfo',
+            'redirect_url' => 'https://simkosi.com/api/oauth/callback',
+            'scope' => 'openid email',
+        ],
+        'apple' => [
+            'client_id' => '',
+            'client_secret' => '',
+            'authorize_url' => 'https://appleid.apple.com/auth/authorize',
+            'token_url' => 'https://appleid.apple.com/auth/token',
+            'userinfo_url' => '',
+            'redirect_url' => 'https://simkosi.com/api/oauth/callback',
+            'scope' => 'name email',
+        ],
+    ],
     'square' => [
         'environment' => 'sandbox',
         'application_id' => '',
