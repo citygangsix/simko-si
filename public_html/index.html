@@ -1189,6 +1189,21 @@
     <button id="paywallTrial" type="button">Start a free trial</button>
     <p id="paywallNote" role="status"></p>
   </section>
+  <section id="vaultCard" class="platformCard" hidden aria-labelledby="vaultTitle">
+    <button id="vaultClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="vaultTitle">Vault</h2>
+    <p class="platformLead">Values stay masked. Revealing one asks for your passphrase. The key never leaves this server.</p>
+    <form id="vaultForm">
+      <label for="vaultLabel">Label</label>
+      <input id="vaultLabel" type="text" autocomplete="off">
+      <label for="vaultValue">Value</label>
+      <input id="vaultValue" type="password" autocomplete="new-password">
+      <label for="vaultPass">Passphrase</label>
+      <input id="vaultPass" type="password" autocomplete="new-password">
+      <button type="submit">Lock it in</button>
+    </form>
+    <ul id="vaultList"></ul>
+  </section>
   <section id="oauthCard" class="platformCard" hidden aria-labelledby="oauthTitle">
     <button id="oauthClose" class="platformClose" type="button" aria-label="Close">×</button>
     <h2 id="oauthTitle">Sign in another way</h2>
@@ -1433,6 +1448,7 @@
   <button id="routineOpen" type="button" hidden>Routines</button>
   <button id="imageOpen" type="button" hidden>Picture</button>
   <button id="shareOpen" type="button" hidden>Share</button>
+  <button id="vaultOpen" type="button" hidden>Vault</button>
   <button id="detectHardware" type="button">Detect</button>
   <button id="downloadNow" type="button">Download</button>
   <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>

@@ -9,6 +9,7 @@ require_once __DIR__ . '/routines.php';
 require_once __DIR__ . '/images.php';
 require_once __DIR__ . '/shares.php';
 require_once __DIR__ . '/oauth.php';
+require_once __DIR__ . '/vault.php';
 
 $body = simko_require_post_json();
 $op = (string) ($body['op'] ?? '');
@@ -62,6 +63,24 @@ switch ($op) {
             simko_fail(404, 'Approvals are turned off.');
         }
         simko_ok(['audit' => simko_audit_rows($userId)]);
+        break;
+    case 'vault-list':
+        if (!simko_flag('vault')) {
+            simko_fail(404, 'The vault is turned off.');
+        }
+        simko_ok(['items' => simko_vault_list($userId)]);
+        break;
+    case 'vault-put':
+        if (!simko_flag('vault')) {
+            simko_fail(404, 'The vault is turned off.');
+        }
+        simko_ok(['item' => simko_vault_put($userId, (string) ($body['label'] ?? ''), (string) ($body['value'] ?? ''), (string) ($body['passphrase'] ?? ''))]);
+        break;
+    case 'vault-reveal':
+        if (!simko_flag('vault')) {
+            simko_fail(404, 'The vault is turned off.');
+        }
+        simko_ok(['value' => simko_vault_reveal($userId, (int) ($body['item_id'] ?? 0), (string) ($body['passphrase'] ?? ''))]);
         break;
     case 'share-lifebook':
         if (!simko_flag('shares')) {

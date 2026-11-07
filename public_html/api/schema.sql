@@ -138,6 +138,19 @@ CREATE TABLE IF NOT EXISTS routines (
     last_run INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS vault_keys (
+    user_id INTEGER PRIMARY KEY,
+    salt BLOB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS vault_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    nonce BLOB NOT NULL,
+    ciphertext BLOB NOT NULL,
+    created_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS oauth_states (
     state TEXT PRIMARY KEY,
     provider TEXT NOT NULL,

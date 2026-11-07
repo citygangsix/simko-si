@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,61 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().vault) {
+      var vaultOpen = $("vaultOpen");
+      if (vaultOpen) vaultOpen.hidden = false;
+      function paintVault(items) {
+        var list = $("vaultList");
+        if (!list) return;
+        list.replaceChildren();
+        (items || []).forEach(function (item) {
+          var row = document.createElement("li");
+          row.textContent = item.label + " " + item.value + " ";
+          var button = document.createElement("button");
+          button.type = "button";
+          button.textContent = "Reveal";
+          button.addEventListener("click", function () {
+            var phrase = window.prompt("Passphrase");
+            if (!phrase) return;
+            post({ op: "vault-reveal", item_id: item.id, passphrase: phrase }).then(function (data) {
+              row.textContent = data.ok ? item.label + " " + data.value : (data.error || "Locked");
+            });
+          });
+          row.appendChild(button);
+          list.appendChild(row);
+        });
+      }
+      if (vaultOpen && !vaultOpen.dataset.bound) {
+        vaultOpen.dataset.bound = "1";
+        vaultOpen.addEventListener("click", function () {
+          post({ op: "vault-list" }).then(function (data) {
+            if (!data.ok) return;
+            paintVault(data.items || []);
+            show("vaultCard");
+          });
+        });
+      }
+      var vaultForm = $("vaultForm");
+      if (vaultForm && !vaultForm.dataset.bound) {
+        vaultForm.dataset.bound = "1";
+        vaultForm.addEventListener("submit", function (event) {
+          event.preventDefault();
+          post({
+            op: "vault-put",
+            label: $("vaultLabel").value,
+            value: $("vaultValue").value,
+            passphrase: $("vaultPass").value
+          }).then(function () {
+            post({ op: "vault-list" }).then(function (data) { if (data.ok) paintVault(data.items || []); });
+          });
+        });
+      }
+      var vaultClose = $("vaultClose");
+      if (vaultClose && !vaultClose.dataset.bound) {
+        vaultClose.dataset.bound = "1";
+        vaultClose.addEventListener("click", hide);
+      }
     }
     if (flags().oauth) {
       var oauthButtons = window.simkoOauth || {};
