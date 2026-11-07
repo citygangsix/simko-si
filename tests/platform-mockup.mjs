@@ -15,6 +15,7 @@ const flags = {
   agents: false, team: false, calls: false, browse: false, store: false,
 };
 flags[feature] = true;
+if (feature === "team") flags.agents = true;
 const config = {
   xai_api_key: "xai-local-mock",
   xai_base_url: `http://127.0.0.1:${mockPort}/v1`,

@@ -22,6 +22,7 @@ Options -Indexes
   RewriteRule ^api/platform/?$ api/platform.php [L]
   RewriteRule ^api/image/?$ api/image.php [L,QSA]
   RewriteRule ^api/share/?$ api/share.php [L,QSA]
+  RewriteRule ^api/template/?$ api/template.php [L,QSA]
   RewriteRule ^api/oauth/callback/?$ api/oauth-callback.php [L,QSA]
   RewriteRule ^api/health/?$ api/machine.php?op=health [L,QSA]
   RewriteRule ^api/installers/?$ api/machine.php?op=installers [L,QSA]

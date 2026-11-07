@@ -12,6 +12,7 @@ require_once __DIR__ . '/oauth.php';
 require_once __DIR__ . '/vault.php';
 require_once __DIR__ . '/connectors.php';
 require_once __DIR__ . '/agents.php';
+require_once __DIR__ . '/team.php';
 
 $body = simko_require_post_json();
 $op = (string) ($body['op'] ?? '');
@@ -65,6 +66,30 @@ switch ($op) {
             simko_fail(404, 'Approvals are turned off.');
         }
         simko_ok(['audit' => simko_audit_rows($userId)]);
+        break;
+    case 'publish-template':
+        if (!simko_flag('team')) {
+            simko_fail(404, 'Templates are turned off.');
+        }
+        simko_ok(['template' => simko_template_create($userId, (int) ($body['agent_id'] ?? 0))]);
+        break;
+    case 'invite':
+        if (!simko_flag('team')) {
+            simko_fail(404, 'Team invites are turned off.');
+        }
+        simko_ok(['invite' => simko_team_invite($userId, (string) ($body['email'] ?? ''), (string) ($body['role'] ?? ''))]);
+        break;
+    case 'accept-invite':
+        if (!simko_flag('team')) {
+            simko_fail(404, 'Team invites are turned off.');
+        }
+        simko_ok(['membership' => simko_team_accept($userId, (string) $user['email'], (string) ($body['invite_token'] ?? ''))]);
+        break;
+    case 'team':
+        if (!simko_flag('team')) {
+            simko_fail(404, 'Team invites are turned off.');
+        }
+        simko_ok(['members' => simko_team_members($userId)]);
         break;
     case 'agents':
         if (!simko_flag('agents')) {

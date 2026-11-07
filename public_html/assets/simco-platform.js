@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard", "agentBoard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard", "agentBoard", "teamCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,42 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().team) {
+      var teamOpen = $("teamOpen");
+      if (teamOpen) teamOpen.hidden = false;
+      if (teamOpen && !teamOpen.dataset.bound) {
+        teamOpen.dataset.bound = "1";
+        teamOpen.addEventListener("click", function () {
+          post({ op: "team" }).then(function (data) {
+            var list = $("teamList");
+            if (!list) return;
+            list.replaceChildren();
+            (data.members || []).forEach(function (member) {
+              var item = document.createElement("li");
+              item.textContent = member.email + " · " + member.role;
+              list.appendChild(item);
+            });
+            show("teamCard");
+          });
+        });
+      }
+      var teamForm = $("teamForm");
+      if (teamForm && !teamForm.dataset.bound) {
+        teamForm.dataset.bound = "1";
+        teamForm.addEventListener("submit", function (event) {
+          event.preventDefault();
+          post({ op: "invite", email: $("teamEmail").value, role: $("teamRole").value }).then(function (data) {
+            if (!data.ok) return;
+            $("teamNote").textContent = "Invite ready for " + data.invite.email + " as " + data.invite.role + ".";
+          });
+        });
+      }
+      var teamClose = $("teamClose");
+      if (teamClose && !teamClose.dataset.bound) {
+        teamClose.dataset.bound = "1";
+        teamClose.addEventListener("click", hide);
+      }
     }
     if (flags().agents) {
       var agentOpen = $("agentOpen");

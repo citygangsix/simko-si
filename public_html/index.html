@@ -1194,6 +1194,20 @@
     <button id="paywallTrial" type="button">Start a free trial</button>
     <p id="paywallNote" role="status"></p>
   </section>
+  <section id="teamCard" class="platformCard" hidden aria-labelledby="teamTitle">
+    <button id="teamClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="teamTitle">Template and team</h2>
+    <p class="platformLead">Share an agent setup with a link. Invite a co-parent or a teammate.</p>
+    <form id="teamForm">
+      <label for="teamEmail">Email</label>
+      <input id="teamEmail" type="email" placeholder="co-parent@example.com">
+      <label for="teamRole">Role</label>
+      <select id="teamRole"><option value="co-parent">Co-parent</option><option value="teammate">Teammate</option></select>
+      <button type="submit">Send invite</button>
+    </form>
+    <p id="teamNote" class="platformLead"></p>
+    <ul id="teamList"></ul>
+  </section>
   <section id="agentBoard" class="platformCard" hidden aria-labelledby="agentTitle">
     <button id="agentClose" class="platformClose" type="button" aria-label="Close">×</button>
     <h2 id="agentTitle">Agents side by side</h2>
@@ -1473,6 +1487,7 @@
   <button id="vaultOpen" type="button" hidden>Vault</button>
   <button id="connectorOpen" type="button" hidden>Connectors</button>
   <button id="agentOpen" type="button" hidden>Agents</button>
+  <button id="teamOpen" type="button" hidden>Team</button>
   <button id="detectHardware" type="button">Detect</button>
   <button id="downloadNow" type="button">Download</button>
   <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>
