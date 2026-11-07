@@ -68,6 +68,26 @@ switch ($op) {
         }
         simko_ok(['audit' => simko_audit_rows($userId)]);
         break;
+    case 'store-steps':
+        if (!simko_flag('store')) {
+            simko_fail(404, 'Store notes are turned off.');
+        }
+        simko_ok([
+            'published' => false,
+            'url' => 'https://simkosi.com',
+            'fees' => [
+                'apple' => 'US$99 per year for the Apple Developer Program',
+                'google' => 'US$25 once for the Play Console account',
+            ],
+            'steps' => [
+                'Point the wrapper at https://simkosi.com. That is already in mobile/capacitor.config.json.',
+                'Leave platform flags off until the mockups are signed off.',
+                'Apple: enroll, register com.simkosi.simcosi, archive in Xcode, upload. Joseph decides on the $99 membership.',
+                'Google: register Play Console, build an Android App Bundle, upload. The account fee is $25 once.',
+                'Keep the $9 plan on the website Square checkout. Do not add an in-app purchase from here.',
+            ],
+        ]);
+        break;
     case 'browse':
         if (!simko_flag('browse')) {
             simko_fail(404, 'Page reading is turned off.');

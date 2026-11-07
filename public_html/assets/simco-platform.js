@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard", "agentBoard", "teamCard", "callCard", "browseCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard", "agentBoard", "teamCard", "callCard", "browseCard", "storeCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -108,6 +108,31 @@
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
       searchClose.addEventListener("click", hide);
+    }
+    if (flags().store) {
+      var storeOpen = $("storeOpen");
+      if (storeOpen) storeOpen.hidden = false;
+      if (storeOpen && !storeOpen.dataset.bound) {
+        storeOpen.dataset.bound = "1";
+        storeOpen.addEventListener("click", function () {
+          post({ op: "store-steps" }).then(function (data) {
+            var list = $("storeSteps");
+            if (!list) return;
+            list.replaceChildren();
+            (data.steps || []).forEach(function (step) {
+              var item = document.createElement("li");
+              item.textContent = step;
+              list.appendChild(item);
+            });
+            show("storeCard");
+          });
+        });
+      }
+      var storeClose = $("storeClose");
+      if (storeClose && !storeClose.dataset.bound) {
+        storeClose.dataset.bound = "1";
+        storeClose.addEventListener("click", hide);
+      }
     }
     if (flags().browse) {
       var browseOpen = $("browseOpen");

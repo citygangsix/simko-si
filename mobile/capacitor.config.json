@@ -1,0 +1,33 @@
+{
+  "appId": "com.simkosi.simcosi",
+  "appName": "Simko SI",
+  "webDir": "www",
+  "server": {
+    "url": "https://simkosi.com",
+    "androidScheme": "https",
+    "iosScheme": "https",
+    "cleartext": false
+  },
+  "plugins": {
+    "simko": {
+      "features": {
+        "paywall": false,
+        "approvals": false,
+        "search": false,
+        "memory": false,
+        "routines": false,
+        "images": false,
+        "shares": false,
+        "oauth": false,
+        "vault": false,
+        "connectors": false,
+        "agents": false,
+        "team": false,
+        "calls": false,
+        "browse": false,
+        "store": false
+      },
+      "notes": "The app shell loads the website. New screens stay off until platform flags are true in simkosi-private/config.php. Do not publish from this file."
+    }
+  }
+}
