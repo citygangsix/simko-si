@@ -255,7 +255,9 @@ async function auditSignedOut(page) {
   await page.locator("#gallery").waitFor({ state: "hidden" });
   await openTools(page);
   await page.click("#detectHardware");
-  await page.waitForFunction(() => /browser|Recommended/i.test(document.getElementById("reply-bubble").textContent || ""));
+  await page.locator("#drawer").waitFor({ state: "hidden" });
+  await page.waitForFunction(() => /GPU/i.test(document.getElementById("reply-bubble").textContent || "") && /Recommended/i.test(document.getElementById("reply-bubble").textContent || ""));
+  await openTools(page);
   await page.click("#downloadNow");
   await page.waitForFunction(() => (document.getElementById("reply-bubble").textContent || "").includes("coming soon"));
   await page.click("#advancedLink");
@@ -324,7 +326,7 @@ async function auditSignedIn(page, width) {
   await page.click("#sendToChat");
   await page.locator("#relayTarget").waitFor({ state: "visible" });
   await page.click("#relayGo");
-  await page.waitForFunction(() => (document.getElementById("historyBubbles").innerText || "").includes("Sent to"));
+  await page.waitForFunction(() => /Sent to/.test((document.getElementById("reply-bubble").textContent || "") + (document.getElementById("historyBubbles").innerText || "")));
   await openTools(page);
   await page.locator("#lifeTags button").first().click();
   await page.waitForFunction(() => (document.getElementById("lifeLast").textContent || "").length > 0);

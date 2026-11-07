@@ -248,7 +248,7 @@
     const messages = (session && session.messages) || [];
     messages.forEach((message, index) => {
       const last = index === messages.length - 1;
-      const mine = message.role === "user" || message.role === "relay_out";
+      const mine = message.role === "user";
       if (last && !mine) {
         setReply(messageText(message));
         return;
@@ -256,7 +256,7 @@
       history.appendChild(makeBubble(message));
     });
     const tail = messages[messages.length - 1];
-    if (!tail || tail.role === "user" || tail.role === "relay_out") setReply("");
+    if (!tail || tail.role === "user") setReply("");
   }
 
   function fillChatSelect(select, rows, skipId) {
@@ -269,7 +269,35 @@
       option.textContent = row.title || "Chat";
       select.appendChild(option);
     });
-    if ([...select.options].some((option) => option.value === previous)) select.value = previous;
+    if (previous && [...select.options].some((option) => option.value === previous)) {
+      select.value = previous;
+    } else if (select.options.length) {
+      select.selectedIndex = 0;
+    }
+  }
+
+  function revealConversation() {
+    const drawer = $("drawer");
+    if (drawer) drawer.hidden = true;
+    const toggle = $("toolsToggle");
+    if (toggle) toggle.setAttribute("aria-expanded", "false");
+    const sheet = $("relay-sheet");
+    if (sheet) sheet.hidden = true;
+    openThread();
+    const reply = $("reply-bubble");
+    if (reply && reply.scrollIntoView) {
+      try { reply.scrollIntoView({ block: "center" }); } catch (e) {}
+    }
+  }
+
+  function latestNote() {
+    const session = sessionCache[activeSessionId];
+    const messages = (session && session.messages) || [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const text = String(messages[i].text || "").trim();
+      if (text) return text;
+    }
+    return "";
   }
 
   function paintChatList(rows, demo) {
@@ -615,16 +643,23 @@
   }
 
   async function sendToOtherChat() {
-    const text = $("everyday").value.trim();
-    const target = $("relayTarget").value;
+    const box = $("everyday");
+    const typed = box.value.trim();
+    const text = typed || latestNote();
+    const select = $("relayTarget");
+    if (select && !select.value && select.options.length) select.selectedIndex = 0;
+    const target = select ? select.value : "";
+    const targetTitle = (select && select.selectedOptions && select.selectedOptions[0])
+      ? select.selectedOptions[0].textContent
+      : "that chat";
     if (!text) {
+      revealConversation();
       setReply("Type a message, then Send to chat.");
-      openThread();
       return;
     }
-    if (!target) {
+    if (!target || target === activeSessionId) {
+      revealConversation();
       setReply("Open another chat first.");
-      openThread();
       return;
     }
     const data = await sessionPost({
@@ -633,14 +668,15 @@
       to_session_id: target,
       text: text
     });
-    $("relay-sheet").hidden = true;
     if (!data.ok) {
+      revealConversation();
       setReply(data.error || "Could not send to that chat.");
-      openThread();
       return;
     }
-    $("everyday").value = "";
+    box.value = "";
     await showSession(activeSessionId, true);
+    revealConversation();
+    setReply("Sent to " + targetTitle + ": " + text);
   }
 
   async function searchChats() {
@@ -756,7 +792,10 @@
     let webgpu = "";
     try {
       if (navigator.gpu && navigator.gpu.requestAdapter) {
-        const adapter = await navigator.gpu.requestAdapter();
+        const adapter = await Promise.race([
+          navigator.gpu.requestAdapter(),
+          new Promise((resolve) => setTimeout(() => resolve(null), 700))
+        ]);
         if (adapter) {
           const info = adapter.info || {};
           webgpu = adapter.name || info.description || info.vendor || "WebGPU adapter";
@@ -769,21 +808,29 @@
       : "Recommended stack: this website, with Grok. A desktop app can use a GPU machine later.";
     return [
       "This browser is on " + os + ".",
-      cores ? (cores + " CPU cores.") : "",
+      cores ? (cores + " CPU cores.") : "CPU cores could not be read.",
       ram ? ("Memory hint " + ram + " GB.") : "Memory hint is hidden by this browser.",
-      gpu ? ("GPU " + gpu + ".") : "GPU could not be read.",
+      "GPU " + (gpu || "could not be read") + ".",
       webgpu ? ("WebGPU " + webgpu + ".") : "",
       stack
     ].filter(Boolean).join(" ");
   }
 
   async function detectHardware() {
-    const line = await probeMachine();
+    revealConversation();
+    setReply("Reading this browser…");
+    let line = "";
+    try {
+      line = await probeMachine();
+    } catch (e) {
+      line = "This browser could not be read. Recommended stack: this website, with Grok.";
+    }
+    if (!line) line = "This browser could not be read. Recommended stack: this website, with Grok.";
     setReply(line);
-    $("turtleLog").textContent = line;
-    $("turtleLead").textContent = "This is the browser on this computer. Nothing was installed.";
-    $("turtleStage").textContent = "Ready";
-    openThread();
+    if ($("turtleLog")) $("turtleLog").textContent = line;
+    if ($("turtleLead")) $("turtleLead").textContent = "This is the browser on this computer. Nothing was installed.";
+    if ($("turtleStage")) $("turtleStage").textContent = "Ready";
+    revealConversation();
   }
 
   async function downloadNow() {

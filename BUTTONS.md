@@ -20,8 +20,8 @@ Clicked signed out and signed in at 390×844 and 1280×800 (`node tests/buttons.
 | Set password (tools drawer) | Old reset control | hidden | Reset lives in the sign-in box. |
 | New Chat | Starts a chat, or opens sign-in | works | |
 | Search | Shows the search field and filters the list | works | |
-| Send to chat | Opens sign-in, or the relay picker | works | |
-| Relay Send | Copies the typed line into the other chat | works | |
+| Send to chat | Opens sign-in, or the relay picker | works | The picker defaults to another chat. Send closes the tools drawer and shows “Sent to …”. Opening that chat shows “From …”. |
+| Relay Send | Copies the typed note, or the latest line, into the selected chat | works | Confirmation is written in the reply, not left behind the open drawer. |
 | Chat list item | Opens that conversation | works | A demo id is no longer sent to `/api/sessions` after sign-in (that was a 404). |
 | Back | Returns to the chat list on a phone | works | |
 | Tools | Opens and closes the tools drawer | works | |
@@ -37,7 +37,7 @@ Clicked signed out and signed in at 390×844 and 1280×800 (`node tests/buttons.
 | Counts disclosure | Shows the counts | works | |
 | Coding | Hides the gallery and shows the conversation | works | |
 | Video / Image | Shows the turtle gallery | works | |
-| Detect | Reads this browser and names a stack | works | |
+| Detect | Reads this browser and names a stack | works | Closes the tools drawer and posts OS, cores, memory, GPU, and the recommended stack in the conversation. WebGPU cannot stall that reply. |
 | Download | Says the desktop app is not published yet | shows message | “Desktop app download coming soon.” |
 | Advanced | Explains that advanced tools stay in the desktop app | shows message | |
 | What renting would do | Explains GPU rental and that this site does not order one | shows message | |

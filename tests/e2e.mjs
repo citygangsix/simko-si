@@ -196,7 +196,7 @@ async function browserTests() {
   await page.click("#sendToChat");
   await page.locator("#relayTarget option").first().waitFor({ state: "attached" });
   await page.click("#relayGo");
-  await page.waitForFunction(() => (document.getElementById("historyBubbles").innerText || "").includes("Sent to"));
+  await page.waitForFunction(() => (document.getElementById("reply-bubble").textContent || "").includes("Sent to"));
   await page.locator("#sessionList button", { hasText: "Hello sea turtle" }).click();
   await page.waitForFunction(() => (document.getElementById("reply-bubble").textContent || "").includes("From") && (document.getElementById("reply-bubble").textContent || "").includes("Note for the other chat"));
   console.log("sign-up, sign-in, chat, and relay passed");
