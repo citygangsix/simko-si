@@ -1,0 +1,111 @@
+{
+  "upscaler": "deferred",
+  "upscale_deferred": true,
+  "upscale_flag": "--upscale",
+  "upscale_when_enabled": "realesrgan-ncnn-py RealESRGAN_x4plus model=4 gpuid=-1 tilesize=256",
+  "native_long_side": 1280,
+  "mobile_long_side": 640,
+  "avif_quality": 60,
+  "webp_quality": 80,
+  "jpeg_quality": 82,
+  "landscape_cleaned": "seamlessClone removed painted turtle and striped fish",
+  "portrait_cleaned": "portrait master has neither; left as painted",
+  "files": [
+    {
+      "file": "landscape-1280.avif",
+      "bytes": 136878,
+      "width": 1280,
+      "height": 720,
+      "format": "avif",
+      "note": "native-master"
+    },
+    {
+      "file": "landscape-1280.webp",
+      "bytes": 182384,
+      "width": 1280,
+      "height": 720,
+      "format": "webp",
+      "note": "native-master"
+    },
+    {
+      "file": "landscape-1280.jpg",
+      "bytes": 231801,
+      "width": 1280,
+      "height": 720,
+      "format": "jpg",
+      "note": "native-master"
+    },
+    {
+      "file": "landscape-640.avif",
+      "bytes": 43410,
+      "width": 640,
+      "height": 360,
+      "format": "avif",
+      "note": "smaller-mobile"
+    },
+    {
+      "file": "landscape-640.webp",
+      "bytes": 60658,
+      "width": 640,
+      "height": 360,
+      "format": "webp",
+      "note": "smaller-mobile"
+    },
+    {
+      "file": "landscape-640.jpg",
+      "bytes": 66955,
+      "width": 640,
+      "height": 360,
+      "format": "jpg",
+      "note": "smaller-mobile"
+    },
+    {
+      "file": "portrait-1280.avif",
+      "bytes": 123489,
+      "width": 720,
+      "height": 1280,
+      "format": "avif",
+      "note": "native-master"
+    },
+    {
+      "file": "portrait-1280.webp",
+      "bytes": 158036,
+      "width": 720,
+      "height": 1280,
+      "format": "webp",
+      "note": "native-master"
+    },
+    {
+      "file": "portrait-1280.jpg",
+      "bytes": 213677,
+      "width": 720,
+      "height": 1280,
+      "format": "jpg",
+      "note": "native-master"
+    },
+    {
+      "file": "portrait-640.avif",
+      "bytes": 41804,
+      "width": 360,
+      "height": 640,
+      "format": "avif",
+      "note": "smaller-mobile"
+    },
+    {
+      "file": "portrait-640.webp",
+      "bytes": 58426,
+      "width": 360,
+      "height": 640,
+      "format": "webp",
+      "note": "smaller-mobile"
+    },
+    {
+      "file": "portrait-640.jpg",
+      "bytes": 65913,
+      "width": 360,
+      "height": 640,
+      "format": "jpg",
+      "note": "smaller-mobile"
+    }
+  ]
+}

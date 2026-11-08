@@ -1,0 +1,96 @@
+{
+  "id": "wan22_video_rtx4090",
+  "name": "Wan 2.2 video - RTX 4090",
+  "kind": "machine_preset",
+  "role": "video",
+  "provider": "vast",
+  "separate_from": ["lipsync"],
+  "source_run": {
+    "date": "2026-10-30",
+    "files": [
+      "/workspace/simco-wan-or7/controller.py",
+      "/workspace/simco-wan-or7/driver7.py",
+      "/workspace/simco-wan-or7/controller.out",
+      "/workspace/organicsraw-promos/GPU_RUN.md"
+    ],
+    "instance_label": "simco-or7-056023f1",
+    "observed_gpu": "RTX 4090",
+    "observed_host": "Texas, US (machine 154106)",
+    "observed_dph_usd": 0.4222,
+    "observed_inet_down_mbps": 4319.2,
+    "observed_reliability": 0.9901,
+    "observed_boot_s": 127,
+    "observed_setup_s": 432,
+    "observed_clip_s": 180,
+    "observed_promo_min": 12.2,
+    "observed_clips_done": 18,
+    "observed_credit_drop_usd": 0.5324
+  },
+  "offer_filter": {
+    "num_gpus": 1,
+    "gpu_names": ["RTX 4090"],
+    "verified": true,
+    "country": "US",
+    "max_dph_usd": 0.5,
+    "min_inet_down_mbps": 1000,
+    "min_reliability": 0.99,
+    "min_cuda": 12.6,
+    "min_disk_gb": 80,
+    "order": "dph_total asc"
+  },
+  "image": "pytorch/pytorch:2.14.1-cuda12.6-cudnn9-runtime",
+  "disk_gb": 80,
+  "model": {
+    "name": "Wan 2.2 TI2V 5B",
+    "checkpoint": "wan2.2_ti2v_5B_fp16.safetensors",
+    "text_encoder": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+    "vae": "wan2.2_vae.safetensors",
+    "weights_gb": 18.1,
+    "never_14b_on_24gb": true
+  },
+  "render": {
+    "width": 704,
+    "height": 1280,
+    "frames": 121,
+    "fps": 24,
+    "steps": 20,
+    "cfg": 5.0,
+    "sampler": "uni_pc",
+    "scheduler": "simple",
+    "shift": 8.0,
+    "clips_per_promo": 4
+  },
+  "timing_estimates": {
+    "boot_min": 2,
+    "setup_min": 7,
+    "clip_min": 3,
+    "promo_4clip_min": 12
+  },
+  "budget": {
+    "cap_usd": 1.5,
+    "margin_usd": 0.1,
+    "source": "live_credit_drop",
+    "note": "Spend = Vast credit before rent minus live credit now. Not hours x rate."
+  },
+  "scripts": {
+    "install": "install.sh",
+    "launch": "launch.sh",
+    "job": "gen_one.py",
+    "controller": "controller.py"
+  },
+  "pack_scripts": ["install-comfyui.sh", "install-video-comfy-wan.sh"],
+  "destroy_after_last_job": true,
+  "requires_confirm": "RENT",
+  "vram": {
+    "max_vram_gb": 24,
+    "granite_with_wan": false,
+    "note": "Never load Granite and Wan together on 24GB. launch.sh refuses if Granite is loaded."
+  },
+  "secrets": {
+    "vast_api_key_env": "VAST_API_KEY",
+    "vast_api_key_file_env": "VAST_API_KEY_FILE",
+    "vast_api_key_file_default": "~/.config/vastai/vast_api_key",
+    "ssh_key_env": "PODCODER_SSH_KEY",
+    "stored_in_files": false
+  }
+}

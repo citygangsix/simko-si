@@ -1,0 +1,15 @@
+{
+  "profile": "granite-q8-tools",
+  "text": "make multiply show 7 times 8",
+  "model": "granite4.2:8b-q8_0",
+  "stop": [
+    "<|end_of_text|>",
+    "<|tool_call|>"
+  ],
+  "marker": "<|start_of_role|>tools<|end_of_role|>",
+  "api": "/api/chat",
+  "tool_format": "granite-json",
+  "raw": "<|tool_call|>{\"name\":\"calculator_gate\",\"arguments\":{\"feature\":\"mul\"}}<|end_of_text|>",
+  "feature": "mul",
+  "everyday_contains": "nothing is built or tested yet"
+}

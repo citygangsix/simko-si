@@ -1,0 +1,13 @@
+{
+  "profile": "granite-q4-chat",
+  "text": "make multiply show 7 times 8",
+  "model": "granite4.2:8b",
+  "stop": [
+    "<|end_of_text|>"
+  ],
+  "marker": "<|start_of_role|>system<|end_of_role|>",
+  "api": "/api/chat",
+  "raw": "<|start_of_role|>assistant<|end_of_role|><!DOCTYPE html><html><body><button id='*'></button><div id='display'></div></body></html><|end_of_text|>",
+  "feature": "mul",
+  "everyday_contains": "doesn't work yet"
+}

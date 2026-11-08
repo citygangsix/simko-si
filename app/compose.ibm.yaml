@@ -1,0 +1,90 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.ibm
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:-}
+        VITE_LOCAL_AI_BASE_URL: ${VITE_LOCAL_AI_BASE_URL:-http://localhost:11434}
+        VITE_LOCAL_AI_CHAT_MODEL: ${VITE_LOCAL_AI_CHAT_MODEL:-granite4:3b}
+        VITE_LOCAL_AI_CODE_MODEL: ${VITE_LOCAL_AI_CODE_MODEL:-granite4:3b}
+        VITE_LOCAL_AI_GEMMA_MODEL: ${VITE_LOCAL_AI_GEMMA_MODEL:-granite4:3b}
+        VITE_OMEGA_OLLAMA_BASE_URL: ${VITE_OMEGA_OLLAMA_BASE_URL:-http://localhost:11434}
+        VITE_OMEGA_OLLAMA_MODEL: ${VITE_OMEGA_OLLAMA_MODEL:-granite4:3b}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      granite:
+        condition: service_healthy
+
+  granite:
+    image: ollama/ollama:0.11.4
+    command: ["serve"]
+    volumes:
+      - granite-models:/root/.ollama
+    expose:
+      - "11434"
+    ports:
+      - "127.0.0.1:11434:11434"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  granite-model-loader:
+    image: ollama/ollama:0.11.4
+    environment:
+      OLLAMA_HOST: http://granite:11434
+      IBM_GRANITE_MODEL: ${IBM_GRANITE_MODEL:-granite4:3b}
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["ollama pull \"$${IBM_GRANITE_MODEL}\""]
+    depends_on:
+      granite:
+        condition: service_healthy
+    restart: "no"
+
+  granite-github-agent:
+    profiles: ["github-agent"]
+    build:
+      context: .
+      dockerfile: Dockerfile.granite-github-agent
+    environment:
+      GRANITE_GITHUB_APP_CLIENT_ID: ${GRANITE_GITHUB_APP_CLIENT_ID:-}
+      GRANITE_GITHUB_APP_CLIENT_SECRET: ${GRANITE_GITHUB_APP_CLIENT_SECRET:-}
+      GRANITE_GITHUB_APP_CALLBACK_URL: ${GRANITE_GITHUB_APP_CALLBACK_URL:-http://127.0.0.1:8791/auth/callback}
+      GRANITE_GITHUB_APP_SLUG: ${GRANITE_GITHUB_APP_SLUG:-}
+      GRANITE_GITHUB_DATA_KEY: ${GRANITE_GITHUB_DATA_KEY:-}
+      GRANITE_GITHUB_SESSION_KEY: ${GRANITE_GITHUB_SESSION_KEY:-}
+      GRANITE_GITHUB_AUDIT_KEY: ${GRANITE_GITHUB_AUDIT_KEY:-}
+      GRANITE_GITHUB_PUBLIC_ORIGIN: ${GRANITE_GITHUB_PUBLIC_ORIGIN:-http://127.0.0.1:8791}
+      GRANITE_GITHUB_SECURE_COOKIES: ${GRANITE_GITHUB_SECURE_COOKIES:-false}
+      GRANITE_GITHUB_MAX_TOOL_ROUNDS: ${GRANITE_GITHUB_MAX_TOOL_ROUNDS:-8}
+      GRANITE_OLLAMA_URL: http://granite:11434
+      GRANITE_OLLAMA_MODEL: ${IBM_GRANITE_MODEL:-granite4:3b}
+    ports:
+      - "127.0.0.1:8791:8791"
+    volumes:
+      - granite-github-state:/var/lib/granite-github
+      - granite-github-repositories:/var/lib/granite-repositories
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    depends_on:
+      granite:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  granite-models:
+  granite-github-state:
+  granite-github-repositories:

@@ -1,0 +1,269 @@
+{
+  "version": "2026.10.28.translator-everyday-typea-master-batch-v2-granite-first",
+  "subject": "Everyday English \u2192 Type A Granite translator + chat picker + confirm-gated Vast rent",
+  "basedOn": [
+    "artemis-templates/master-batch-template.json@2026.05.30",
+    "artemis-templates/master-command-prompt-autocode.md (recovery richer copy)",
+    "Proven Granite recipe: granite4.2:8b-q8_0, think:false, temp 1.0, top_p 0.95, num_ctx\u22658192, stream true, DOCTYPE-first FE, raw /api/chat then Aider",
+    "Joseph 2026-10-28: Granite/Ollama first for as much coding as possible; Aider only when necessary to finish/edit"
+  ],
+  "batchGoal": "Finish the translator product path on Utah Vast 58092881 using MASTER sequential batches: FE shell \u2192 translate logic \u2192 chat+picker \u2192 Send \u2192 confirm-gated rent UI; optional Aider only for surgical fails. Dual success = working UI + Type A POST that produces usable Granite prompts; Gate6 rent must be confirm-gated and must NOT rent without Joseph's exact words.",
+  "scope": "Discovery, implementation, verification, repair, handoff. No second rent, no destroy, no Wan unless Joseph asks.",
+  "sequencingRule": "Execute batches in listed order. Do not start batch N+1 until batch N has fully passed verification.",
+  "failPolicy": "ALWAYS lead with raw Granite Type A (granite4.2:8b-q8_0). Targeted FIX\u2192RETEST on current batch (max 2 raw). Aider ONLY when necessary after those raw fails \u2014 one surgical round then RUNAROUND BREAKER. Abort empty GPU burns ~60\u201390s. Never Vast rent/destroy without Joseph exact words. Seed-aware prompts: edit THIS file; reject Calculator-style wipe of translator.",
+  "maxRetryLoopsPerBatch": "Unlimited targeted; abort empty GPU burns quickly",
+  "approvalGate": {
+    "requiredFor": [
+      "Vast rent",
+      "Vast destroy",
+      "new paid GPU instance",
+      "deploy/publish",
+      "secrets",
+      "database writes",
+      "live external submission"
+    ]
+  },
+  "globalOutputFormat": [
+    "feature-specific MASTER template path",
+    "each batch status",
+    "retry/fix history",
+    "changed files",
+    "tests/checks run (click-assert / curl)",
+    "risks",
+    "approval-gated items not executed",
+    "HEAD or artifact paths",
+    "deliverables completion matrix"
+  ],
+  "deliverablesCompletionMatrix": [
+    {
+      "batchId": "batch-1-discovery-template",
+      "deliverable": "This feature template exists and points at proven Granite recipe + Utah pod constraints.",
+      "status": "done"
+    },
+    {
+      "batchId": "batch-2-fe-shell",
+      "deliverable": "translator.html DOCTYPE-first chat UI loads; Type A system/user structure visible.",
+      "status": "done"
+    },
+    {
+      "batchId": "batch-3-translate-api",
+      "deliverable": "POST /api/translate returns Type A prompt; everyday_to_granite.py or equivalent wired.",
+      "status": "done",
+      "note": "Gate2 detectIntent+buildPayload in translator.html (not localhost:8787 curl yet)"
+    },
+    {
+      "batchId": "batch-4-chat-picker-send",
+      "deliverable": "Chat + model/pod picker + Send path works (Gate5).",
+      "status": "done"
+    },
+    {
+      "batchId": "batch-5-rent-confirm",
+      "deliverable": "Rent UI is confirm-gated; dry-run or blocked without Joseph exact rent words (Gate6).",
+      "status": "done",
+      "note": "Gate6 PASS aider_surgical 2 rounds; dry-run rent confirm"
+    },
+    {
+      "batchId": "batch-6-granite-click-assert",
+      "deliverable": "Same tag FE then logic: raw Ollama think:false; optional Aider surgical only after raw fail; no thrash.",
+      "status": "planned"
+    },
+    {
+      "batchId": "batch-7-onpod-runner",
+      "deliverable": "pod_autocode_runner.py + mission drop/status poll; dry-run on Utah; Researchy out of happy path",
+      "status": "done",
+      "note": "dry-verify PASS on Utah; pod_autocode_runner + mission-status.json"
+    }
+  ],
+  "batches": [
+    {
+      "id": "batch-1-discovery-template",
+      "objective": "Lock feature MASTER template + paths on box/store; confirm Utah 58092881 + granite4.2:8b-q8_0.",
+      "deliverables": [
+        "Feature template written",
+        "Pod/model constraints recorded",
+        "No rent/destroy"
+      ],
+      "verify": {
+        "files": [
+          "translator-everyday-typea-master-batch.json",
+          "README.md"
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Fill missing fields and re-verify files exist."
+        ]
+      }
+    },
+    {
+      "id": "batch-2-fe-shell",
+      "objective": "Ensure translator FE shell is DOCTYPE-first HTML with chat transcript and input.",
+      "deliverables": [
+        "translator.html starts with <!DOCTYPE html>",
+        "Single-page chat UI"
+      ],
+      "verify": {
+        "commands": [
+          "head -c 15 translator.html | grep -i DOCTYPE"
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Raw Granite FE rewrite think:false; if fail, Aider surgical; abort empty runs at 60\u201390s."
+        ]
+      }
+    },
+    {
+      "id": "batch-3-translate-api",
+      "objective": "Wire everyday \u2192 Type A translate endpoint and/or CLI.",
+      "deliverables": [
+        "POST /api/translate works",
+        "Output matches Type A system+user template"
+      ],
+      "verify": {
+        "commands": [
+          "curl -sS -X POST localhost:8787/api/translate -H 'content-type: application/json' -d '{\"text\":\"make a calculator that does 7 times 8\"}' | head -c 400"
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Patch server/translator; retest curl; no Aider thrash on =\u2192&gt;."
+        ]
+      }
+    },
+    {
+      "id": "batch-4-chat-picker-send",
+      "objective": "Chat + picker + Send (Gate5).",
+      "deliverables": [
+        "User can pick target and Send translated prompt"
+      ],
+      "verify": {
+        "notes": [
+          "Manual or scripted UI assert Gate5 PASS artifact"
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Surgical UI fix only; preserve Type A path."
+        ]
+      }
+    },
+    {
+      "id": "batch-5-rent-confirm",
+      "objective": "Confirm-gated rent UI (Gate6). Never call Vast rent without Joseph exact words.",
+      "deliverables": [
+        "#rentConfirm or equivalent gate",
+        "Dry-run keys if no approval",
+        "No live rent"
+      ],
+      "verify": {
+        "notes": [
+          "Button disabled until confirm; rent API not called in dry-run"
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Raw Granite Type A seed-aware first (up to 2 FIX\u2192RETEST).",
+          "Aider surgical ONLY after raw\u00d72 FAIL; then RUNAROUND."
+        ]
+      },
+      "constraints": [
+        "Primary path: Granite+Ollama raw; Aider only if surgical finish required after raw fails."
+      ]
+    },
+    {
+      "id": "batch-6-granite-click-assert",
+      "objective": "When coding via Granite, assert end result (e.g. calc 7\u00d78=56) with proven raw recipe.",
+      "deliverables": [
+        "think:false raw /api/chat",
+        "num_ctx\u22658192",
+        "click or Number() assert when applicable"
+      ],
+      "verify": {
+        "notes": [
+          "Same model tag FE then BE; short abort timeouts"
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Raw Granite first; Aider only after \u22652 raw FAIL; stop thrash."
+        ]
+      },
+      "constraints": [
+        "Primary path: Granite+Ollama raw; Aider only if surgical finish required."
+      ]
+    }
+  ],
+  "currentBatch": "batch-7-onpod-runner",
+  "runtimeNotes": {
+    "utah": "58092881 shut by Joseph 2026-10-28; not a live target",
+    "model": "granite4.2:8b-q8_0",
+    "method": "Granite-first; Aider only-when-needed (locked v2)",
+    "updated": "2026-10-28T14:21:09Z"
+  },
+  "executorPolicy": {
+    "primary": "granite4.2:8b-q8_0 via Ollama raw /api/chat",
+    "params": {
+      "think": false,
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "num_ctx": 8192,
+      "stream": true
+    },
+    "promptStyle": "Type A DOCTYPE-first; one feature per prompt; when editing, include full seed HTML (surgical rewrite of THIS file)",
+    "orderOfOperations": [
+      "1. Translate everyday/batch objective \u2192 Type A (seed-aware if file exists)",
+      "2. Granite raw /api/chat (never lead with Aider)",
+      "3. Verify (DOCTYPE, feature checks, reject unrelated page e.g. Calculator wipe)",
+      "4. On FAIL: FIX\u2192RETEST with tighter Type A rewrite (same batch), max 2 raw attempts",
+      "5. Aider ONLY if allowAider and after \u22652 raw Granite FAIL/incomplete \u2014 one surgical round, then RUNAROUND",
+      "6. Never Vast rent/destroy without Joseph exact words"
+    ],
+    "aider": {
+      "leadWithAider": false,
+      "when": "ONLY after raw Granite FAIL or incomplete (\u22652 attempts) OR explicit surgical finish of a verify-near-miss",
+      "maxSurgicalRounds": 1,
+      "stopThrash": true,
+      "neverReplaceSeedWithUnrelatedApp": true
+    },
+    "abortEmptySeconds": [
+      60,
+      90
+    ],
+    "neverWithoutJosephExactWords": [
+      "Vast rent",
+      "Vast destroy"
+    ],
+    "targetHardware": {
+      "class": "single high-BW consumer GPU ~RTX 3090 24GB",
+      "provenInstanceExample": "Vast Utah 58092881 @ ~$0.269/hr",
+      "defaultModel": "granite4.2:8b-q8_0",
+      "note": "Joseph plan 2026-10-28: use this Granite tag going forward on cloud computers of similar strength"
+    },
+    "updated": "2026-10-28T10:18EDT"
+  },
+  "codingPreference": {
+    "primary": "ollama raw /api/chat Type A with granite4.2:8b-q8_0",
+    "params": {
+      "think": false,
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "num_ctx_min": 8192,
+      "stream": true
+    },
+    "aider": "ONLY when necessary \u2014 after \u22652 raw Granite FAIL/incomplete; surgical finish only; never lead with Aider; never thrash; never invent unrelated page",
+    "abortEmptyBurnSeconds": "60-90",
+    "vastRentDestroy": "Joseph exact words only",
+    "defaultModelForSimilarPods": "granite4.2:8b-q8_0",
+    "updated": "2026-10-28T10:18EDT via Researchy/Joseph Aider-when-needed lock-in"
+  },
+  "onPodLoopDoc": "ONPOD_MASTER_LOOP.md",
+  "nextAfterBatch5": "batch-7-onpod-runner",
+  "modelPlan": {
+    "canonical": "granite4.2:8b-q8_0",
+    "runtime": "Ollama /api/chat",
+    "gpuClass": "RTX 3090-class 24GB high-BW (or equal)",
+    "futurePods": "Prefer same model tag + recipe on every rented box of this class",
+    "aiderRole": "secondary surgical only"
+  }
+}

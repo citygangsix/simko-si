@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Calculator</title>
+<style>body{font-family:Arial,sans-serif;margin:20px}button{margin:4px;padding:10px;font-size:16px}#display{font-size:24px;text-align:right}</style>
+</head><body>
+<input type="text" id="display" readonly value="0">
+<div id="keys"></div>
+<script>
+const display = document.getElementById('display');
+let expr = '';
+const keys = ['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+','C'];
+const box = document.getElementById('keys');
+keys.forEach(k => { const b = document.createElement('button'); b.textContent = k; b.addEventListener('click', () => press(k)); box.appendChild(b); });
+function press(k) {
+  if (k === 'C') { expr = ''; display.value = '0'; return; }
+  if (k === '=') { try { const v = Function('return (' + expr + ')')(); expr = String(v); display.value = expr; } catch (e) { display.value = 'Error'; expr = ''; } return; }
+  expr += k; display.value = expr;
+}
+</script></body></html>

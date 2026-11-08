@@ -1,0 +1,41 @@
+name: Cloud Heavy Job
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: Allowed project command to run remotely
+        required: true
+        type: string
+
+jobs:
+  heavy-job:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - run: npm ci
+
+      - name: Run allowlisted heavy command
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ inputs.command }}" in
+            "npm run verify:full"|"npm run build:smart"|"npm run release:check"|"npm run frontier:checks")
+              nice -n 10 ${{ inputs.command }}
+              ;;
+            *)
+              echo "Command is not allowlisted for cloud heavy jobs: ${{ inputs.command }}" >&2
+              exit 64
+              ;;
+          esac

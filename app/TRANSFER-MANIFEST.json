@@ -1,0 +1,343 @@
+{
+  "schemaVersion": "1.7.0",
+  "projectId": "og-raw-frontier-ai--omega-project-intelligence",
+  "canonicalRepository": "https://github.com/citygangsix/og-raw-frontier-ai.git",
+  "transferBranch": "agent/ibm-granite-transfer",
+  "sourceCommitBeforeTransfer": "f49d268e237e797fe221b6458987237e14501731",
+  "finalCommitResolution": "Run git rev-parse HEAD after cloning the merged pull request and compare it with the PR merge commit reported by GitHub.",
+  "included": {
+    "application": [
+      "src/pages/omega/",
+      "src/components/omega/",
+      "src/lib/omega/",
+      "src/lib/aiProvider.ts",
+      "server/",
+      "scripts/",
+      "server/lib/socialCloudPhoneReadiness.js",
+      "server/lib/graniteGithubAgent.js",
+      "server/lib/graniteGithubAgentLoop.js",
+      "server/lib/graniteGithubAgentServer.js",
+      "server/lib/graniteGithubAppAuth.js",
+      "server/lib/graniteGithubApprovalStore.js",
+      "server/lib/graniteGithubAuditStore.js",
+      "server/lib/graniteGithubCrypto.js",
+      "server/lib/graniteGithubRepositoryManager.js",
+      "server/lib/graniteGithubStore.js",
+      "public/granite-github-agent.html"
+    ],
+    "databaseMigrations": [
+      "supabase/migrations/20260811150000_omega_project_intelligence.sql",
+      "supabase/migrations/20260811173000_omega_intelligence_completion.sql",
+      "supabase/migrations/20260811230000_omega_multitenant_workspaces.sql",
+      "supabase/migrations/20260812090000_omega_lifebook_conversation_memory.sql",
+      "supabase/migrations/20260812140000_omega_lifebook_scoring.sql"
+    ],
+    "edgeFunctions": [
+      "supabase/functions/omega-project-intelligence/index.ts"
+    ],
+    "configurationTemplates": [
+      ".env.example",
+      "config/ibm-granite.example.env",
+      "config/nginx.ibm.conf",
+      "config/social-cloud-phone.example.json",
+      "artemis-plugins/granite-github-agent/plugin-manifest.json",
+      "artemis-plugins/registry.json"
+    ],
+    "deployment": [
+      "Dockerfile.ibm",
+      "Dockerfile.granite-github-agent",
+      "compose.ibm.yaml",
+      "IBM-LOCAL-DEPLOYMENT.md",
+      "docs/granite-github-agent.md"
+    ],
+    "tests": [
+      "scripts/test-omega-project-intelligence.mjs",
+      "scripts/test-omega-project-intelligence-integration.mjs",
+      "scripts/test-firebase-phone-auth.mjs",
+      "scripts/test-social-cloud-phone-readiness.mjs",
+      "scripts/test-granite-github-auth.mjs",
+      "scripts/test-granite-github-security.mjs",
+      "scripts/test-granite-github-integration.mjs",
+      "scripts/test-granite-github-plugin-manifest.mjs"
+    ],
+    "modelConfiguration": [
+      "Modelfile",
+      "ollama/",
+      "config/ibm-granite.example.env",
+      "docs/local-llama-gemma.md"
+    ],
+    "mentorIngestionHandoff": [
+      "docs/organicsraw-mentor-ingestion-handoff.md",
+      "docs/mentor-video-candidate-review-2026-08-10.json",
+      "docs/mentor-video-curation-2026-08-12.json",
+      "docs/mentor-video-curation-2026-08-12.md"
+    ],
+    "socialCloudPhoneHandoff": [
+      "docs/social-cloud-phone-launch-checklist.md",
+      "scripts/social-cloud-phone-readiness.mjs",
+      "server/lib/socialCloudPhoneReadiness.js"
+    ],
+    "conversationHandoffs": [
+      "INDEX.md",
+      "docs/handoffs/2026-09-01-cloud-phone-conversation-summary.md",
+      "docs/handoffs/2026-09-01-cloud-phone-conversation-summary.json",
+      "docs/conversation-handoffs/omega-project-dashboard/INDEX.md",
+      "docs/conversation-handoffs/omega-project-dashboard/conversation-handoff.json",
+      "docs/conversation-handoffs/omega-project-dashboard/TRANSFER-MANIFEST.json"
+    ]
+  },
+  "excludedFromGit": [
+    "plaintext secrets and untracked environment files",
+    "API keys, tokens, passwords, private TLS keys, and OAuth refresh tokens",
+    "live customer, CRM, health, authentication, and conversation records",
+    "database dumps, Storage objects, transcripts, uploaded media, and browser state",
+    ".omega, .artemis, .openclaw, queues, local memories, and other runtime state",
+    "node_modules, dist, caches, temporary builds, coverage, and ordinary logs",
+    "model weights and opaque model caches"
+  ],
+  "separateTransferDependencies": [
+    {
+      "system": "Supabase project nexkymqahpkvzzlvivfi",
+      "contents": "required database rows, Auth migration plan, policies, deployed-only function source, and Storage objects",
+      "status": "connect_existing_or_export_encrypted"
+    },
+    {
+      "system": "OrganicsRaw authorized mentor corpus",
+      "contents": "downloaded media, captions, transcripts, provenance, checksums, and rights/access records kept outside Git",
+      "status": "export_encrypted_and_access_controlled"
+    },
+    {
+      "system": "Frontier and Artemis retrieval state",
+      "contents": "frontier ingestion rows/tasks/jobs/profiles, Lifebook routing, Artemis knowledge rows, retrieval RPC dependencies, and related Storage objects",
+      "status": "connect_existing_or_export_encrypted"
+    },
+    {
+      "system": "worker-portfolio private bucket",
+      "contents": "required private objects",
+      "status": "inventory_and_export_encrypted_if_migrating"
+    },
+    {
+      "system": "IBM Granite",
+      "contents": "granite4:3b or an approved replacement with version, quantization, license, source, and checksum",
+      "status": "download_reproducibly_on_ibm"
+    },
+    {
+      "system": "external providers",
+      "contents": "CRM, Stripe, communications, webhook, DNS, TLS, and IBM credentials",
+      "status": "configure_through_secret_manager"
+    },
+    {
+      "system": "Firebase project chatgpt-mentors",
+      "contents": "Phone Auth provider settings, authorized domains, Auth users, role-claim function/Admin SDK operation, quotas, and abuse controls",
+      "status": "connect_existing_over_tls_or_migrate_under_separate_identity_plan"
+    },
+    {
+      "system": "GeeLark or approved cloud-device provider",
+      "contents": "desktop account, stopped profile identifiers, eligible API access, proxy credentials, social credentials, two-factor handoff, runtime queues, and audit records",
+      "status": "configure_locally_outside_git"
+    },
+    {
+      "system": "Granite GitHub agent external authorization and encrypted state",
+      "contents": "GitHub App registration, client secret, user access/refresh tokens, selected-repository installations, three encryption/signing keys, encrypted approvals/audits, and per-user repository clones",
+      "status": "configure_with_github_and_ibm_secret_storage; persist_in_access_controlled_volumes_outside_git"
+    }
+  ],
+  "knownDecisions": [
+    "Omega is a workstream inside the canonical OG RAW Frontier monorepo, not a separate repository.",
+    "The Git repository is the source-code transfer mechanism; live database and object data remain a separate secured migration.",
+    "The local AI boundary is OpenAI-compatible and can use IBM Granite without replacing Omega orchestration, memory, or policy layers.",
+    "Mentor candidate review remains approval-first; the 13 curated winners are proposals pending explicit ingestion authorization.",
+    "Granite performs transcript analysis and classification; lawful acquisition, Whisper transcription, Supabase persistence, deduplication, and retrieval verification remain separate gates.",
+    "Historical private or failed source IDs are not retried automatically.",
+    "ChatGPTMentors Firebase phone verification and Supabase Third-Party Auth remain part of this monorepo; live Firebase/Supabase settings and identity records remain external.",
+    "The cloud-phone path stays disabled and spend-free in Git; launch and publish require separate owner approvals, and the initial runtime cap is five minutes per profile per day.",
+    "GeeLark API access is plan-dependent; the free-account fallback is a supervised desktop handoff rather than pretending API automation is available.",
+    "IBM Granite prepares and validates authorized content but never receives account passwords or two-factor codes and does not bypass provider or platform controls.",
+    "The Granite GitHub agent uses a GitHub App instead of one machine-wide gh login so each user authorizes selected repositories.",
+    "GitHub tokens, encryption keys, approval state, audit records, and repository clones remain outside Git and separated by durable user/workspace partitions.",
+    "Repository writes, branches, commits, pushes, and draft pull requests require encrypted one-time approvals; force-push, merge, reset, deletion, arbitrary shell, traversal, .git metadata, and symlink access are not exposed."
+  ],
+  "verification": {
+    "secretScan": "passed_for_staged_transfer_files; prior history contains a browser-public Firebase Web identifier that has been replaced by placeholders in the transfer tree",
+    "omegaTests": "passed; authenticated live-user branch requires SUPABASE_TEST_ACCESS_TOKEN",
+    "typecheck": "passed",
+    "build": "passed",
+    "cleanClone": "source checkout, Omega test, typecheck, and build passed from an isolated clone using a lockfile-compatible dependency cache; fresh npm registry installation remains blocked by the local TLS issuer error",
+    "githubPush": "general IBM transfer merged through pull request 16 at production commit 87ef65941d664da44312deb879d43ca59d760a47; mentor-corpus handoff is a later conversation-specific change",
+    "socialCloudPhoneTests": "offline readiness unit test passed; the pull request must also pass the repository clean-checkout checks before merge",
+    "graniteGithubAgentTests": "authentication, path confinement, one-time approval, tenant isolation, audit chain, repository scope, OAuth response, bounded rate-limit cleanup, Ollama loop, UI/API, and plugin checks passed; typecheck and production build passed; Compose YAML structure parsed, but this host has no Docker executable for an image build",
+    "conversationPreservation": "sanitized handoff only is allowed in Git; the complete available conversation is stored separately in a verified encrypted local archive"
+  },
+  "conversationContributions": [
+    {
+      "id": "worker-repertoire-dashboard-1-2026-08-13",
+      "source": "CRM AI Templates conversation",
+      "sourceCode": [
+        "server/lib/artemisWorkerRepertoire.js",
+        "server/lib/artemisWorkerRepertoireService.js",
+        "server/lib/artemisWorkerScheduling.js",
+        "src/artemis/crm/workerRepertoire.ts",
+        "src/artemis/crm/workerSchedule.ts",
+        "src/artemis/crm/workerPortalRepository.ts",
+        "src/components/artemis/WorkerPortfolioCard.tsx",
+        "src/pages/WorkerPortalPage.tsx",
+        "public/worker-manifest.webmanifest",
+        "public/worker-sw.js"
+      ],
+      "databaseMigrations": [
+        "supabase/migrations/20260809220000_artemis_worker_repertoire.sql",
+        "supabase/migrations/20260810153000_artemis_worker_calendar_portal.sql",
+        "supabase/migrations/20260812133000_artemis_worker_crm_portal.sql"
+      ],
+      "externalState": [
+        "Supabase Auth worker identities and technician mappings",
+        "RLS-protected live CRM rows",
+        "private worker-portfolio Storage objects",
+        "Realtime subscriptions and Web Push/native device endpoints",
+        "Twilio credentials, recordings, transcripts, provider message/call IDs and delivery callbacks"
+      ],
+      "graniteBoundary": "Redacted advisory inference only; outputs remain pending_review and cannot publish capabilities, schedules, messages, calls, or notifications.",
+      "handoff": "docs/handoffs/2026-08-13-worker-dashboard-conversation-handoff.md"
+    },
+    {
+      "id": "crm-ai-templates-completion-2026-08-13",
+      "source": "CRM AI Templates conversation 6a78f13f-3a78-83ea-b3d5-e35ca937a842",
+      "handoff": "docs/handoffs/2026-08-13-crm-ai-templates-handoff.md",
+      "alreadyVersioned": [
+        "approval-gated worker repertoire and Twilio media review",
+        "live call capability matching and customer-safe portfolio sharing",
+        "standing appliance pricing rules and microwave exception",
+        "worker portal scheduling, document, and payout projections"
+      ],
+      "remainingImplementation": [
+        "reviewed invoice generation from call/job data",
+        "vehicle, route, fuel-price, compensation-rule, and payout calculation completion",
+        "operational-only aerial/street property context with wealth-scoring prohibition",
+        "Twilio/OCR to authorized Marcone OEM verification with alternates and supersession"
+      ],
+      "externalDependencies": [
+        "Supabase Auth/Database/Storage/Realtime",
+        "Twilio voice, SMS, MMS, recordings, transcripts, media, and status callbacks",
+        "licensed maps/geocoding/aerial/street imagery provider",
+        "route mileage and reviewed fuel-price source",
+        "authorized Marcone lookup/integration and reviewer access",
+        "invoice/document delivery provider"
+      ],
+      "externalState": [
+        "live CRM rows, Auth identities, recordings, transcripts, messages, technician media, customer addresses",
+        "property imagery, provider references or signed URLs, invoices, payout statements, parts/order history",
+        "database and object-storage backups, runtime state, caches, logs, model weights, and all credentials"
+      ],
+      "graniteBoundary": "Redacted advisory extraction, classification, normalization, matching, and summarization only; no sends, pricing approval, wealth inference, OEM approval, ordering, migration, or payout approval.",
+      "transferStrategy": "Initially connect IBM over TLS to existing services with secrets in IBM secret storage; otherwise use encrypted access-controlled backups, checksums, RLS/object-policy verification, provider reauthorization, and rollback testing."
+    },
+    {
+      "id": "granite-github-agent-security-2026-08-14",
+      "source": "Granite GitHub agent implementation conversation",
+      "productionBase": "0dcb5274ce5166118b10adbe8d710012c3aa0da7",
+      "sourceCode": [
+        "server/lib/graniteGithubAgent.js",
+        "server/lib/graniteGithubAgentLoop.js",
+        "server/lib/graniteGithubAgentServer.js",
+        "server/lib/graniteGithubAppAuth.js",
+        "server/lib/graniteGithubApprovalStore.js",
+        "server/lib/graniteGithubAuditStore.js",
+        "server/lib/graniteGithubCrypto.js",
+        "server/lib/graniteGithubRepositoryManager.js",
+        "server/lib/graniteGithubStore.js",
+        "public/granite-github-agent.html"
+      ],
+      "securityBoundary": "Per-user GitHub App installations, encrypted expiring tokens, repository-scoped model sessions, one-time action-bound approvals, path/symlink confinement, draft-only pull requests, bounded same-origin API, and encrypted HMAC-chained audit records.",
+      "externalState": [
+        "GitHub App registration and client secret",
+        "GitHub user access and refresh tokens",
+        "selected repository installations",
+        "data, session, and audit encryption/signing keys",
+        "encrypted service state, audit files, and per-user repository clones"
+      ],
+      "deployment": [
+        "Dockerfile.granite-github-agent",
+        "compose.ibm.yaml github-agent profile",
+        "config/ibm-granite.example.env",
+        "docs/granite-github-agent.md"
+      ]
+    },
+    {
+      "id": "cloud-phone-conversation-preservation-2026-09-01",
+      "source": "cloud phone/clip farm Codex conversation; full source retained only in separately encrypted local backup",
+      "handoff": "docs/handoffs/2026-09-01-cloud-phone-conversation-summary.md",
+      "structuredHandoff": "docs/handoffs/2026-09-01-cloud-phone-conversation-summary.json",
+      "index": "INDEX.md",
+      "alreadyVersioned": [
+        "Firebase phone signup source, mock verification test and operations guide",
+        "Vercel deployment workflow repair",
+        "stopped GeeLark readiness template, guard, test and launch checklist",
+        "IBM Granite/Ollama deployment assets"
+      ],
+      "restrictedBackup": [
+        "complete locally available Codex session JSONL and parsed Markdown/JSON",
+        "local repository bundles, working patches, staged patches and untracked snapshots",
+        "provider profile identifiers and other ignored runtime configuration",
+        "locally retained installer/media and related checksums"
+      ],
+      "externalDependencies": [
+        "Firebase Phone Auth and role-claim administration",
+        "Supabase Auth/Database/Storage/Realtime and secrets",
+        "GeeLark account/API or supervised desktop, profiles and compliant proxies",
+        "authorized social accounts, content and owner-controlled two-factor handoff",
+        "IBM/OpenShift secret storage, TLS, persistent volumes and approved Granite model"
+      ],
+      "unresolved": [
+        "verify live Firebase and Supabase console state",
+        "choose eligible provider-control path and configure compliant proxy",
+        "run separately approved five-minute launch and publish test",
+        "provision and acceptance-test the IBM environment"
+      ],
+      "sourceLimitation": "Referenced ChatGPT history is present only where cached or quoted into the local Codex session."
+    },
+    {
+      "id": "omega-project-dashboard-conversation-2026-09-01",
+      "source": "Build Omega project dashboard Codex task 019ff12c-2925-7561-91b3-05712e29fa42 and referenced ChatGPT conversation 6a7b2e0d-6750-83ea-b107-ac51506b04a0",
+      "handoff": "docs/conversation-handoffs/omega-project-dashboard/INDEX.md",
+      "structuredHandoff": "docs/conversation-handoffs/omega-project-dashboard/conversation-handoff.json",
+      "implemented": [
+        "normalized project intelligence",
+        "multi-tenant workspaces and CRM connectors",
+        "twelve LifeBook categories and conversation memory",
+        "evidence-backed category scoring",
+        "Omega-native graphs and category drilldowns",
+        "IBM Granite/Ollama transfer path"
+      ],
+      "restrictedState": [
+        "complete conversation transcript",
+        "live Supabase/Auth/Storage records",
+        "CRM and health data",
+        "private media and transcripts",
+        "browser/runtime state",
+        "logs and credentials"
+      ],
+      "unresolved": [
+        "authenticated two-owner RLS test",
+        "final Granite target validation",
+        "Apple Health live connector",
+        "database/Storage connect-versus-migrate decision",
+        "external automation and deployed-service inventory"
+      ]
+    },
+    {
+      "id": "crm-calendar-preservation-2026-09-02",
+      "sourceThreads": [
+        "019fe880-5781-7653-86ed-f323335534e3",
+        "6a78f13f-3a78-83ea-b3d5-e35ca937a842"
+      ],
+      "githubSafe": [
+        "INDEX.md",
+        "docs/handoffs/2026-09-02-crm-calendar-preservation.md",
+        "docs/handoffs/2026-09-02-crm-calendar-export.json"
+      ],
+      "restrictedBackup": "Complete source exports are encrypted locally and intentionally excluded from Git.",
+      "implementationStatus": "Worker repertoire and Dashboard 1 source already merged in PR #20; live provider/database activation remains external.",
+      "graniteImport": "Use existing compose.ibm.yaml and config/ibm-granite.example.env; keep Ollama private and pull a pinned approved Granite model on the IBM host."
+    }
+  ]
+}

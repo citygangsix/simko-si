@@ -1,0 +1,1947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
+<title>Chat</title>
+<script>
+(function () {
+  var id = "reef-live";
+  try {
+    var saved = localStorage.getItem("simcoTheme");
+    if (saved) id = saved;
+  } catch (e) {}
+  document.documentElement.setAttribute("data-theme", id);
+  var link = document.createElement("link");
+  link.id = "themeStylesheet";
+  link.rel = "stylesheet";
+  link.href = "/themes/" + encodeURIComponent(id) + "/theme.css";
+  document.head.appendChild(link);
+})();
+</script>
+<style>
+  /*
+    Book-style foldables.
+    Galaxy Z Fold 7 cover, measured CSS viewport 412×960, landscape 960×412, DPR 2.625
+    (https://breakpane.com/en/devices/galaxy-z-fold7-cover). Physical 6.5 in, 2520×1080
+    (Samsung support). Chrome's first-load visible height on that cover is about 848.
+    Galaxy Z Fold 7 inner, measured CSS viewport 750×832, landscape 832×750, DPR 2.625
+    (https://breakpane.com/en/devices/galaxy-z-fold7-open). Physical 8.0 in, 2184×1968.
+    YesViz also publishes a DPR 2 estimate of 984×1092 (https://yesviz.com/devices/samsung-z-fold7/);
+    that size stays in the two-pane range.
+    motorola razr fold (2026), Motorola's book-style fold: cover 6.6 in 2520×1080,
+    main 8.1 in 2484×2232, aspect 8:7.2
+    (https://en-us.support.motorola.com/app/answers/detail/a_id/193612).
+    No measured CSS viewport is published for it, so the same width and height
+    breakpoints cover that cover screen and that near-square inner screen.
+  */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background-color: #03141c;
+    background-image: url("/coral-reef-bg.jpg");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    color: #fff;
+    font-family: "Iowan Old Style", Palatino, Georgia, serif;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+    position: relative;
+  }
+  #topbar { display: none; }
+  #backToList { display: none; align-items: center; flex: none; }
+  #advancedLink { margin-left: auto; display: inline-flex; align-items: center; color: #fff; }
+  #authWho { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #sheetBar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0 0 0.6rem;
+    color: #fff;
+  }
+  #foldGap { display: none; }
+  #stackMark { color: #ffb4a2; }
+  #app {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+  }
+  #chats {
+    width: 16rem;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.8rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-right: 1px solid rgba(255, 196, 176, 0.28);
+    backdrop-filter: blur(16px);
+    box-sizing: border-box;
+  }
+  #listDock {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 1.5rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 214, 196, 0.5);
+    backdrop-filter: blur(16px);
+  }
+  #dockIcons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  #newChat, #sendToChat, #searchChats {
+    width: 3rem;
+    height: 3rem;
+    min-width: 3rem;
+    min-height: 3rem;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.14);
+  }
+  #newChat svg, #sendToChat svg, #searchChats svg { display: block; }
+  #chatSearch {
+    width: 100%;
+    margin: 0 0 0.35rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 196, 0.5);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    padding: 0.55rem 0.85rem;
+  }
+  #chatSearch[hidden] { display: none; }
+  #chatSearch::placeholder { color: #f3e6d8; }
+  #listDock #toolsToggle {
+    border: 0;
+    background: transparent;
+    backdrop-filter: none;
+    font-size: 2.7rem;
+    line-height: 1;
+    min-height: 3rem;
+    padding: 0.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #sessionList .chatEmoji { font-size: 1.2rem; }
+  #sessionList {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  #sessionList button {
+    text-align: left;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    border: 1px solid rgba(255, 214, 196, 0.4);
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 48px;
+  }
+  .chatEmoji { flex: none; font-size: 1.15rem; }
+  #threadHead {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0.7rem 0.85rem 0;
+    padding: 0.65rem 0.9rem;
+    border-radius: 1.2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 214, 196, 0.45);
+    backdrop-filter: blur(14px);
+    color: #fff;
+  }
+  #threadTitle {
+    flex: 1;
+    margin: 0;
+    min-width: 0;
+    color: #fff;
+    font: inherit;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  #thread {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    overflow: auto;
+    padding: 1rem 1rem 0.4rem;
+  }
+  .bubble {
+    max-width: min(40rem, 86%);
+    border-radius: 1.2rem;
+    padding: 0.75rem 1rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .bubble.mine { margin-left: auto; background: rgba(255, 127, 106, 0.22); color: #fff; border: 1px solid rgba(255, 196, 176, 0.55); backdrop-filter: blur(12px); }
+  .bubble.theirs { margin-right: auto; background: rgba(255, 255, 255, 0.08); color: #fff; border: 1px solid rgba(243, 230, 216, 0.35); backdrop-filter: blur(12px); }
+  #reply-bubble {
+    width: min(40rem, 86%);
+    min-height: 6.5rem;
+    margin-right: auto;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.4);
+    backdrop-filter: blur(14px);
+    border-radius: 1.4rem;
+    padding: 1.1rem 1.2rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    box-sizing: border-box;
+  }
+  #reply-bubble:empty::before {
+    content: attr(data-placeholder);
+    color: #f3e6d8;
+  }
+  #raw { display: none; margin-top: 0.8rem; color: #f3e6d8; font-family: ui-monospace, monospace; font-size: 0.82rem; }
+  #raw[open] { display: block; }
+  #raw summary { cursor: pointer; }
+  #raw pre { white-space: pre-wrap; margin: 0.4rem 0 0; }
+  #drawer { padding: 0.7rem 0.8rem 0.2rem; border-bottom: 1px solid rgba(255, 196, 176, 0.35); background: rgba(3, 20, 28, 0.72); backdrop-filter: blur(18px); }
+  #drawer[hidden] { display: none; }
+  #chrome, #auth-bar, #relay-sheet, #rent-sheet {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-items: center;
+    margin: 0 0 0.55rem;
+  }
+  #chrome a, #chrome button, #rent-sheet button, #chats button { font-size: 0.95rem; }
+  #relay-sheet[hidden], #chrome[hidden] { display: none; }
+  #auth-bar [hidden] { display: none; }
+  #lifebook {
+    margin: 0.2rem 0 0.6rem;
+    color: #fff;
+  }
+  #lifebook summary { cursor: pointer; }
+  #lifeTags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem; }
+  #lifeTags button { background: rgba(255, 127, 106, 0.16); color: #fff; border: 1px solid rgba(255, 196, 176, 0.5); padding: 0.3rem 0.55rem; font-size: 0.82rem; }
+  #lifeLast { margin: 0.35rem 0 0; color: #fff; }
+  #auth-bar input {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.35);
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font: inherit;
+    width: 11rem;
+  }
+  #relay-sheet select {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.35);
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font: inherit;
+    max-width: 14rem;
+  }
+  #chrome a { color: #fff; }
+  #rent-sheet[hidden] { display: none; }
+  #rent-sheet select, #rent-sheet input[type="text"] {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.35);
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font: inherit;
+  }
+  #composer {
+    flex: none;
+    padding: 0.4rem max(1rem, env(safe-area-inset-right, 0px)) max(0.85rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  }
+  #input-bubble {
+    width: min(46rem, 100%);
+    min-width: 0;
+    margin: 0;
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-end;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 196, 176, 0.4);
+    backdrop-filter: blur(14px);
+    border-radius: 1.4rem;
+    padding: 0.7rem 0.7rem 0.7rem 1.1rem;
+  }
+  textarea {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    border: 0;
+    resize: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 1.15rem;
+    line-height: 1.4;
+    outline: none;
+    min-height: 1.6rem;
+    max-height: 8rem;
+  }
+  textarea::placeholder { color: #f3e6d8; opacity: 1; }
+  button {
+    border: 1px solid rgba(255, 196, 176, 0.75);
+    border-radius: 999px;
+    background: rgba(255, 127, 106, 0.2);
+    color: #fff;
+    backdrop-filter: blur(10px);
+    font: inherit;
+    padding: 0.55rem 0.95rem;
+    touch-action: manipulation;
+  }
+  button[aria-pressed="true"] { outline: 2px solid #ffd6c4; }
+  #micButton {
+    flex: none;
+    width: 2.9rem;
+    height: 2.9rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+  #micButton[data-state="listening"] { background: rgba(255, 92, 72, 0.75); animation: micPulse 1.2s ease-in-out infinite; }
+  #micButton[data-state="thinking"] { opacity: 0.75; }
+  #micButton[data-state="speaking"] { background: rgba(64, 196, 210, 0.45); border-color: rgba(160, 240, 245, 0.85); }
+  #micButton[data-state="off"] { opacity: 0.45; }
+  @keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 120, 100, 0.55); } 50% { box-shadow: 0 0 0 0.55rem rgba(255, 120, 100, 0); } }
+  #micHint { display: inline-block; max-width: min(46rem, 100%); margin: 0 0 0.4rem; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.95rem; color: #fff; background: rgba(3, 20, 28, 0.62); backdrop-filter: blur(10px); }
+  #micHint[hidden] { display: none; }
+  #voicePicker { margin: 0 0 0.7rem; color: inherit; }
+  #voicePicker h2 { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 500; }
+  #voicePicker h2 #voiceNow { opacity: 0.8; font-weight: 400; }
+  #voiceSpeedRow { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.5rem; flex-wrap: wrap; }
+  #voiceSpeed { flex: 1; min-width: 6rem; max-width: 18rem; accent-color: #ffb49e; }
+  #voiceSpeedReset { padding: 0.3rem 0.7rem; font-size: 0.9rem; }
+  #voiceList { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: 0.45rem; max-height: 15rem; overflow-y: auto; padding-right: 0.2rem; }
+  .voiceRow { display: flex; gap: 0.35rem; min-width: 0; }
+  .voicePick {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: 0.1rem;
+    border-radius: 0.9rem;
+    padding: 0.45rem 0.75rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+  .voicePick[aria-pressed="true"] { background: rgba(64, 196, 210, 0.32); border-color: #a0f0f5; outline: none; }
+  .voiceName { font-weight: 600; }
+  .voiceTone { font-size: 0.8rem; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .voicePlay { flex: none; width: 2.6rem; padding: 0; border-radius: 0.9rem; background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.35); }
+  html[data-theme="plain"] #micHint { color: #fff; background: #1b2430; }
+  #themePicker { margin: 0 0 0.7rem; color: inherit; }
+  #themePicker h2 { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 500; }
+  #themeList { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  #themeList button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    backdrop-filter: blur(12px);
+  }
+  .themeSwatch {
+    width: 2.4rem;
+    height: 1.55rem;
+    border-radius: 0.45rem;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    flex: none;
+  }
+  #shellMark { display: none; width: 1.7rem; height: 1.7rem; flex: none; }
+  #themeStage { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+  html[data-theme="plain"] body { background-image: none !important; background-color: #f7f4ee; color: #1b2430; }
+  html[data-theme="plain"] #themeStage,
+  html[data-theme="plain"] #shellMark { display: none !important; }
+  html[data-theme="plain"] #themeStage,
+  html[data-theme="plain"] #themeStage *,
+  html[data-theme="plain"] .turtle-swim { animation: none !important; }
+  #thread { overscroll-behavior: contain; }
+  @media (max-width: 1200px) {
+    body { background-attachment: scroll; }
+  }
+  /* Cover / narrow phone, including a short landscape cover (Fold 7 closed is 960×412). */
+  @media (max-width: 640px), (max-height: 560px) {
+    body { background-image: url("/coral-reef-bg-sm.jpg"); }
+    #chats {
+      background: rgba(3, 20, 28, 0.34);
+      backdrop-filter: blur(3px);
+    }
+    #drawer:not([hidden]) {
+      position: absolute;
+      z-index: 6;
+      left: 0;
+      right: 0;
+      top: env(safe-area-inset-top, 0px);
+      max-height: min(70dvh, calc(100dvh - env(safe-area-inset-top, 0px)));
+      overflow: auto;
+    }
+    #app { flex-direction: column; }
+    #chats, #stage {
+      width: auto;
+      max-height: none;
+      flex: 1;
+      min-height: 0;
+      border-right: 0;
+      border-bottom: 0;
+    }
+    body:not(.thread-open) #stage { display: none; }
+    body.thread-open #chats { display: none; }
+    body.thread-open #backToList { display: inline-flex; }
+    #sessionList button, #go, #backToList, #advancedLink {
+      min-height: 48px;
+    }
+    #sessionList button { width: 100%; }
+    #go { min-width: 4.5rem; }
+    #reply-bubble { min-height: 4.5rem; }
+    #installWord { font-size: 0.85rem; }
+  }
+  @media (max-height: 560px) {
+    #reply-bubble { min-height: 3rem; }
+    #thread { padding: 0.45rem 0.7rem 0.2rem; }
+  }
+  /*
+    Unfolded inner screen. Equal panes leave the center gutter on the fold.
+    Fold 7 open is 750×832 and 832×750. The 984×1092 estimate matches too.
+  */
+  @media (min-width: 700px) and (min-height: 620px) and (max-aspect-ratio: 5/4) {
+    #app {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 1.5rem minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+    }
+    #chats {
+      width: auto;
+      grid-column: 1;
+      border-right: 0;
+      min-height: 0;
+    }
+    #stage { grid-column: 3; min-width: 0; min-height: 0; }
+    #drawer:not([hidden]) {
+      position: absolute;
+      z-index: 6;
+      left: 0;
+      top: env(safe-area-inset-top, 0px);
+      width: calc(50% - 0.75rem);
+      max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+      overflow: auto;
+    }
+    #sessionList button, #go, #advancedLink { min-height: 48px; }
+    #sessionList button { width: 100%; }
+    textarea { font-size: 1rem; }
+  }
+  /* Portrait book: hinge is vertical. Put each pane in its own viewport segment. */
+  @media (horizontal-viewport-segments: 2) {
+    #drawer:not([hidden]) {
+      position: absolute;
+      z-index: 6;
+      left: env(viewport-segment-left 0 0, 0px);
+      top: env(viewport-segment-top 0 0, 0px);
+      width: env(viewport-segment-width 0 0, 50vw);
+      max-height: env(viewport-segment-height 0 0, 100dvh);
+      overflow: auto;
+    }
+    #app { display: block; }
+    #chats, body.thread-open #chats {
+      display: flex;
+      position: absolute;
+      left: env(viewport-segment-left 0 0, 0px);
+      top: env(viewport-segment-top 0 0, 0px);
+      width: env(viewport-segment-width 0 0, 50vw);
+      height: env(viewport-segment-height 0 0, 100dvh);
+      border-right: 0;
+    }
+    #stage, body:not(.thread-open) #stage, body.thread-open #stage {
+      display: flex;
+      position: absolute;
+      left: env(viewport-segment-left 1 0, 50vw);
+      top: env(viewport-segment-top 1 0, 0px);
+      width: env(viewport-segment-width 1 0, 50vw);
+      height: env(viewport-segment-height 1 0, 100dvh);
+    }
+    #backToList { display: none; }
+  }
+  /* Landscape book: hinge runs across the middle. Keep list left and thread right. */
+  @media (vertical-viewport-segments: 2) {
+    #chats, #stage, body.thread-open #chats, body:not(.thread-open) #stage { display: flex; }
+    #backToList { display: none; }
+    #foldGap {
+      display: block;
+      position: fixed;
+      pointer-events: none;
+      z-index: 4;
+      left: env(viewport-segment-left 0 0, 0px);
+      width: env(viewport-segment-width 0 0, 100vw);
+      top: env(viewport-segment-bottom 0 0, 50vh);
+      height: max(12px, calc(env(viewport-segment-top 0 1, 50vh) - env(viewport-segment-bottom 0 0, 50vh)));
+      background: linear-gradient(to bottom, transparent, rgba(3, 20, 28, 0.28), transparent);
+    }
+    #thread, #sessionList {
+      scroll-padding-top: 1rem;
+      scroll-padding-bottom: 1rem;
+    }
+  }
+  #turtleScreen {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
+    background: rgba(3, 20, 28, 0.5);
+    color: #fff;
+  }
+  #turtleScreen[hidden] { display: none !important; }
+  #turtleCard {
+    width: min(36rem, 100%);
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+    padding: 1.2rem 1.15rem 1rem;
+    border-radius: 1.6rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  }
+  #turtleCard h2 { margin: 0.2rem 0 0.35rem; font-weight: 500; font-size: 1.7rem; color: #fff; }
+  #turtleCard p { margin: 0.35rem 0; color: #fff; line-height: 1.4; }
+  #turtleLog {
+    white-space: pre-wrap;
+    min-height: 4.5rem;
+    margin: 0.7rem 0;
+    padding: 0.75rem 0.85rem;
+    border-radius: 1rem;
+    background: rgba(3, 20, 28, 0.35);
+    border: 1px solid rgba(255, 196, 176, 0.35);
+    color: #fff;
+  }
+  .turtle-stage { display: flex; justify-content: center; margin-bottom: 0.4rem; }
+  .turtle-swim { width: 11rem; height: 7rem; animation: simco-swim 8s ease-in-out infinite; transform-origin: 50% 60%; }
+  html.simco-turtle-paused .turtle-swim,
+  html.simco-turtle-idle .turtle-swim { animation-play-state: paused; }
+  @keyframes simco-swim {
+    0% { transform: translateX(-10px) translateY(0) rotate(-6deg); }
+    50% { transform: translateX(12px) translateY(-8px) rotate(5deg); }
+    100% { transform: translateX(-10px) translateY(0) rotate(-6deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .turtle-swim { animation: none; }
+  }
+  @media (max-width: 640px), (max-height: 560px) {
+    #turtleCard { width: 100%; padding: 1rem 0.85rem; }
+    .turtle-swim { width: 8.5rem; height: 5.4rem; }
+    #turtleCard h2 { font-size: 1.35rem; }
+  }
+  @media (min-width: 700px) and (min-height: 620px) and (max-aspect-ratio: 5/4) {
+    #turtleCard { width: min(28rem, 92%); }
+  }
+  #turtleActions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  #hostRow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin: 0.7rem 0 0.2rem;
+  }
+  #hostRow[hidden] { display: none !important; }
+  #hostUrl {
+    width: 100%;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font: inherit;
+    padding: 0.65rem 0.9rem;
+  }
+  #hostUrl::placeholder { color: #f3e6d8; }
+  #hostHint { margin: 0; color: #fff; font-size: 0.92rem; }
+  #turtleTools, #turtleAsk { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.65rem; }
+  #turtleAsk { align-items: flex-end; }
+  #turtleAsk label { flex: 1 0 100%; }
+  #turtleQuestion {
+    flex: 1 1 12rem;
+    min-width: 0;
+    min-height: 2.7rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    padding: 0.55rem 0.75rem;
+  }
+  #turtleQuestion::placeholder { color: #f3e6d8; }
+  #turtleStage, #turtleReply, #turtleError { margin: 0.4rem 0 0; color: #fff; white-space: pre-wrap; }
+  #turtleError { color: #ffd6c4; }
+  html.simco-turtle-busy .turtle-swim { animation-play-state: running; }
+</style>
+</head>
+<body>
+<script src="simco-client.js"></script>
+<section id="turtleScreen" aria-label="Sea turtle">
+  <div id="turtleCard">
+    <div class="turtle-stage" aria-hidden="true">
+      <svg class="turtle-swim" viewBox="0 0 200 120" role="img">
+        <title>Sea turtle</title>
+        <ellipse cx="78" cy="78" rx="34" ry="10" fill="rgba(3,20,28,0.35)"/>
+        <ellipse cx="118" cy="62" rx="22" ry="8" fill="#7dcea0" transform="rotate(18 118 62)"/>
+        <ellipse cx="46" cy="70" rx="20" ry="8" fill="#6fbf97" transform="rotate(-16 46 70)"/>
+        <ellipse cx="92" cy="58" rx="36" ry="26" fill="#1f6f5b"/>
+        <ellipse cx="92" cy="58" rx="24" ry="16" fill="#2f8f72"/>
+        <circle cx="78" cy="50" r="4" fill="#ffb4a2"/>
+        <circle cx="96" cy="46" r="3.5" fill="#ffd6c4"/>
+        <circle cx="108" cy="56" r="4" fill="#ffb4a2"/>
+        <circle cx="138" cy="48" r="14" fill="#8fd0ae"/>
+        <circle cx="143" cy="45" r="1.6" fill="#03141c"/>
+        <path d="M150 44c8 2 12 8 10 12" fill="none" stroke="#ffd6c4" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h2>Simko SI</h2>
+    <p id="turtleLead">A sea turtle is crossing the reef while this computer is configured.</p>
+    <details id="turtleDetails">
+      <summary>Details</summary>
+      <div id="turtleLog" aria-live="polite">Reading this computer.</div>
+    </details>
+    <p id="turtleStage" aria-live="polite">Waiting</p>
+    <p id="turtleError" hidden></p>
+    <div id="turtleTools">
+      <button id="turtleRedetect" type="button">Re-detect this computer</button>
+      <button id="turtleCheck" type="button">Run setup check</button>
+    </div>
+    <form id="turtleAsk">
+      <label for="turtleQuestion">Ask the turtle</label>
+      <textarea id="turtleQuestion" rows="2" placeholder="Ask in everyday words"></textarea>
+      <button id="turtleAskSend" type="submit">Send</button>
+    </form>
+    <p id="turtleReply" aria-live="polite"></p>
+    <div id="hostRow" hidden>
+      <label for="hostUrl">Computer</label>
+      <input id="hostUrl" type="url" inputmode="url" placeholder="http://192.168.1.20:8788" autocomplete="off" spellcheck="false">
+      <button id="hostSave" type="button">Connect</button>
+      <p id="hostHint"></p>
+    </div>
+    <div id="turtleActions">
+      <button id="turtleEnter" type="button" hidden>Open chat</button>
+      <button id="turtlePeek" type="button">Look at the chats</button>
+    </div>
+  </div>
+</section>
+<header id="topbar"></header>
+<section id="drawer" hidden>
+<details id="lifebook">
+  <summary>Lifebook</summary>
+  <div id="lifeTags"></div>
+  <p id="lifeLast"></p>
+</details>
+<section id="themePicker" aria-label="Theme">
+  <h2>Theme</h2>
+  <div id="themeList"></div>
+</section>
+<section id="voicePicker" aria-label="Voice">
+  <h2>Voice · <span id="voiceNow">Coral</span></h2>
+  <div id="voiceSpeedRow">
+    <label for="voiceSpeed">Speed</label>
+    <input id="voiceSpeed" type="range" min="0.7" max="1.5" step="0.05" value="1">
+    <output id="voiceSpeedOut" for="voiceSpeed">1×  (normal)</output>
+    <button id="voiceSpeedReset" type="button">Normal</button>
+  </div>
+  <div id="voiceList" role="list"></div>
+</section>
+<div id="sheetBar">
+  <span id="stackMark" aria-label="Not connected" title="Not connected">○</span>
+  <span id="installWord">Waiting</span>
+  <span id="authWho"></span>
+  <a id="advancedLink" href="/translator.html">Advanced</a>
+  <button id="openTurtle" type="button">Sea turtle</button>
+  <button id="openHost" type="button">Computer</button>
+</div>
+<nav id="chrome">
+  <button id="roleCoding" type="button" aria-pressed="true">Coding</button>
+  <button id="roleVideo" type="button" aria-pressed="false">Video</button>
+  <button id="roleImage" type="button" aria-pressed="false">Image</button>
+  <button id="detectHardware" type="button">Detect</button>
+  <button id="downloadNow" type="button">Download</button>
+  <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>
+  <button id="computeLocal" type="button" aria-pressed="false">Local</button>
+  <button id="rentComputer" type="button">Rent</button>
+</nav>
+<section id="auth-bar">
+  <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
+  <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
+  <button id="signUp" type="button">Sign up</button>
+  <button id="signIn" type="button">Sign in</button>
+  <button id="confirmEmail" type="button" hidden>Confirm email</button>
+  <button id="resetPassword" type="button" hidden>Reset password</button>
+  <input id="authTokenBox" type="text" placeholder="Dev inbox token" hidden autocomplete="off">
+  <button id="setPassword" type="button" hidden>Set password</button>
+  <button id="signOut" type="button" hidden>Sign out</button>
+</section>
+<section id="relay-sheet" hidden>
+  <select id="relayTarget" aria-label="Other chat"></select>
+  <button id="relayGo" type="button">Send</button>
+</section>
+<section id="rent-sheet" hidden>
+  <p id="autoOffer"></p>
+  <input id="rentSsh" type="text" placeholder="SSH host of this computer" autocomplete="off">
+  <label><input id="rentWords" type="checkbox"> I confirm RENT</label>
+  <button id="confirmRentGo" type="button">Confirm Rent</button>
+</section>
+</section>
+<div id="app">
+<aside id="chats">
+  <div id="listDock">
+    <div id="dockIcons">
+      <button id="newChat" type="button" aria-label="New chat">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="searchChats" type="button" aria-label="Search">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.25" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14.6 14.6L19 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="sendToChat" type="button" aria-label="Send to chat">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 12h12M12 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <button id="toolsToggle" type="button" aria-expanded="false" aria-label="Tools">💬</button>
+  </div>
+  <input id="chatSearch" type="search" placeholder="Search chats" aria-label="Search chats" hidden>
+  <nav id="sessionList" aria-label="Chats"></nav>
+</aside>
+<section id="stage">
+<header id="threadHead">
+  <button id="backToList" type="button">Back</button>
+  <span id="shellMark" aria-hidden="true"><svg viewBox="0 0 32 32" width="28" height="28"><path d="M16 4c2 4 2 6 0 8 3-1 6-1 8 1-3 1-4 3-4 6 3 0 6 1 7 4-4 0-6 2-7 5-1-4-3-6-7-7 2-2 3-5 2-8-3 1-6 0-8-2 3-1 5-3 5-7z" fill="currentColor"/></svg></span>
+  <h1 id="threadTitle">Career plan</h1>
+</header>
+<main id="thread">
+  <div id="historyBubbles"></div>
+  <div id="reply-bubble" aria-label="Reply" data-placeholder="Reply"></div>
+</main>
+<form id="composer">
+  <p id="micHint" aria-live="polite" hidden></p>
+  <div id="input-bubble">
+    <textarea id="everyday" rows="1" placeholder="Type everyday English"></textarea>
+    <button id="micButton" type="button" data-state="idle" aria-label="Talk to Simko SI" title="Talk to Simko SI"><span class="micGlyph" aria-hidden="true">🎙</span></button>
+    <button id="go" type="submit">Send</button>
+  </div>
+</form>
+<details id="raw"><summary>Raw</summary><pre id="raw-text"></pre></details>
+</section>
+</div>
+<div id="foldGap" aria-hidden="true"></div>
+<script src="/themes/theme-host.js"></script>
+<script src="simco-voice.js"></script>
+<script>
+const SYSTEM = "You are a senior front-end engineer. Return exactly one complete HTML5 document starting with <!DOCTYPE html> and ending with </html>. One file with inline CSS and exactly one script. No markdown fences. No commentary outside the HTML.";
+const USER_OPENER = "First character of your reply must be < of <!DOCTYPE html>. Zero prose before that.";
+let model = "granite4.2:8b-q8_0";
+
+// Calculator steps. Keywords match whole words only, so "address" is not "add",
+// "sometimes" is not "times", and "subtraction" still counts as subtract.
+function detectIntent(text) {
+  const t = text.toLowerCase();
+  const has = (re) => re.test(t);
+  if (has(/\b(division|divide|divided|divides|dividing)\b/)) return "div";
+  if (has(/\bmulti-?digit\b/)) return "mul_multi";
+  if (has(/\bdecimals?\b/)) return "decimal";
+  if (has(/\b(subtract|subtracts|subtracting|subtraction|minus)\b/)) return "sub";
+  if (has(/\b(add|adds|adding|addition|plus)\b/)) return "add";
+  if (has(/\b(multiply|multiplies|multiplying|multiplication|times)\b/)) return "mul";
+  if (has(/\b(calculator|front end|shell)\b/)) return "fe_shell";
+  return "";
+}
+
+// Coding jobs: the server queues Aider with the user's words and waits for RUN.
+let pendingCodingJob = null;
+let codingPoll = null;
+
+function voiceReply(text) {
+  if (window.simcoVoice) window.simcoVoice.reply(text);
+}
+
+function codingDone(status) {
+  return status === "done" || status === "failed" || status === "cancelled";
+}
+
+async function pollCodingJob(jobId) {
+  const reply = document.getElementById("reply-bubble");
+  if (codingPoll) clearTimeout(codingPoll);
+  try {
+    const response = await fetch("/api/coding/status/" + encodeURIComponent(jobId));
+    const data = await response.json();
+    if (data && data.everyday) reply.textContent = data.everyday;
+    if (data && !codingDone(data.status)) {
+      codingPoll = setTimeout(() => pollCodingJob(jobId), 2000);
+    } else if (data) {
+      const result = data.result || {};
+      const failure = result.failure || null;
+      const details = failure ? (failure.detail || failure.message || "") : (result.preview || "");
+      if (details) {
+        document.getElementById("raw-text").textContent = details;
+        document.getElementById("raw").style.display = "block";
+      }
+      if (data.everyday) rememberReply(data.everyday);
+      voiceReply(data.everyday || (failure ? "The coding job failed. Say fix it and I'll try again." : "The coding job is done."));
+    }
+  } catch (e) {
+    codingPoll = setTimeout(() => pollCodingJob(jobId), 4000);
+  }
+}
+
+async function runCodingJob(word) {
+  const reply = document.getElementById("reply-bubble");
+  const jobId = pendingCodingJob;
+  try {
+    const response = await fetch("/api/coding/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_id: jobId, confirm: word })
+    });
+    const data = await response.json();
+    if (!data || data.ok === false) {
+      reply.textContent = (data && data.error) || "The coding job did not start.";
+      voiceReply(reply.textContent);
+      return;
+    }
+    pendingCodingJob = null;
+    reply.textContent = "Starting the coding job.";
+    voiceReply(reply.textContent);
+    pollCodingJob(jobId);
+  } catch (e) {
+    reply.textContent = "The coding job could not reach the computer.";
+  }
+}
+
+function buildPayload(feature, everyday) {
+  const lines = {
+    fe_shell: "Rewrite into one complete HTML5 calculator front end with digits, operators, C, =, and display id display.",
+    mul: "Rewrite so multiplication (*) works. Keep prior gates working.",
+    mul_multi: "Rewrite so multi-digit append and multiplication work.",
+    div: "Rewrite so division (/) works. Keep multiplication working.",
+    add: "Rewrite so addition (+) works. Keep prior gates working.",
+    sub: "Rewrite so subtraction (-) works. Keep prior gates working.",
+    decimal: "Rewrite so a leading decimal (.5) becomes 0.5. Keep prior gates working."
+  };
+  return {
+    model: model,
+    think: false,
+    stream: false,
+    messages: [
+      { role: "system", content: SYSTEM },
+      { role: "user", content: USER_OPENER + "\n\n" + (lines[feature] || lines.fe_shell) + "\n" + everyday + "\nOutput ONLY the raw HTML document." }
+    ],
+    options: { temperature: 1.0, top_p: 0.95, num_ctx: 8192, num_predict: feature === "mul_multi" ? 8192 : 4096 }
+  };
+}
+
+async function loadModel() {
+  const compute = activeCompute();
+  try {
+    const response = await fetch("/api/compute");
+    const data = await response.json();
+    if (data && data.model) model = data.model;
+  } catch (e) {}
+  if (compute !== "local") return;
+  try {
+    const response = await fetch("/api/probe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ compute: "local", role: "coding" })
+    });
+    const data = await response.json();
+    if (data && data.model) model = data.model;
+  } catch (e) {}
+}
+
+async function onSend(event) {
+  event.preventDefault();
+  const text = document.getElementById("everyday").value.trim();
+  if (!text) return;
+  if (window.simcoVoice) window.simcoVoice.consumeTurn();
+  await loadModel();
+  const reply = document.getElementById("reply-bubble");
+  const rawBox = document.getElementById("raw");
+  const rawText = document.getElementById("raw-text");
+  rawBox.open = false;
+  rawBox.style.display = "none";
+  showMyMessage(text);
+  if (pendingCodingJob && text === "RUN") {
+    document.getElementById("everyday").value = "";
+    if (authToken && activeSessionId && String(activeSessionId).indexOf("demo-") !== 0) {
+      await sessionPost({ op: "append", session_id: activeSessionId, role: "user", text: text });
+    }
+    await runCodingJob(text);
+    return;
+  }
+  const feature = detectIntent(text);
+  let raw = "";
+  let everyday = "";
+  reply.textContent = "Working on it…";
+  try {
+    const turn = { text: text, model: model };
+    if (feature) turn.feature = feature;
+    if (typeof authToken !== "undefined" && authToken) turn.token = authToken;
+    const response = await fetch("/api/simco/turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(turn)
+    });
+    const data = await response.json();
+    if (response.status === 409 || (data && data.install_required)) {
+      showTurtle();
+      reply.textContent = (data && (data.message || data.error)) || "Simko SI is still configuring this computer.";
+      voiceReply(reply.textContent);
+      return;
+    }
+    raw = (data && data.raw) || "";
+    everyday = (data && data.everyday) || "";
+    if (data && data.model) model = data.model;
+    pendingCodingJob = (data && data.intent === "coding" && data.needs_confirm && data.job_id) ? data.job_id : null;
+    if (data && data.intent === "coding" && data.job_id && data.needs_confirm === false) {
+      reply.textContent = everyday || "Working on it…";
+      document.getElementById("everyday").value = "";
+      voiceReply(reply.textContent);
+      pollCodingJob(data.job_id);
+      await rememberTurn(text, reply.textContent);
+      return;
+    }
+  } catch (e) {
+    raw = "";
+    everyday = "";
+  }
+  const everydayLine = everyday || "No reply came back from Simko SI. Try again in a moment.";
+  reply.textContent = everydayLine;
+  voiceReply(everydayLine);
+  if (raw) {
+    rawText.textContent = raw;
+    rawBox.style.display = "block";
+  }
+  document.getElementById("everyday").value = "";
+  await rememberTurn(text, everydayLine);
+  await tagTurn(text);
+}
+
+document.getElementById("composer").addEventListener("submit", onSend);
+document.getElementById("everyday").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    document.getElementById("composer").requestSubmit();
+  }
+});
+let activeRole = "coding";
+let chosenOffer = null;
+let downloadPoll = null;
+
+function activeCompute() {
+  return document.getElementById("computeLocal").getAttribute("aria-pressed") === "true" ? "local" : "cloud";
+}
+
+function setConnected(on) {
+  const mark = document.getElementById("stackMark");
+  mark.textContent = on ? "●" : "○";
+  mark.title = on ? "Connected" : "Not connected";
+  mark.setAttribute("aria-label", mark.title);
+}
+
+function setRole(role) {
+  activeRole = role;
+  document.getElementById("roleCoding").setAttribute("aria-pressed", role === "coding" ? "true" : "false");
+  document.getElementById("roleVideo").setAttribute("aria-pressed", role === "video" ? "true" : "false");
+  document.getElementById("roleImage").setAttribute("aria-pressed", role === "image" ? "true" : "false");
+  autoConnect();
+}
+
+async function autoConnect() {
+  let probed = null;
+  try {
+    const response = await fetch("/api/probe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ compute: "local", role: activeRole })
+    });
+    probed = await response.json();
+  } catch (e) {
+    setConnected(false);
+    return;
+  }
+  const facts = (probed && probed.probe) || {};
+  const gpu = String(facts.gpu || "").toLowerCase();
+  const cloudClass = Number(facts.vram_gb || 0) >= 20 || gpu.indexOf("3090") >= 0;
+  if (cloudClass) {
+    await setCompute("cloud");
+    try {
+      const response = await fetch("/api/probe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ compute: "cloud", role: activeRole })
+      });
+      const cloud = await response.json();
+      if (cloud && cloud.model) model = cloud.model;
+      setConnected(!!(cloud && cloud.ok && !cloud.needs_rent));
+    } catch (e) {
+      setConnected(false);
+    }
+    return;
+  }
+  await setCompute("local");
+  if (probed && probed.model) model = probed.model;
+  setConnected(!!(probed && probed.ok && !probed.needs_rent && (probed.model || probed.install_script)));
+}
+
+function statusWord(data) {
+  if (!data) return "Waiting";
+  if (data.status_word) return data.status_word;
+  if (data.status === "pass" || data.install === "pass") return "Ready";
+  if (data.status === "running" || data.install === "started" || data.install === "already_running") return "Downloading";
+  return "Waiting";
+}
+
+async function openRent() {
+  document.getElementById("drawer").hidden = false;
+  document.getElementById("toolsToggle").setAttribute("aria-expanded", "true");
+  document.getElementById("rent-sheet").hidden = false;
+  const line = document.getElementById("autoOffer");
+  chosenOffer = null;
+  try {
+    const response = await fetch("/api/offers");
+    const data = await response.json();
+    const rows = (data.recommended || data.offers || []).filter((row) => row.recommended && String(row.gpu || "").indexOf("3090") >= 0 && row.inet_down >= 900 && row.disk_gb >= 150);
+    chosenOffer = rows[0] || null;
+  } catch (e) {
+    chosenOffer = null;
+  }
+  line.textContent = chosenOffer
+    ? (chosenOffer.gpu + " · " + chosenOffer.inet_down + " Mbps · " + chosenOffer.disk_gb + "GB")
+    : "No matching computer.";
+}
+
+async function confirmRent() {
+  if (!document.getElementById("rentWords").checked) {
+    document.getElementById("reply-bubble").textContent = "Check I confirm RENT before Confirm Rent.";
+    try { await fetch("/api/offers"); } catch (e) {}
+    return;
+  }
+  if (!chosenOffer) {
+    document.getElementById("reply-bubble").textContent = "No matching computer for this role.";
+    return;
+  }
+  const response = await fetch("/api/rent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      confirm: "RENT",
+      dry_run: false,
+      offer_id: chosenOffer.id,
+      gpu: chosenOffer.gpu,
+      inet_down: chosenOffer.inet_down,
+      inet_up: chosenOffer.inet_up,
+      disk_gb: chosenOffer.disk_gb || 150,
+      region: chosenOffer.region || "",
+      role: activeRole,
+      ssh_host: document.getElementById("rentSsh").value.trim(),
+      ssh_port: 22,
+      ssh_user: "root"
+    })
+  });
+  const data = await response.json();
+  document.getElementById("reply-bubble").textContent = data.message || data.error || "Rent recorded.";
+  document.getElementById("installWord").textContent = "Waiting";
+}
+
+async function refreshInstall() {
+  const word = document.getElementById("installWord");
+  try {
+    const response = await fetch("/api/install/status");
+    const data = await response.json();
+    word.textContent = statusWord(data);
+    if (word.textContent === "Ready" && data.where) {
+      const reply = document.getElementById("reply-bubble");
+      if (!reply.textContent || reply.textContent.indexOf("Ready on ") === 0 || reply.textContent.indexOf("Downloading ") === 0) {
+        reply.textContent = "Ready on " + data.where + ".";
+      }
+      if (downloadPoll) { clearInterval(downloadPoll); downloadPoll = null; }
+    }
+    if (word.textContent !== "Downloading" && downloadPoll) {
+      clearInterval(downloadPoll);
+      downloadPoll = null;
+    }
+  } catch (e) {
+    word.textContent = "Waiting";
+  }
+}
+
+async function detectHardware() {
+  const response = await fetch("/api/probe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ compute: activeCompute(), role: activeRole })
+  });
+  const data = await response.json();
+  if (data && data.model) model = data.model;
+  const aider = data && data.aider && data.aider.method && data.aider.method !== "not-selected" ? (" Aider " + data.aider.method + ".") : "";
+  const method = data && data.ollama && data.ollama.method ? (" Ollama " + data.ollama.method + ".") : "";
+  document.getElementById("reply-bubble").textContent = (data.message || data.error || "Could not read this computer.") + aider + method;
+}
+
+async function downloadNow() {
+  const response = await fetch("/api/download", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ compute: activeCompute(), role: activeRole })
+  });
+  const data = await response.json();
+  if (data && data.model) model = data.model;
+  document.getElementById("installWord").textContent = statusWord(data);
+  document.getElementById("reply-bubble").textContent = data.message || data.error || "Download requested.";
+  if (statusWord(data) === "Downloading") {
+    if (downloadPoll) clearInterval(downloadPoll);
+    downloadPoll = setInterval(refreshInstall, 2000);
+  }
+}
+
+async function setCompute(compute) {
+  const response = await fetch("/api/compute", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ compute: compute })
+  });
+  const data = await response.json();
+  document.getElementById("computeCloud").setAttribute("aria-pressed", compute === "cloud" ? "true" : "false");
+  document.getElementById("computeLocal").setAttribute("aria-pressed", compute === "local" ? "true" : "false");
+  if (data && data.model) model = data.model;
+  await loadModel();
+}
+
+document.getElementById("roleCoding").addEventListener("click", () => setRole("coding"));
+document.getElementById("roleVideo").addEventListener("click", () => setRole("video"));
+document.getElementById("roleImage").addEventListener("click", () => setRole("image"));
+document.getElementById("detectHardware").addEventListener("click", detectHardware);
+document.getElementById("rentComputer").addEventListener("click", openRent);
+document.getElementById("confirmRentGo").addEventListener("click", confirmRent);
+document.getElementById("downloadNow").addEventListener("click", downloadNow);
+document.getElementById("computeCloud").addEventListener("click", () => setCompute("cloud"));
+document.getElementById("computeLocal").addEventListener("click", () => setCompute("local"));
+
+let authToken = "";
+let activeSessionId = "";
+let chatRows = [];
+
+function showSignedOut() {
+  authToken = "";
+  window.simcoUserToken = "";
+  activeSessionId = "";
+  chatRows = [];
+  sessionStorage.removeItem("podcoderToken");
+  document.getElementById("authEmail").hidden = false;
+  document.getElementById("authPassword").hidden = false;
+  document.getElementById("signUp").hidden = false;
+  document.getElementById("signIn").hidden = false;
+  document.getElementById("signOut").hidden = true;
+  document.getElementById("confirmEmail").hidden = true;
+  document.getElementById("resetPassword").hidden = false;
+  document.getElementById("authTokenBox").hidden = true;
+  document.getElementById("setPassword").hidden = true;
+  document.getElementById("authWho").textContent = "";
+  document.getElementById("relay-sheet").hidden = true;
+  showDemoList();
+  if (typeof loadLife === "function") loadLife();
+}
+
+function showSignedIn(email) {
+  window.simcoUserToken = authToken;
+  if (window.simcoThemes) window.simcoThemes.syncFromServer();
+  document.getElementById("authEmail").hidden = true;
+  document.getElementById("authPassword").hidden = true;
+  document.getElementById("signUp").hidden = true;
+  document.getElementById("signIn").hidden = true;
+  document.getElementById("signOut").hidden = false;
+  document.getElementById("confirmEmail").hidden = true;
+  document.getElementById("resetPassword").hidden = true;
+  document.getElementById("authWho").textContent = email;
+  loadLife();
+}
+
+async function authPost(body) {
+  const response = await fetch("/api/auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  return response.json();
+}
+
+async function submitAuth(op) {
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value;
+  const data = await authPost({ op: op, email: email, password: password });
+  if (!data.ok || !data.token) {
+    document.getElementById("reply-bubble").textContent = data.error || "Sign in failed.";
+    openThread();
+    return;
+  }
+  authToken = data.token;
+  sessionStorage.setItem("podcoderToken", authToken);
+  document.getElementById("authPassword").value = "";
+  showSignedIn(data.email);
+  if (data.dev_token) {
+    document.getElementById("authTokenBox").value = data.dev_token;
+    document.getElementById("authTokenBox").hidden = false;
+    document.getElementById("confirmEmail").hidden = false;
+    document.getElementById("reply-bubble").textContent = "No mail server. Confirm token is in the dev inbox at auth/dev-inbox.json.";
+  }
+  await refreshChats();
+}
+
+async function confirmEmail() {
+  const token = document.getElementById("authTokenBox").value.trim();
+  const data = await authPost({ op: "confirm-email", confirm_token: token });
+  document.getElementById("reply-bubble").textContent = data.ok ? "Email confirmed." : (data.error || "Confirm failed.");
+}
+
+async function resetPassword() {
+  const email = document.getElementById("authEmail").value.trim();
+  const data = await authPost({ op: "request-reset", email: email });
+  if (!data.ok) {
+    document.getElementById("reply-bubble").textContent = data.error || "Reset failed.";
+    return;
+  }
+  if (data.dev_token) {
+    document.getElementById("authTokenBox").value = data.dev_token;
+    document.getElementById("authTokenBox").hidden = false;
+    document.getElementById("setPassword").hidden = false;
+    document.getElementById("reply-bubble").textContent = "No mail server. Reset token is in the dev inbox at auth/dev-inbox.json. Type a new password, then Set password.";
+    return;
+  }
+  document.getElementById("reply-bubble").textContent = "If that email is registered, a reset note was sent.";
+}
+
+async function setPassword() {
+  const data = await authPost({
+    op: "reset-password",
+    reset_token: document.getElementById("authTokenBox").value.trim(),
+    password: document.getElementById("authPassword").value
+  });
+  document.getElementById("reply-bubble").textContent = data.ok ? "Password updated. Sign in with the new one." : (data.error || "Reset failed.");
+  if (data.ok) {
+    document.getElementById("authPassword").value = "";
+    document.getElementById("authTokenBox").value = "";
+    document.getElementById("setPassword").hidden = true;
+  }
+}
+
+async function signOut() {
+  if (authToken) await authPost({ op: "signout", token: authToken });
+  showSignedOut();
+  document.getElementById("reply-bubble").textContent = "";
+}
+
+async function sessionPost(body) {
+  const response = await fetch("/api/sessions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(Object.assign({ token: authToken }, body))
+  });
+  return response.json();
+}
+
+function fillChatSelect(select, rows, skipId) {
+  const previous = select.value;
+  select.replaceChildren();
+  rows.forEach((row) => {
+    if (skipId && row.id === skipId) return;
+    const option = document.createElement("option");
+    option.value = row.id;
+    option.textContent = row.title || "Chat";
+    select.appendChild(option);
+  });
+  if ([...select.options].some((option) => option.value === previous)) select.value = previous;
+}
+
+function messageText(message) {
+  if (message.role === "relay") return "From " + (message.from_title || "another chat") + ": " + message.text;
+  if (message.role === "relay_out") return "Sent to " + (message.to_title || "another chat") + ": " + message.text;
+  return message.text;
+}
+
+function chatMark(title) {
+  const hay = String(title || "").toLowerCase();
+  const pairs = [
+    ["career", "💼"],
+    ["health", "🩺"],
+    ["calc", "🧮"],
+    ["family", "👨‍👩‍👧"],
+    ["money", "💰"],
+    ["friend", "🤝"],
+    ["evening", "🌙"],
+    ["goal", "🎯"],
+    ["learn", "📚"],
+    ["partner", "❤️"],
+    ["love", "❤️"]
+  ];
+  for (let i = 0; i < pairs.length; i++) {
+    if (hay.indexOf(pairs[i][0]) >= 0) return pairs[i][1];
+  }
+  return "💬";
+}
+
+function setThreadTitle(title) {
+  document.getElementById("threadTitle").textContent = title || "Chat";
+}
+
+function renderHistory(session) {
+  if (session && session.title) setThreadTitle(session.title);
+  const history = document.getElementById("historyBubbles");
+  const reply = document.getElementById("reply-bubble");
+  history.replaceChildren();
+  const messages = session.messages || [];
+  messages.forEach((message, index) => {
+    const last = index === messages.length - 1;
+    const mine = message.role === "user" || message.role === "relay_out";
+    if (last && !mine) {
+      reply.textContent = messageText(message);
+      return;
+    }
+    const bubble = document.createElement("div");
+    bubble.className = mine ? "bubble mine" : "bubble theirs";
+    bubble.textContent = messageText(message);
+    history.appendChild(bubble);
+  });
+  const tail = messages[messages.length - 1];
+  if (!tail || tail.role === "user" || tail.role === "relay_out") reply.textContent = "";
+}
+
+const DEMO_CHATS = [
+  { id: "demo-career", title: "Career plan", messages: [
+    { role: "user", text: "Help me ship the career plan." },
+    { role: "assistant", text: "Career is in play." }
+  ]},
+  { id: "demo-health", title: "Health check", messages: [
+    { role: "user", text: "I slept badly and skipped the gym." },
+    { role: "assistant", text: "Health and Fitness is strained." }
+  ]},
+  { id: "demo-calc", title: "Calculator", messages: [
+    { role: "user", text: "Make multiply show 7 times 8." },
+    { role: "assistant", text: "Multiplication is in. I tested it in a browser: 7 × 8 = shows 56." }
+  ]},
+  { id: "demo-family", title: "Family", messages: [
+    { role: "user", text: "The kids need a quieter evening." },
+    { role: "assistant", text: "Parenting is in play." }
+  ]},
+  { id: "demo-money", title: "Money", messages: [
+    { role: "user", text: "The budget is tight this month." },
+    { role: "assistant", text: "Financial Life is strained." }
+  ]},
+  { id: "demo-friends", title: "Friends", messages: [
+    { role: "user", text: "I want to see friends this weekend." },
+    { role: "assistant", text: "Social Life is in play." }
+  ]},
+  { id: "demo-evening", title: "Quiet evening", messages: [
+    { role: "user", text: "Home feels restless." },
+    { role: "assistant", text: "Quality of Life is in play." }
+  ]},
+  { id: "demo-goal", title: "A goal", messages: [
+    { role: "user", text: "My goal is a calmer year." },
+    { role: "assistant", text: "Life Vision is in play." }
+  ]},
+  { id: "demo-learn", title: "Learning", messages: [
+    { role: "user", text: "I want to read one book." },
+    { role: "assistant", text: "Intellectual Life is in play." }
+  ]},
+  { id: "demo-love", title: "Partner", messages: [
+    { role: "user", text: "Date night went well." },
+    { role: "assistant", text: "Love Relationship is doing well." }
+  ]}
+];
+
+function showDemoList() {
+  // The sample chats stay in the list, but a fresh visit opens an empty thread, not a canned demo conversation.
+  document.body.classList.remove("thread-open");
+  activeSessionId = null;
+  paintChatList(DEMO_CHATS, true);
+  setThreadTitle("New chat");
+  document.getElementById("historyBubbles").replaceChildren();
+  document.getElementById("reply-bubble").textContent = "";
+}
+
+function showMyMessage(text) {
+  // Show what was just typed as its own bubble right away; the saved chat re-renders the same way.
+  const history = document.getElementById("historyBubbles");
+  const reply = document.getElementById("reply-bubble");
+  if (reply.textContent.trim() && reply.textContent !== "Working on it…") {
+    const prev = document.createElement("div");
+    prev.className = "bubble theirs";
+    prev.textContent = reply.textContent;
+    history.appendChild(prev);
+  }
+  const bubble = document.createElement("div");
+  bubble.className = "bubble mine";
+  bubble.textContent = text;
+  history.appendChild(bubble);
+  reply.textContent = "";
+}
+
+function paintChatList(rows, demo) {
+  const list = document.getElementById("sessionList");
+  list.replaceChildren();
+  rows.forEach((row) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.id = row.id;
+    const mark = document.createElement("span");
+    mark.className = "chatEmoji";
+    mark.setAttribute("aria-hidden", "true");
+    mark.textContent = chatMark(row.title);
+    const label = document.createElement("span");
+    label.textContent = row.title || "Chat";
+    button.append(mark, label);
+    button.setAttribute("aria-pressed", row.id === activeSessionId ? "true" : "false");
+    button.addEventListener("click", () => {
+      if (demo) {
+        activeSessionId = row.id;
+        document.querySelectorAll("#sessionList button").forEach((item) => {
+          item.setAttribute("aria-pressed", item.dataset.id === row.id ? "true" : "false");
+        });
+        renderHistory(row);
+        openThread();
+        return;
+      }
+      showSession(row.id, true);
+    });
+    list.appendChild(button);
+  });
+}
+
+async function showSession(sessionId, open) {
+  const data = await sessionPost({ op: "get", session_id: sessionId });
+  if (!data.ok || !data.session) return;
+  activeSessionId = data.session.id;
+  document.querySelectorAll("#sessionList button").forEach((button) => {
+    button.setAttribute("aria-pressed", button.dataset.id === activeSessionId ? "true" : "false");
+  });
+  renderHistory(data.session);
+  fillChatSelect(document.getElementById("relayTarget"), chatRows, activeSessionId);
+  if (open) openThread();
+}
+
+async function refreshChats(preferId) {
+  const data = await sessionPost({ op: "list" });
+  chatRows = (data && data.sessions) || [];
+  if (!chatRows.length) {
+    const created = await sessionPost({ op: "create", title: "Chat 1" });
+    if (created.session) chatRows = [created.session];
+  }
+  paintChatList(chatRows);
+  const current = activeSessionId && String(activeSessionId).indexOf("demo-") !== 0 ? activeSessionId : null;
+  const wanted = preferId || current || (chatRows[0] && chatRows[0].id);
+  if (wanted) await showSession(wanted);
+}
+
+async function newChat() {
+  if (!authToken) {
+    document.getElementById("drawer").hidden = false;
+    document.getElementById("toolsToggle").setAttribute("aria-expanded", "true");
+    document.getElementById("reply-bubble").textContent = "Sign in to open a chat.";
+    openThread();
+    return;
+  }
+  const created = await sessionPost({ op: "create", title: "Chat " + (chatRows.length + 1) });
+  if (!created.ok) {
+    document.getElementById("reply-bubble").textContent = created.error || "Could not open a chat.";
+    return;
+  }
+  await refreshChats(created.session.id);
+  openThread();
+}
+
+async function rememberTurn(userText, assistantText) {
+  if (!authToken) return;
+  if (!activeSessionId || String(activeSessionId).indexOf("demo-") === 0) await refreshChats();
+  await sessionPost({ op: "append", session_id: activeSessionId, role: "user", text: userText });
+  await sessionPost({ op: "append", session_id: activeSessionId, role: "assistant", text: assistantText });
+  await showSession(activeSessionId);
+}
+
+async function rememberReply(assistantText) {
+  // A finished coding job adds only Simko SI's answer; the typed words were saved when they were sent.
+  if (!authToken) return;
+  if (!activeSessionId || String(activeSessionId).indexOf("demo-") === 0) await refreshChats();
+  await sessionPost({ op: "append", session_id: activeSessionId, role: "assistant", text: assistantText });
+  await showSession(activeSessionId);
+}
+
+async function sendToOtherChat() {
+  const text = document.getElementById("everyday").value.trim();
+  const target = document.getElementById("relayTarget").value;
+  if (!text) {
+    document.getElementById("reply-bubble").textContent = "Type a message, then Send to chat.";
+    return;
+  }
+  if (!target) {
+    document.getElementById("reply-bubble").textContent = "Open another chat first.";
+    return;
+  }
+  const data = await sessionPost({
+    op: "relay",
+    from_session_id: activeSessionId,
+    to_session_id: target,
+    text: text
+  });
+  document.getElementById("relay-sheet").hidden = true;
+  if (!data.ok) {
+    document.getElementById("reply-bubble").textContent = data.error || "Could not send to that chat.";
+    return;
+  }
+  document.getElementById("everyday").value = "";
+  await showSession(activeSessionId);
+}
+
+document.getElementById("signUp").addEventListener("click", () => submitAuth("signup"));
+document.getElementById("signIn").addEventListener("click", () => submitAuth("signin"));
+document.getElementById("confirmEmail").addEventListener("click", confirmEmail);
+document.getElementById("resetPassword").addEventListener("click", resetPassword);
+document.getElementById("setPassword").addEventListener("click", setPassword);
+document.getElementById("signOut").addEventListener("click", signOut);
+document.getElementById("toolsToggle").addEventListener("click", () => {
+  const drawer = document.getElementById("drawer");
+  drawer.hidden = !drawer.hidden;
+  document.getElementById("toolsToggle").setAttribute("aria-expanded", drawer.hidden ? "false" : "true");
+});
+document.getElementById("newChat").addEventListener("click", newChat);
+document.getElementById("searchChats").addEventListener("click", () => {
+  const box = document.getElementById("chatSearch");
+  box.hidden = false;
+  box.focus();
+});
+document.getElementById("chatSearch").addEventListener("input", () => { searchChats(); });
+async function searchChats() {
+  const q = document.getElementById("chatSearch").value.trim();
+  try {
+    const data = await sessionPost({ op: "search", q: q });
+    if (!authToken) {
+      const rows = DEMO_CHATS.filter((row) => {
+        if (!q) return true;
+        const blob = (row.title + " " + (row.messages || []).map((message) => message.text).join(" ")).toLowerCase();
+        return blob.indexOf(q.toLowerCase()) >= 0;
+      });
+      paintChatList(rows, true);
+      return;
+    }
+    chatRows = (data && data.sessions) || [];
+    paintChatList(chatRows);
+  } catch (e) {
+    document.getElementById("reply-bubble").textContent = "Search could not reach the app.";
+  }
+}
+document.getElementById("sendToChat").addEventListener("click", async () => {
+  if (!authToken) {
+    document.getElementById("drawer").hidden = false;
+    document.getElementById("reply-bubble").textContent = "Sign in to send to another chat.";
+    return;
+  }
+  await refreshChats(activeSessionId);
+  document.getElementById("drawer").hidden = false;
+  document.getElementById("toolsToggle").setAttribute("aria-expanded", "true");
+  document.getElementById("relay-sheet").hidden = false;
+});
+document.getElementById("relayGo").addEventListener("click", sendToOtherChat);
+async function bootAuth() {
+  authToken = sessionStorage.getItem("podcoderToken") || "";
+  if (!authToken) {
+    showSignedOut();
+    return;
+  }
+  const data = await authPost({ op: "me", token: authToken });
+  if (!data.ok) {
+    showSignedOut();
+    return;
+  }
+  showSignedIn(data.email);
+  await refreshChats();
+}
+async function paintLife(data) {
+  const box = document.getElementById("lifeTags");
+  const last = document.getElementById("lifeLast");
+  const rows = (data && data.categories) || [];
+  const tags = (data && data.tags) || [];
+  const current = tags.length ? tags[tags.length - 1].category : "";
+  box.replaceChildren();
+  rows.forEach((row) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    const words = (data && data.statuses) || {};
+    button.textContent = row.label + " · " + (words[row.id] || "not discussed");
+    button.setAttribute("aria-pressed", row.id === current ? "true" : "false");
+    button.addEventListener("click", () => retag(row.id));
+    box.appendChild(button);
+  });
+  const tagged = tags.length ? "Tagged as " + tags[tags.length - 1].label + "." : "Words only. No grade.";
+  last.textContent = data && data.dominance_note ? data.dominance_note + " " + tagged : tagged;
+}
+
+async function loadLife() {
+  const response = await fetch("/api/memory", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op: "list", token: authToken })
+  });
+  paintLife(await response.json());
+}
+
+async function tagTurn(text) {
+  if (!authToken) return;
+  const response = await fetch("/api/memory", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op: "tag", token: authToken, text: text, session_id: activeSessionId })
+  });
+  const data = await response.json();
+  if (data && data.tagged) await loadLife();
+}
+
+async function retag(category) {
+  if (!authToken) {
+    document.getElementById("lifeLast").textContent = "Sign in to tag a line.";
+    return;
+  }
+  const response = await fetch("/api/memory", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op: "retag", token: authToken, category: category })
+  });
+  const data = await response.json();
+  if (!data.ok) {
+    document.getElementById("lifeLast").textContent = data.error || "Nothing to tag.";
+    return;
+  }
+  await loadLife();
+}
+
+function applyFold() {
+  let segmented = false;
+  try {
+    segmented = window.matchMedia("(horizontal-viewport-segments: 2), (vertical-viewport-segments: 2)").matches;
+  } catch (err) {
+    segmented = false;
+  }
+  const cover = window.matchMedia("(max-width: 640px), (max-height: 560px)").matches;
+  document.body.classList.toggle("narrow", !segmented && cover);
+}
+
+function bindFold() {
+  applyFold();
+  ["(max-width: 640px), (max-height: 560px)", "(horizontal-viewport-segments: 2), (vertical-viewport-segments: 2)"].forEach((query) => {
+    try {
+      window.matchMedia(query).addEventListener("change", applyFold);
+    } catch (err) {}
+  });
+}
+
+function openThread() {
+  document.body.classList.add("thread-open");
+}
+
+document.getElementById("backToList").addEventListener("click", () => {
+  document.body.classList.remove("thread-open");
+});
+
+function showTurtle() {
+  document.getElementById("turtleScreen").hidden = false;
+}
+
+function showTurtleError(text) {
+  const line = document.getElementById("turtleError");
+  line.hidden = false;
+  line.textContent = text || "Something went wrong.";
+}
+
+function clearTurtleError() {
+  const line = document.getElementById("turtleError");
+  line.hidden = true;
+  line.textContent = "";
+}
+
+function setTurtleBusy(on) {
+  document.documentElement.classList.toggle("simco-turtle-busy", !!on);
+  if (on) document.documentElement.classList.remove("simco-turtle-idle");
+}
+
+function paintFromProbe(data) {
+  const probe = data.probe || {};
+  paintTurtle({
+    ok: data.ok,
+    message: data.message || data.error || "",
+    probe: probe,
+    decision: {
+      tag: data.tag || data.model || "",
+      ollama: data.ollama || {},
+      aider: data.aider || {},
+      message: data.message || ""
+    },
+    profile: data.translation_profile || data.profile || "",
+    chat_unlocked: !!(data.chat_unlocked || (document.getElementById("turtleEnter") && !document.getElementById("turtleEnter").hidden))
+  });
+}
+
+async function redetectComputer() {
+  clearTurtleError();
+  setTurtleBusy(true);
+  try {
+    const response = await fetch("/api/probe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ compute: "local", role: "coding" })
+    });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) {
+      showTurtleError(data.error || data.message || "This computer could not be read.");
+      return;
+    }
+    paintFromProbe(data);
+  } catch (err) {
+    showTurtleError("Re-detect could not reach the computer.");
+  } finally {
+    setTurtleBusy(false);
+  }
+}
+
+async function runSetupCheck() {
+  clearTurtleError();
+  setTurtleBusy(true);
+  const stage = document.getElementById("turtleStage");
+  stage.textContent = "Downloading";
+  try {
+    const response = await fetch("/api/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ op: "check", role: "coding" })
+    });
+    const data = await response.json();
+    const statusResponse = await fetch("/api/install/status");
+    const install = await statusResponse.json();
+    let word = statusWord(install);
+    if (data.chat_unlocked && word === "Waiting") word = "Ready";
+    if (data.phase === "blocked") word = "Waiting";
+    stage.textContent = word;
+    if (data.ok === false) {
+      showTurtleError(data.error || data.message || "The setup check did not finish.");
+      return;
+    }
+    paintTurtle(data);
+    stage.textContent = word;
+  } catch (err) {
+    stage.textContent = "Waiting";
+    showTurtleError("The setup check could not reach the computer.");
+  } finally {
+    setTurtleBusy(false);
+  }
+}
+
+async function askTurtle(event) {
+  if (event) event.preventDefault();
+  const text = document.getElementById("turtleQuestion").value.trim();
+  const reply = document.getElementById("turtleReply");
+  clearTurtleError();
+  if (!text) {
+    showTurtleError("Type a question, then Send.");
+    return;
+  }
+  setTurtleBusy(true);
+  reply.textContent = "";
+  try {
+    const response = await fetch("/api/simco/turn", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text })
+    });
+    const data = await response.json();
+    if (data && data.everyday) reply.textContent = data.everyday;
+    if (!reply.textContent) {
+      showTurtleError((data && (data.error || data.message)) || "The computer did not answer.");
+    }
+  } catch (err) {
+    showTurtleError("Ask the turtle could not reach the computer.");
+  } finally {
+    setTurtleBusy(false);
+  }
+}
+
+function hideTurtle(remember) {
+  document.getElementById("turtleScreen").hidden = true;
+  if (remember) sessionStorage.setItem("simcoTurtleSeen", "1");
+}
+
+function paintTurtle(data) {
+  const log = document.getElementById("turtleLog");
+  const lead = document.getElementById("turtleLead");
+  if (!data) {
+    log.textContent = "Simko SI could not read this computer.";
+    return;
+  }
+  const probe = data.probe || {};
+  const decision = data.decision || {};
+  const ollama = decision.ollama || data.ollama || {};
+  const aiderChoice = decision.aider || data.aider || {};
+  const lines = [
+    data.message || "",
+    probe.cpu ? ("CPU " + probe.cpu) : "",
+    probe.ram_gb ? ("Memory " + probe.ram_gb + " GB") : "",
+    probe.gpu ? ("GPU " + probe.gpu) : "",
+    decision.tag ? ("Granite " + decision.tag) : "",
+    ollama.method ? ("Ollama " + ollama.method + (ollama.version ? " " + ollama.version : "")) : "",
+    aiderChoice.method && aiderChoice.method !== "not-selected" ? ("Aider " + aiderChoice.method + (aiderChoice.version ? " " + aiderChoice.version : "")) : "",
+    data.ready_check && data.ready_check.ok ? "Ready check planned." : "",
+    (data.profile_id || data.profile) ? ("Profile " + (data.profile_id || data.profile)) : ""
+  ].filter(Boolean);
+  log.textContent = lines.join("\n");
+  if (data.chat_unlocked) {
+    lead.textContent = "The reef is quiet. This computer is configured.";
+    document.getElementById("turtleEnter").hidden = false;
+  } else {
+    lead.textContent = "This computer is not ready for a local Granite yet.";
+  }
+}
+
+function showHostEditor() {
+  const row = document.getElementById("hostRow");
+  const box = document.getElementById("hostUrl");
+  row.hidden = false;
+  if (window.simcoHost && window.simcoHost.current()) box.value = window.simcoHost.current();
+  showTurtle();
+}
+
+async function bootSetup() {
+  const force = location.pathname === "/turtle" || location.pathname === "/turtle.html";
+  showTurtle();
+  let data = {};
+  try {
+    const response = await fetch("/api/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ op: "run", role: "coding" })
+    });
+    data = await response.json();
+  } catch (e) {
+    data = { message: "Setup could not reach the computer. Check the address in Computer." };
+  }
+  paintTurtle(data);
+  if (!force && data.chat_unlocked && sessionStorage.getItem("simcoTurtleSeen") === "1") hideTurtle(false);
+}
+
+let clientStarted = false;
+function startClient() {
+  if (clientStarted) {
+    bootSetup();
+    return;
+  }
+  clientStarted = true;
+  loadModel();
+  autoConnect();
+  refreshInstall();
+  bootAuth();
+  loadLife();
+  bootSetup();
+}
+
+async function connectHost() {
+  const hint = document.getElementById("hostHint");
+  const host = window.simcoHost;
+  if (!host) {
+    hint.textContent = "The host helper did not load.";
+    return;
+  }
+  const saved = host.save(document.getElementById("hostUrl").value);
+  if (!saved.ok) {
+    hint.textContent = saved.error;
+    return;
+  }
+  hint.textContent = "Reaching the computer.";
+  try {
+    const response = await fetch("/api/health");
+    const data = await response.json();
+    if (!data || data.ok !== true) throw new Error("refused");
+  } catch (err) {
+    hint.textContent = "Could not reach that computer. Start Simko SI there, then try the address again.";
+    return;
+  }
+  hint.textContent = "Connected. The computer is configuring itself.";
+  startClient();
+}
+
+function armTurtleMotion() {
+  function markHidden() {
+    document.documentElement.classList.toggle("simco-turtle-paused", document.hidden);
+  }
+  document.addEventListener("visibilitychange", markHidden);
+  let idleTimer = 0;
+  function bump() {
+    document.documentElement.classList.remove("simco-turtle-idle");
+    window.clearTimeout(idleTimer);
+    idleTimer = window.setTimeout(() => document.documentElement.classList.add("simco-turtle-idle"), 20000);
+  }
+  ["pointermove", "keydown", "touchstart"].forEach((name) => {
+    window.addEventListener(name, bump, { passive: true });
+  });
+  markHidden();
+  bump();
+}
+
+document.getElementById("turtleEnter").addEventListener("click", () => hideTurtle(true));
+document.getElementById("turtlePeek").addEventListener("click", () => hideTurtle(false));
+document.getElementById("openTurtle").addEventListener("click", () => showTurtle());
+document.getElementById("openHost").addEventListener("click", () => showHostEditor());
+document.getElementById("hostSave").addEventListener("click", () => connectHost());
+document.getElementById("turtleRedetect").addEventListener("click", () => redetectComputer());
+document.getElementById("turtleCheck").addEventListener("click", () => runSetupCheck());
+document.getElementById("turtleAsk").addEventListener("submit", askTurtle);
+
+bindFold();
+showDemoList();
+armTurtleMotion();
+if (window.simcoHost && window.simcoHost.needsHost()) {
+  showHostEditor();
+  document.getElementById("turtleLead").textContent = "This phone is the window. The computer does the work.";
+  document.getElementById("turtleLog").textContent = "Enter the address of the computer running Simko SI. Granite, Ollama, and Aider download there.";
+} else {
+  if (window.simcoHost && window.simcoHost.native()) showHostEditor();
+  startClient();
+}
+</script>
+<script src="/platform-preview.js"></script>
+</body>
+</html>

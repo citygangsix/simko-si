@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Simko SI</string>
+    <string name="title_activity_main">Simko SI</string>
+    <string name="package_name">com.simkosi.simcosi</string>
+    <string name="custom_url_scheme">com.simkosi.simcosi</string>
+</resources>

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Miles to Kilometers</title></head><body>
+<h1>Miles to Kilometers</h1>
+<input type="number" id="miles" placeholder="Miles"> <button id="convert">Convert</button>
+<p id="out"></p>
+<script>
+document.getElementById('convert').addEventListener('click', function () {
+  const mi = parseFloat(document.getElementById('miles').value);
+  document.getElementById('out').textContent = mi + ' miles = ' + kmFromMiles(mi).toFixed(2) + ' km';
+});
+</script></body></html>

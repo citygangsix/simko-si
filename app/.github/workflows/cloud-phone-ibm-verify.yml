@@ -1,0 +1,38 @@
+name: Cloud phone and IBM transfer verification
+
+on:
+  pull_request:
+    paths:
+      - "IBM-LOCAL-DEPLOYMENT.md"
+      - "TRANSFER-MANIFEST.json"
+      - "config/social-cloud-phone.example.json"
+      - "docs/FIREBASE_PHONE_SIGNUP.md"
+      - "docs/social-cloud-phone-launch-checklist.md"
+      - "scripts/social-cloud-phone-readiness.mjs"
+      - "scripts/test-firebase-phone-auth.mjs"
+      - "scripts/test-social-cloud-phone-readiness.mjs"
+      - "server/lib/socialCloudPhoneReadiness.js"
+      - "src/lib/firebasePhoneAuth.ts"
+      - "src/lib/firebasePhoneAuthCore.ts"
+      - ".github/workflows/cloud-phone-ibm-verify.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:firebase-phone-auth
+      - run: npm run social:phones:test
+      - run: npm run social:phones:readiness
+      - run: npm run typecheck
+      - run: npm run build

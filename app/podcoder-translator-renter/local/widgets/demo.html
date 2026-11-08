@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reef Widgets demo</title>
+<link rel="stylesheet" href="/widgets/style.css">
+<script>
+/* Capture mode (?t=ms): a deterministic fake clock so headless screenshots show an exact animation moment. */
+(function(){ const q=new URLSearchParams(location.search); if(!q.has('t')) return;
+  document.documentElement.classList.add('capture');
+  let now=0, id=0; const timers=[], rafs=[];
+  performance.now=()=>now; Date.now=()=>now;
+  window.requestAnimationFrame=cb=>{rafs.push(cb); return ++id;};
+  window.setTimeout=(fn,ms=0)=>{timers.push({fn,at:now+ms,id:++id}); return id;};
+  window.setInterval=(fn,ms)=>{const t={fn,at:now+ms,every:ms,id:++id}; timers.push(t); return id;};
+  window.clearInterval=window.clearTimeout=i=>{const k=timers.findIndex(t=>t.id===i); if(k>=0) timers.splice(k,1);};
+  window.__advance=function(target){
+    while(now<target){ now=Math.min(target, now+16);
+      timers.sort((a,b)=>a.at-b.at);
+      while(timers.length && timers[0].at<=now){ const t=timers.shift(); t.fn(); if(t.every){ t.at+=t.every; timers.push(t);} }
+      const cbs=rafs.splice(0); cbs.forEach(cb=>cb(now)); }
+    const cbs=rafs.splice(0); cbs.forEach(cb=>cb(now));
+  };
+})();
+</script>
+</head><body>
+<div class="bubbles" id="bubbles"></div>
+<div class="wrap">
+  <div class="hero">
+    <h1>REEF WIDGETS<small>ANIMATED CHART KIT</small></h1>
+    <p>Mockup only. Seven reusable chart types that work for any life category, auto-cycling every 4 seconds. Every number is made-up example data.</p>
+    <div class="controls"><button id="pause">⏸ Pause</button><button id="next">Next ›</button></div>
+  </div>
+  <div class="grid">
+    <section id="w1"></section>
+    <section id="w2"></section>
+    <section id="w3"></section>
+    <section id="w4"></section>
+    <section id="w5" class="span2"></section>
+    <section id="w6" class="span2"></section>
+    <section id="w7"></section>
+  </div>
+</div>
+<script src="/widgets/widgets.js"></script>
+<script src="/widgets/data.js"></script>
+<script>
+document.body.insertAdjacentHTML('afterbegin', ReefWidgets.DEFS);
+// bubbles (deterministic pseudo-random so screenshots are stable)
+let seed=7; const rnd=()=>(seed=(seed*9301+49297)%233280)/233280;
+const bb=document.getElementById('bubbles');
+for(let i=0;i<34;i++){ const s=4+rnd()*16; const b=document.createElement('i');
+  Object.assign(b.style,{left:(rnd()*100)+'%', width:s+'px', height:s+'px', animationDuration:(9+rnd()*14)+'s', animationDelay:(-rnd()*20)+'s'});
+  b.style.setProperty('--dx',(rnd()*60-30)+'px'); bb.appendChild(b); }
+
+const q=new URLSearchParams(location.search);
+const types=['ringMetrics','lineChart','barChart','goalRing','scorePlaque','progressStats','quoteCard'];
+const start=+(q.get('ds')||0);
+const widgets=types.map((t,k)=>{ const ds=SAMPLES[t]; const rot=ds.slice(start%ds.length).concat(ds.slice(0,start%ds.length));
+  return ReefWidgets.mount(document.getElementById('w'+(k+1)), t, rot); });
+let paused=q.has('still'), timer;
+function cycle(){ widgets.forEach((w,k)=>setTimeout(()=>w.next(), k*120)); }
+function run(){ clearInterval(timer); if(!paused) timer=setInterval(cycle, +(q.get('every')||4000)); }
+document.getElementById('pause').onclick=e=>{ paused=!paused; e.target.textContent=paused?'▶ Play':'⏸ Pause'; run(); };
+document.getElementById('next').onclick=cycle;
+run();
+if(q.has('t')){ const T=+q.get('t'); window.__advance(T);
+  document.querySelectorAll('#bubbles i').forEach(b=>{ b.style.animationDelay=(parseFloat(b.style.animationDelay)-T/1000)+'s'; b.style.animationPlayState='paused'; }); }
+</script>
+</body></html>

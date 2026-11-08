@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en" data-simko-web="1">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
+<title>Simko SI</title>
+<meta name="simko-build" content="voice-bots-20261108-v5"/>
+<link rel="icon" href="/assets/favicon.svg?v=971b21ff3edd" type="image/svg+xml"/>
+<script>
+(function () {
+  var id = "reef-live";
+  try {
+    var saved = localStorage.getItem("simcoTheme");
+    if (saved) id = saved;
+  } catch (e) {}
+  document.documentElement.setAttribute("data-theme", id);
+  var build = "";
+  var meta = document.querySelector('meta[name="simko-build"]');
+  if (meta) build = meta.getAttribute("content") || "";
+  var link = document.createElement("link");
+  link.id = "themeStylesheet";
+  link.rel = "stylesheet";
+  link.href = "/themes/" + encodeURIComponent(id) + "/theme.css" + (build ? "?v=" + encodeURIComponent(build) : "");
+  document.head.appendChild(link);
+})();
+</script>
+<style>
+  /*
+    Book-style foldables.
+    Galaxy Z Fold 7 cover, measured CSS viewport 412×960, landscape 960×412, DPR 2.625
+    (https://breakpane.com/en/devices/galaxy-z-fold7-cover). Physical 6.5 in, 2520×1080
+    (Samsung support). Chrome's first-load visible height on that cover is about 848.
+    Galaxy Z Fold 7 inner, measured CSS viewport 750×832, landscape 832×750, DPR 2.625
+    (https://breakpane.com/en/devices/galaxy-z-fold7-open). Physical 8.0 in, 2184×1968.
+    YesViz also publishes a DPR 2 estimate of 984×1092 (https://yesviz.com/devices/samsung-z-fold7/);
+    that size stays in the two-pane range.
+    motorola razr fold (2026), Motorola's book-style fold: cover 6.6 in 2520×1080,
+    main 8.1 in 2484×2232, aspect 8:7.2
+    (https://en-us.support.motorola.com/app/answers/detail/a_id/193612).
+    No measured CSS viewport is published for it, so the same width and height
+    breakpoints cover that cover screen and that near-square inner screen.
+  */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background-color: #03141c;
+    background-image: url("/assets/sea-turtle-poster.jpg");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    color: #fff;
+    font-family: "Iowan Old Style", Palatino, Georgia, serif;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+    position: relative;
+  }
+  #topbar { display: none; }
+  #backToList { display: none; align-items: center; flex: none; }
+  #advancedLink { margin-left: auto; display: inline-flex; align-items: center; color: #fff; }
+  #authWho { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #sheetBar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0 0 0.6rem;
+    color: #fff;
+  }
+  #foldGap { display: none; }
+  #stackMark { color: #ffb4a2; }
+  #app {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+  }
+  #chats {
+    width: min(22rem, 100%);
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.75rem 0.75rem max(0.75rem, env(safe-area-inset-bottom, 0px));
+    background: rgba(3, 20, 28, 0.62);
+    border-right: 1px solid rgba(255, 196, 176, 0.28);
+    backdrop-filter: blur(16px);
+    box-sizing: border-box;
+  }
+  #listDock {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    flex: none;
+    padding: 0.7rem 0.75rem 0.75rem;
+    border-radius: 1.2rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 214, 196, 0.5);
+    backdrop-filter: blur(16px);
+  }
+  #listHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  #listTitle {
+    margin: 0;
+    min-width: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+  #dockIcons {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  #newChat, #sendToChat, #searchChats {
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.14);
+  }
+  #newChat svg, #sendToChat svg, #searchChats svg { display: block; }
+  #chatSearch {
+    width: 100%;
+    margin: 0 0 0.35rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 196, 0.5);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    padding: 0.55rem 0.85rem;
+  }
+  #chatSearch[hidden] { display: none; }
+  #chatSearch::placeholder { color: #f3e6d8; }
+  #listDock #toolsToggle {
+    flex: none;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(10px);
+    font-size: 0.95rem;
+    line-height: 1;
+    min-height: 2.75rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #chatEmpty {
+    flex: none;
+    margin: 0.15rem 0 0;
+    padding: 0.9rem 1rem;
+    border-radius: 1rem;
+    background: rgba(3, 20, 28, 0.55);
+    border: 1px solid rgba(255, 214, 196, 0.35);
+    color: #fff;
+    line-height: 1.4;
+  }
+  #chatEmpty[hidden] { display: none; }
+  #sessionList .chatEmoji { font-size: 1.2rem; }
+  #sessionList {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  #sessionList button {
+    text-align: left;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(255, 214, 196, 0.4);
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 48px;
+    padding: 0.55rem 0.85rem;
+  }
+  #sessionList button span:last-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chatEmoji { flex: none; font-size: 1.15rem; }
+  #threadHead {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0.7rem 0.85rem 0;
+    padding: 0.65rem 0.9rem;
+    border-radius: 1.2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 214, 196, 0.45);
+    backdrop-filter: blur(14px);
+    color: #fff;
+  }
+  #threadTitle {
+    flex: 1;
+    margin: 0;
+    min-width: 0;
+    color: #fff;
+    font: inherit;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  #thread {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    overflow: auto;
+    padding: 1rem 1rem 0.4rem;
+  }
+  .bubble {
+    max-width: min(40rem, 86%);
+    border-radius: 1.2rem;
+    padding: 0.75rem 1rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .bubble.mine { margin-left: auto; background: rgba(255, 127, 106, 0.22); color: #fff; border: 1px solid rgba(255, 196, 176, 0.55); backdrop-filter: blur(12px); }
+  .bubble.theirs { margin-right: auto; background: rgba(255, 255, 255, 0.08); color: #fff; border: 1px solid rgba(243, 230, 216, 0.35); backdrop-filter: blur(12px); }
+  #reply-bubble {
+    width: min(40rem, 86%);
+    min-height: 6.5rem;
+    margin-right: auto;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.4);
+    backdrop-filter: blur(14px);
+    border-radius: 1.4rem;
+    padding: 1.1rem 1.2rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    box-sizing: border-box;
+  }
+  #reply-bubble:empty::before {
+    content: attr(data-placeholder);
+    color: #f3e6d8;
+  }
+  #raw { display: block; margin: 0.35rem 0.85rem 0.8rem; color: #f3e6d8; font-size: 0.95rem; }
+  #raw summary { cursor: pointer; }
+  #raw pre { white-space: pre-wrap; margin: 0.4rem 0 0; font-family: ui-monospace, monospace; font-size: 0.82rem; }
+  #raw pre:empty::before { content: "Simko SI replies in everyday words. There is no separate raw transcript on the website."; }
+  #drawer { padding: 0.7rem 0.8rem 0.2rem; border-bottom: 1px solid rgba(255, 196, 176, 0.35); background: rgba(3, 20, 28, 0.72); backdrop-filter: blur(18px); }
+  #drawer[hidden] { display: none; }
+  #chrome, #auth-bar, #relay-sheet, #rent-sheet {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-items: center;
+    margin: 0 0 0.55rem;
+  }
+  #chrome a, #chrome button, #rent-sheet button, #chats button { font-size: 0.95rem; }
+  #relay-sheet[hidden], #chrome[hidden] { display: none; }
+  #auth-bar [hidden] { display: none; }
+  #lifebook {
+    margin: 0.2rem 0 0.6rem;
+    color: #fff;
+  }
+  #lifebook summary { cursor: pointer; }
+  #lifeTags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem; }
+  #lifeTags button { background: rgba(255, 127, 106, 0.16); color: #fff; border: 1px solid rgba(255, 196, 176, 0.5); padding: 0.3rem 0.55rem; font-size: 0.82rem; }
+  #lifeLast { margin: 0.35rem 0 0; color: #fff; }
+  #auth-bar input {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.35);
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font: inherit;
+    width: 11rem;
+  }
+  #relay-sheet select {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.35);
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font: inherit;
+    max-width: 14rem;
+  }
+  #chrome a { color: #fff; }
+  #rent-sheet[hidden] { display: none; }
+  #rent-sheet select, #rent-sheet input[type="text"] {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.35);
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font: inherit;
+  }
+  #composer {
+    flex: none;
+    padding: 0.4rem max(1rem, env(safe-area-inset-right, 0px)) max(0.85rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  }
+  #input-bubble {
+    width: min(46rem, 100%);
+    min-width: 0;
+    margin: 0;
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-end;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 196, 176, 0.4);
+    backdrop-filter: blur(14px);
+    border-radius: 1.4rem;
+    padding: 0.7rem 0.7rem 0.7rem 1.1rem;
+  }
+  textarea {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    border: 0;
+    resize: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 1.15rem;
+    line-height: 1.4;
+    outline: none;
+    min-height: 1.6rem;
+    max-height: 8rem;
+  }
+  textarea::placeholder { color: #f3e6d8; opacity: 1; }
+  button {
+    border: 1px solid rgba(255, 196, 176, 0.75);
+    border-radius: 999px;
+    background: rgba(255, 127, 106, 0.2);
+    color: #fff;
+    backdrop-filter: blur(10px);
+    font: inherit;
+    padding: 0.55rem 0.95rem;
+    touch-action: manipulation;
+  }
+  button[aria-pressed="true"] { outline: 2px solid #ffd6c4; }
+  #micButton {
+    flex: none;
+    width: 2.9rem;
+    height: 2.9rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+  #micButton[data-state="listening"] { background: rgba(255, 92, 72, 0.75); animation: micPulse 1.2s ease-in-out infinite; }
+  #micButton[data-state="thinking"] { opacity: 0.75; }
+  #micButton[data-state="speaking"] { background: rgba(64, 196, 210, 0.45); border-color: rgba(160, 240, 245, 0.85); }
+  #micButton[data-state="off"] { opacity: 0.45; }
+  #go {
+    flex: none;
+    min-height: 2.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  #go .goWave {
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 3px;
+    height: 1.15rem;
+    width: 1.35rem;
+  }
+  #go:not(.has-text) {
+    width: 2.9rem;
+    min-width: 2.9rem;
+    padding: 0;
+  }
+  #go:not(.has-text) .goLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  #go:not(.has-text) .goWave { display: inline-flex; }
+  #go.has-text { min-width: 4.5rem; padding: 0.55rem 0.95rem; }
+  #go.has-text .goWave { display: none; }
+  #go .goWave i {
+    display: block;
+    width: 3px;
+    height: 35%;
+    border-radius: 999px;
+    background: currentColor;
+    transform-origin: center bottom;
+    animation: eqIdle 0.9s ease-in-out infinite;
+  }
+  #go .goWave i:nth-child(2) { animation-delay: 0.12s; }
+  #go .goWave i:nth-child(3) { animation-delay: 0.24s; }
+  #go .goWave i:nth-child(4) { animation-delay: 0.08s; }
+  #go .goWave i:nth-child(5) { animation-delay: 0.2s; }
+  #go.is-live:not(.has-text) {
+    background: rgba(64, 196, 210, 0.45);
+    border-color: rgba(160, 240, 245, 0.85);
+  }
+  #go.is-live .goWave i { animation-duration: 0.45s; }
+  @keyframes eqIdle {
+    0%, 100% { height: 30%; }
+    50% { height: 100%; }
+  }
+  #liveVoice {
+    position: fixed; z-index: 34; left: 50%; bottom: max(18px, env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%); box-sizing: border-box; width: min(384px, calc(100vw - 24px));
+    padding: 10px 14px; border-radius: 22px; background: rgba(3, 20, 28, 0.88);
+    border: 1px solid rgba(255, 214, 196, 0.55); backdrop-filter: blur(16px);
+    color: #fff; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  }
+  #liveVoice[hidden], #liveVoiceSettings[hidden], #liveVoiceNote[hidden] { display: none !important; }
+  .liveVoiceTop { display: flex; align-items: center; gap: 9px; height: 23px; margin-bottom: 6px; }
+  .liveVoiceDot { width: 9px; height: 9px; border-radius: 50%; background: #a0f0f5; box-shadow: 0 0 10px #80e5ed; flex: none; }
+  #liveVoiceState { flex: 1; margin: 0; font-size: 0.98rem; min-width: 0; }
+  #liveBars { display: flex; align-items: center; gap: 3px; height: 24px; width: 68px; flex: none; }
+  #liveBars i { display: block; width: 3px; height: 20%; border-radius: 999px; background: #a0f0f5; }
+  .liveVoiceControls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .liveVoiceControls button { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0; border-radius: 999px; background: rgba(255,255,255,.10); border: 1px solid rgba(219,235,237,.42); color: white; }
+  .liveVoiceControls button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #liveVoiceMic[aria-pressed="true"] { background: rgba(64,196,210,.30); border-color: #a0f0f5; }
+  #liveVoiceMute[aria-pressed="true"] { background: rgba(161,94,77,.58); }
+  #liveVoiceClose { background: rgba(144,77,65,.65); border-color: #ffc5b2; }
+  .liveVoiceControls button:focus-visible, #liveVoiceSettings :focus-visible { outline: 2px solid #a0f0f5; outline-offset: 3px; }
+  #liveVoice[data-phase="error"] .liveVoiceDot { background: #ffc5b2; box-shadow: none; }
+  #liveVoice[data-phase="paused"] #liveBars { opacity: .3; }
+  #liveVoiceNote { font-size: .88rem; margin: 8px 0 0; overflow-wrap: anywhere; }
+  #liveVoiceSettings { position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; max-height: min(320px, 50dvh); overflow: auto; box-sizing: border-box; padding: 16px; border-radius: 18px; background: rgba(3,20,28,.97); border: 1px solid rgba(255,214,196,.55); }
+  #liveVoiceSettings label { display: block; margin: 4px 0 8px; }
+  #liveVoiceSettings select { box-sizing: border-box; width: 100%; min-height: 44px; color: white; background: #18323a; border: 1px solid #769096; border-radius: 8px; padding: 6px; }
+  #liveVoiceSettings input { width: 100%; min-height: 44px; }
+  @media (min-width: 900px) { #liveVoice { left: calc(50% + 140px); bottom: 27%; } }
+  @keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 120, 100, 0.55); } 50% { box-shadow: 0 0 0 0.55rem rgba(255, 120, 100, 0); } }
+  #micHint { display: inline-block; max-width: min(46rem, 100%); margin: 0 0 0.4rem; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.95rem; color: #fff; background: rgba(3, 20, 28, 0.62); backdrop-filter: blur(10px); }
+  #micHint[hidden] { display: none; }
+  #voicePicker { margin: 0 0 0.7rem; color: inherit; }
+  #voicePicker h2 { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 500; }
+  #voicePicker h2 #voiceNow { opacity: 0.8; font-weight: 400; }
+  #voiceSpeedRow { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 0.5rem; flex-wrap: wrap; }
+  #voiceSpeed { flex: 1; min-width: 6rem; max-width: 18rem; accent-color: #ffb49e; }
+  #voiceSpeedReset { padding: 0.3rem 0.7rem; font-size: 0.9rem; }
+  #voiceList { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: 0.45rem; max-height: 15rem; overflow-y: auto; padding-right: 0.2rem; }
+  .voiceRow { display: flex; gap: 0.35rem; min-width: 0; }
+  .voicePick {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: 0.1rem;
+    border-radius: 0.9rem;
+    padding: 0.45rem 0.75rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+  .voicePick[aria-pressed="true"] { background: rgba(64, 196, 210, 0.32); border-color: #a0f0f5; outline: none; }
+  .voiceName { font-weight: 600; }
+  .voiceTone { font-size: 0.8rem; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .voicePlay { flex: none; width: 2.6rem; padding: 0; border-radius: 0.9rem; background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.35); }
+  html[data-theme="plain"] #micHint { color: #fff; background: #1b2430; }
+  #themePicker { margin: 0 0 0.7rem; color: inherit; }
+  #themePicker h2 { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 500; }
+  #themeList { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  #themeList button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    backdrop-filter: blur(12px);
+  }
+  .themeSwatch {
+    width: 2.4rem;
+    height: 1.55rem;
+    border-radius: 0.45rem;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    flex: none;
+  }
+  #shellMark { display: none; width: 1.7rem; height: 1.7rem; flex: none; }
+  #themeStage { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+  html[data-theme="plain"] body { background-image: none !important; background-color: #f7f4ee; color: #1b2430; }
+  html[data-theme="plain"] #themeStage,
+  html[data-theme="plain"] #shellMark { display: none !important; }
+  html[data-theme="plain"] #themeStage,
+  html[data-theme="plain"] #themeStage *,
+  html[data-theme="plain"] .turtle-swim { animation: none !important; }
+  #thread { overscroll-behavior: contain; }
+  @media (max-width: 1200px) {
+    body { background-attachment: scroll; }
+  }
+  /* Cover / narrow phone, including a short landscape cover (Fold 7 closed is 960×412). */
+  @media (max-width: 640px), (max-height: 560px) {
+    body { background-image: url("/assets/sea-turtle-poster.jpg"); }
+    #chats {
+      background: rgba(3, 20, 28, 0.34);
+      backdrop-filter: blur(3px);
+    }
+    #drawer:not([hidden]) {
+      position: absolute;
+      z-index: 6;
+      left: 0;
+      right: 0;
+      top: env(safe-area-inset-top, 0px);
+      max-height: min(70dvh, calc(100dvh - env(safe-area-inset-top, 0px)));
+      overflow: auto;
+    }
+    #app { flex-direction: column; }
+    #chats, #stage {
+      width: auto;
+      max-height: none;
+      flex: 1;
+      min-height: 0;
+      border-right: 0;
+      border-bottom: 0;
+    }
+    body:not(.thread-open) #stage { display: none; }
+    body.thread-open #chats { display: none; }
+    body.thread-open #backToList { display: inline-flex; }
+    #sessionList button, #go.has-text, #backToList, #advancedLink {
+      min-height: 48px;
+    }
+    #sessionList button { width: 100%; }
+    #go.has-text { min-width: 4.5rem; }
+    body:not(.thread-open) #chats {
+      background: rgba(6, 24, 32, 0.94);
+    }
+    .bubble { max-width: 100%; }
+    #replyWrap, #reply-bubble { width: 100%; max-width: 100%; }
+    #thread { padding: 0.7rem 0.75rem 0.25rem; }
+    #threadHead { margin: 0.4rem 0.65rem 0; padding: 0.5rem 0.7rem; }
+    #composer { padding-left: max(0.75rem, env(safe-area-inset-left, 0px)); padding-right: max(0.75rem, env(safe-area-inset-right, 0px)); }
+    #reply-bubble { min-height: 4.5rem; }
+    #installWord { font-size: 0.85rem; }
+  }
+  @media (max-height: 560px) {
+    #reply-bubble { min-height: 3rem; }
+    #thread { padding: 0.45rem 0.7rem 0.2rem; }
+  }
+  /*
+    Unfolded inner screen. Equal panes leave the center gutter on the fold.
+    Fold 7 open is 750×832 and 832×750. The 984×1092 estimate matches too.
+  */
+  @media (min-width: 700px) and (min-height: 620px) and (max-aspect-ratio: 5/4) {
+    #app {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 1.5rem minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+    }
+    #chats {
+      width: auto;
+      grid-column: 1;
+      border-right: 0;
+      min-height: 0;
+    }
+    #stage { grid-column: 3; min-width: 0; min-height: 0; }
+    #drawer:not([hidden]) {
+      position: absolute;
+      z-index: 6;
+      left: 0;
+      top: env(safe-area-inset-top, 0px);
+      width: calc(50% - 0.75rem);
+      max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+      overflow: auto;
+    }
+    #sessionList button, #go, #advancedLink { min-height: 48px; }
+    #sessionList button { width: 100%; }
+    textarea { font-size: 1rem; }
+  }
+  /* Portrait book: hinge is vertical. Put each pane in its own viewport segment. */
+  @media (horizontal-viewport-segments: 2) {
+    #drawer:not([hidden]) {
+      position: absolute;
+      z-index: 6;
+      left: env(viewport-segment-left 0 0, 0px);
+      top: env(viewport-segment-top 0 0, 0px);
+      width: env(viewport-segment-width 0 0, 50vw);
+      max-height: env(viewport-segment-height 0 0, 100dvh);
+      overflow: auto;
+    }
+    #app { display: block; }
+    #chats, body.thread-open #chats {
+      display: flex;
+      position: absolute;
+      left: env(viewport-segment-left 0 0, 0px);
+      top: env(viewport-segment-top 0 0, 0px);
+      width: env(viewport-segment-width 0 0, 50vw);
+      height: env(viewport-segment-height 0 0, 100dvh);
+      border-right: 0;
+    }
+    #stage, body:not(.thread-open) #stage, body.thread-open #stage {
+      display: flex;
+      position: absolute;
+      left: env(viewport-segment-left 1 0, 50vw);
+      top: env(viewport-segment-top 1 0, 0px);
+      width: env(viewport-segment-width 1 0, 50vw);
+      height: env(viewport-segment-height 1 0, 100dvh);
+    }
+    #backToList { display: none; }
+  }
+  /* Landscape book: hinge runs across the middle. Keep list left and thread right. */
+  @media (vertical-viewport-segments: 2) {
+    #chats, #stage, body.thread-open #chats, body:not(.thread-open) #stage { display: flex; }
+    #backToList { display: none; }
+    #foldGap {
+      display: block;
+      position: fixed;
+      pointer-events: none;
+      z-index: 4;
+      left: env(viewport-segment-left 0 0, 0px);
+      width: env(viewport-segment-width 0 0, 100vw);
+      top: env(viewport-segment-bottom 0 0, 50vh);
+      height: max(12px, calc(env(viewport-segment-top 0 1, 50vh) - env(viewport-segment-bottom 0 0, 50vh)));
+      background: linear-gradient(to bottom, transparent, rgba(3, 20, 28, 0.28), transparent);
+    }
+    #thread, #sessionList {
+      scroll-padding-top: 1rem;
+      scroll-padding-bottom: 1rem;
+    }
+  }
+  #turtleScreen {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
+    background: rgba(3, 20, 28, 0.5);
+    color: #fff;
+  }
+  #turtleScreen[hidden] { display: none !important; }
+  #turtleCard {
+    width: min(36rem, 100%);
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+    padding: 1.2rem 1.15rem 1rem;
+    border-radius: 1.6rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  }
+  #turtleCard h2 { margin: 0.2rem 0 0.35rem; font-weight: 500; font-size: 1.7rem; color: #fff; }
+  #turtleCard p { margin: 0.35rem 0; color: #fff; line-height: 1.4; }
+  #turtleLog {
+    white-space: pre-wrap;
+    min-height: 4.5rem;
+    margin: 0.7rem 0;
+    padding: 0.75rem 0.85rem;
+    border-radius: 1rem;
+    background: rgba(3, 20, 28, 0.35);
+    border: 1px solid rgba(255, 196, 176, 0.35);
+    color: #fff;
+  }
+  .turtle-stage { display: flex; justify-content: center; margin-bottom: 0.4rem; }
+  .turtle-swim { width: 11rem; height: 7rem; animation: simco-swim 8s ease-in-out infinite; transform-origin: 50% 60%; }
+  html.simco-turtle-paused .turtle-swim,
+  html.simco-turtle-idle .turtle-swim { animation-play-state: paused; }
+  @keyframes simco-swim {
+    0% { transform: translateX(-10px) translateY(0) rotate(-6deg); }
+    50% { transform: translateX(12px) translateY(-8px) rotate(5deg); }
+    100% { transform: translateX(-10px) translateY(0) rotate(-6deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .turtle-swim { animation: none; }
+  }
+  @media (max-width: 640px), (max-height: 560px) {
+    #turtleCard { width: 100%; padding: 1rem 0.85rem; }
+    .turtle-swim { width: 8.5rem; height: 5.4rem; }
+    #turtleCard h2 { font-size: 1.35rem; }
+  }
+  @media (min-width: 700px) and (min-height: 620px) and (max-aspect-ratio: 5/4) {
+    #turtleCard { width: min(28rem, 92%); }
+  }
+  #turtleActions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  #hostRow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin: 0.7rem 0 0.2rem;
+  }
+  #hostRow[hidden] { display: none !important; }
+  #hostUrl {
+    width: 100%;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font: inherit;
+    padding: 0.65rem 0.9rem;
+  }
+  #hostUrl::placeholder { color: #f3e6d8; }
+  #hostHint { margin: 0; color: #fff; font-size: 0.92rem; }
+  #turtleTools, #turtleAsk { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.65rem; }
+  #turtleAsk { align-items: flex-end; }
+  #turtleAsk label { flex: 1 0 100%; }
+  #turtleQuestion {
+    flex: 1 1 12rem;
+    min-width: 0;
+    min-height: 2.7rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    padding: 0.55rem 0.75rem;
+  }
+  #turtleQuestion::placeholder { color: #f3e6d8; }
+  #turtleStage, #turtleReply, #turtleError { margin: 0.4rem 0 0; color: #fff; white-space: pre-wrap; }
+  #turtleError { color: #ffd6c4; }
+  html.simco-turtle-busy .turtle-swim { animation-play-state: running; }
+
+  #bgVideo {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
+    background: #03141c url("/assets/sea-turtle-poster.jpg") center/cover no-repeat;
+  }
+  #bgShade {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(3, 20, 28, 0.28), rgba(3, 20, 28, 0.55) 42%, rgba(3, 20, 28, 0.72));
+  }
+  #drawer, #app { position: relative; z-index: 2; }
+  @media (min-width: 641px) and (min-height: 561px) {
+    #drawer:not([hidden]) {
+      max-height: min(46dvh, 28rem);
+      overflow: auto;
+    }
+  }
+  #computeCloud, #computeLocal, #rentComputer { display: none !important; }
+  html[data-theme="plain"] #bgVideo,
+  html[data-theme="plain"] #bgShade { display: none !important; }
+  #gallery { margin: 0.35rem 0.85rem 0; }
+  #gallery[hidden] { display: none !important; }
+  #galleryGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.55rem; }
+  #gallery figure {
+    margin: 0;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 214, 196, 0.45);
+  }
+  #gallery video, #gallery img { width: 100%; height: 8.5rem; object-fit: cover; display: block; background: #03141c; }
+  #gallery figcaption { padding: 0.4rem 0.55rem 0.55rem; color: #fff; font-size: 0.9rem; }
+  #advancedNote { margin: 0 0 0.55rem; color: #fff; }
+  #advancedNote[hidden] { display: none !important; }
+  #lifeCounts { margin-top: 0.45rem; }
+  #lifeCountBody { white-space: pre-wrap; margin: 0.35rem 0 0; }
+  #chats, #stage { padding-top: 3.1rem; }
+  #accountBar {
+    position: fixed;
+    z-index: 35;
+    top: 0;
+    right: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.4rem;
+    padding: max(0.45rem, env(safe-area-inset-top, 0px)) max(0.65rem, env(safe-area-inset-right, 0px)) 0 0.65rem;
+    pointer-events: none;
+  }
+  #accountBar > * { pointer-events: auto; }
+  #accountSignIn, #accountSignOut {
+    min-height: 44px;
+    min-width: 44px;
+    pointer-events: auto;
+  }
+  #accountSigned {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    pointer-events: auto;
+  }
+  #accountSignIn[hidden], #accountSigned[hidden] { display: none !important; }
+  #accountEmail {
+    max-width: min(42vw, 12rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #fff;
+    background: rgba(3, 20, 28, 0.55);
+    border: 1px solid rgba(255, 214, 196, 0.5);
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+  }
+  #authModal {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
+    background: rgba(3, 20, 28, 0.62);
+  }
+  #authModal[hidden] { display: none !important; }
+  #authModalCard {
+    width: min(26rem, 100%);
+    max-height: min(36rem, calc(100dvh - 2rem));
+    overflow: auto;
+    position: relative;
+    padding: 1.15rem 1.1rem 1rem;
+    border-radius: 1.4rem;
+    background: rgba(3, 20, 28, 0.82);
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    backdrop-filter: blur(18px);
+    color: #fff;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  }
+  #authModalClose {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 1.3rem;
+    line-height: 1;
+  }
+  #authTabs { display: flex; gap: 0.4rem; margin: 0 2rem 0.7rem 0; }
+  #authTabs button[aria-selected="true"] { outline: 2px solid #ffd6c4; }
+  #authModalTitle { margin: 0 0 0.7rem; font-size: 1.45rem; font-weight: 500; }
+  #authModalForm, #authResetForm { display: flex; flex-direction: column; gap: 0.45rem; }
+  #authModalForm[hidden], #authResetForm[hidden] { display: none !important; }
+  #authModalCard label { font-size: 0.92rem; }
+  #authModalCard input {
+    width: 100%;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    padding: 0.65rem 0.9rem;
+  }
+  #authModalError, #authResetError { margin: 0.15rem 0; color: #ffd6c4; }
+  #authModalError[hidden], #authResetError[hidden] { display: none !important; }
+  #authForgot, #authResetBack { background: transparent; }
+  #parentConsentRow {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+    text-align: left;
+    line-height: 1.4;
+    margin: 0.2rem 0 0.15rem;
+  }
+  #parentConsentRow[hidden] { display: none !important; }
+  #parentConsentRow input {
+    width: 1.15rem;
+    height: 1.15rem;
+    min-width: 1.15rem;
+    margin-top: 0.15rem;
+    padding: 0;
+    accent-color: #ffb49e;
+  }
+  #familyOpen[hidden] { display: none !important; }
+  #familyStage {
+    position: fixed;
+    inset: 0;
+    z-index: 58;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
+    background: rgba(3, 20, 28, 0.55);
+  }
+  #familyStage[hidden] { display: none !important; }
+  .familyCard {
+    width: min(40rem, 100%);
+    max-height: min(40rem, calc(100dvh - 2rem));
+    overflow: auto;
+    position: relative;
+    padding: 1.15rem 1.1rem 1.1rem;
+    border-radius: 1.4rem;
+    background: rgba(3, 20, 28, 0.88);
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    backdrop-filter: blur(18px);
+    color: #fff;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  }
+  .familyCard[hidden] { display: none !important; }
+  .familyCard h2 { margin: 0 2.4rem 0.35rem 0; font-size: 1.45rem; font-weight: 500; }
+  .familyLead { margin: 0 0 0.85rem; line-height: 1.4; color: #fff; }
+  .familyClose {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 1.3rem;
+    line-height: 1;
+  }
+  .familyActions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.85rem; }
+  #familyKids { display: flex; flex-direction: column; gap: 0.7rem; }
+  .familyKid {
+    border: 1px solid rgba(255, 214, 196, 0.4);
+    border-radius: 1rem;
+    padding: 0.75rem 0.8rem;
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .familyKid h3 { margin: 0; font-size: 1.1rem; font-weight: 500; }
+  .familyMeta { margin: 0.15rem 0 0.45rem; color: #f3e6d8; font-size: 0.92rem; }
+  .familyChat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+  }
+  .familyChat span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .familyEmpty { margin: 0.2rem 0 0; color: #f3e6d8; }
+  #familyAddForm, #familyPickList { display: flex; flex-direction: column; gap: 0.45rem; }
+  #familyAddForm input, #familyAddForm select {
+    width: 100%;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    padding: 0.65rem 0.9rem;
+  }
+  #familyPickList { flex-direction: row; flex-wrap: wrap; }
+  .familyPerson {
+    width: 7.2rem;
+    min-height: 7.2rem;
+    border-radius: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.55rem;
+  }
+  .familyPerson b { font-size: 1.8rem; line-height: 1; }
+  #familyError { margin: 0.45rem 0 0; color: #ffd6c4; }
+  #familyError[hidden] { display: none !important; }
+  #platformStage {
+    position: fixed;
+    inset: 0;
+    z-index: 57;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
+    background: rgba(3, 20, 28, 0.55);
+  }
+  #platformStage[hidden] { display: none !important; }
+  .platformCard {
+    width: min(28rem, 100%);
+    max-height: min(40rem, calc(100dvh - 2rem));
+    overflow: auto;
+    position: relative;
+    padding: 1.2rem 1.1rem 1.1rem;
+    border-radius: 1.4rem;
+    background: rgba(3, 20, 28, 0.9);
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    backdrop-filter: blur(18px);
+    color: #fff;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  }
+  .platformCard[hidden] { display: none !important; }
+  .platformCard h2 { margin: 0 2.2rem 0.4rem 0; font-size: 1.45rem; font-weight: 500; }
+  .platformLead { margin: 0 0 0.8rem; line-height: 1.45; }
+  .platformClose {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border-radius: 999px;
+  }
+  #paywallBuy { width: 100%; min-height: 48px; font-size: 1.05rem; }
+  #paywallTrial {
+    display: block;
+    width: 100%;
+    margin-top: 0.45rem;
+    background: transparent;
+    border-color: transparent;
+    color: #ffd6c4;
+    font-size: 0.92rem;
+    text-decoration: underline;
+  }
+  #paywallNote, #usageList { margin: 0.7rem 0 0; line-height: 1.4; }
+  #usageList { padding-left: 1.1rem; }
+  #usageOpen[hidden], #memoryOpen[hidden], #routineOpen[hidden], #imageOpen[hidden] { display: none !important; }
+  #imageGrid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.7rem; }
+  #imageGrid img { width: 8rem; height: 8rem; object-fit: cover; border-radius: 0.8rem; background: #03141c; }
+  #agentBoard { width: min(52rem, 100%); }
+  #agentPanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.6rem; margin-top: 0.7rem; }
+  .agentPane { border: 1px solid rgba(255,214,196,.4); border-radius: 1rem; padding: 0.7rem; background: rgba(255,255,255,.06); }
+  .agentPane h3 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+  .agentPane p { margin: 0; color: #f3e6d8; font-size: 0.9rem; }
+  #routineForm { display: flex; flex-direction: column; gap: 0.4rem; }
+  #routineForm input, #routineForm select, #familyAddForm input, #familyAddForm select {
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    padding: 0.55rem 0.8rem;
+  }
+  @media (max-width: 480px) {
+    .familyCard { padding: 1rem 0.85rem 0.9rem; }
+    .familyPerson { width: calc(50% - 0.3rem); }
+  }
+  #replyWrap {
+    position: relative;
+    width: min(40rem, 86%);
+    margin-right: auto;
+  }
+  #replyWrap #reply-bubble { width: 100%; margin-right: 0; padding-bottom: 2.5rem; }
+  .bubble { position: relative; }
+  .bubble.theirs { padding-bottom: 2.3rem; }
+  .speakReply {
+    position: absolute;
+    right: 0.4rem;
+    bottom: 0.35rem;
+    width: 2.2rem;
+    height: 2.2rem;
+    min-width: 2.2rem;
+    min-height: 2.2rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #replySpeak { display: none; }
+  #replySpeak.is-shown, .bubble .speakReply {
+    display: inline-flex !important;
+    background: rgba(3, 20, 28, 0.82);
+    color: #fff;
+    z-index: 3;
+  }
+  @media (horizontal-viewport-segments: 2) {
+    #accountBar {
+      left: env(viewport-segment-left 1 0, 50vw);
+      width: env(viewport-segment-width 1 0, 50vw);
+      right: auto;
+    }
+    #authModal {
+      justify-content: flex-start;
+      padding-left: calc(env(viewport-segment-left 1 0, 50vw) + 0.8rem);
+    }
+  }
+  @media (vertical-viewport-segments: 2) {
+    #authModal { align-items: flex-start; padding-top: max(3.2rem, env(safe-area-inset-top, 0px)); }
+  }
+  #drawer:not([hidden]) {
+    position: fixed;
+    z-index: 28;
+    top: 3.4rem;
+    left: max(0.75rem, env(safe-area-inset-left, 0px));
+    right: auto;
+    width: min(24rem, calc(100vw - 1.5rem));
+    max-height: min(72dvh, calc(100dvh - 4.5rem));
+    overflow: auto;
+    border-radius: 1.2rem;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  }
+  #relayOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem max(1rem, env(safe-area-inset-bottom, 0px));
+    background: rgba(3, 20, 28, 0.62);
+  }
+  #relayOverlay[hidden] { display: none !important; }
+  #relayCard {
+    width: min(26rem, 100%);
+    position: relative;
+    padding: 1.15rem 1.1rem 1rem;
+    border-radius: 1.4rem;
+    background: rgba(3, 20, 28, 0.88);
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    color: #fff;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  }
+  #relayCard h2 { margin: 0 2rem 0.6rem 0; font-size: 1.35rem; font-weight: 500; }
+  #relayPreview { margin: 0 0 0.7rem; line-height: 1.4; }
+  #relayCard label { display: block; margin-bottom: 0.35rem; }
+  #relayTarget {
+    width: 100%;
+    margin-bottom: 0.7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 196, 0.55);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+    padding: 0.65rem 0.9rem;
+  }
+  #relayClose {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border-radius: 999px;
+  }
+  #relayError { margin: 0.45rem 0 0; color: #ffd6c4; }
+  #relayError[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<video id="bgVideo" aria-hidden="true" muted autoplay loop playsinline poster="/assets/sea-turtle-poster.jpg"><source src="/assets/reef-live-portrait-loop-web.mp4" media="(max-width: 768px), (pointer: coarse) and (max-width: 1100px)" type="video/mp4"><source src="/assets/sea-turtle-loop.mp4" type="video/mp4"></video>
+<script>
+(() => {
+ const video = document.getElementById('bgVideo');
+ const mobile = window.matchMedia('(max-width: 768px), (pointer: coarse) and (max-width: 1100px)');
+ function selectBackground() {
+   const src = mobile.matches ? '/assets/reef-live-portrait-loop-web.mp4' : '/assets/sea-turtle-loop.mp4';
+   video.poster = mobile.matches ? '/assets/reef-live-portrait-loop-web-poster.jpg' : '/assets/sea-turtle-poster.jpg';
+   if (video.getAttribute('src') !== src) {
+     video.src = src; video.muted = true; video.load(); video.play().catch(() => {});
+   }
+ }
+ if (mobile.addEventListener) mobile.addEventListener('change', selectBackground);
+ else mobile.addListener(selectBackground);
+ selectBackground();
+})();
+</script>
+<div id="bgShade" aria-hidden="true"></div>
+<div id="liveVoice" hidden role="region" aria-label="Voice conversation">
+  <div class="liveVoiceTop"><span class="liveVoiceDot" aria-hidden="true"></span><p id="liveVoiceState" role="status" aria-live="polite">Listening…</p><div id="liveBars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+  <div class="liveVoiceControls">
+    <button id="liveVoiceGear" type="button" aria-label="Voice settings" title="Voice settings" aria-expanded="false" aria-controls="liveVoiceSettings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3 3-1 3 1 1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3-3 1z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button id="liveVoiceMic" type="button" aria-label="Pause microphone" title="Pause microphone" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-3 0h6"/></svg></button>
+    <button id="liveVoiceMute" type="button" aria-label="Mute speaker" title="Mute speaker" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zM17 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg></button>
+    <button id="liveVoiceClose" type="button" aria-label="Close voice" title="Close voice"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+  </div>
+  <p id="liveVoiceNote" hidden role="status" aria-live="polite"></p>
+  <section id="liveVoiceSettings" hidden aria-label="Voice settings">
+    <label for="liveVoiceSelect">Voice</label><select id="liveVoiceSelect"></select>
+    <label for="liveVoiceSpeed">Speed · <output id="liveVoiceSpeedOut" for="liveVoiceSpeed">1×</output></label><input id="liveVoiceSpeed" type="range" min="0.7" max="1.5" step="0.05" value="1">
+  </section>
+</div>
+<div id="accountBar">
+  <button id="accountSignIn" type="button">Sign in</button>
+  <div id="accountSigned" hidden>
+    <span id="accountEmail"></span>
+    <button id="familyOpen" type="button" hidden>Family</button>
+    <button id="accountSignOut" type="button">Sign out</button>
+  </div>
+</div>
+<div id="platformStage" hidden>
+  <section id="paywallCard" class="platformCard" hidden aria-labelledby="paywallTitle">
+    <button id="paywallClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="paywallTitle">Keep talking with Simko SI</h2>
+    <p id="paywallLead" class="platformLead">The 5 free messages are used up. Nothing is charged until you tap pay.</p>
+    <button id="paywallBuy" type="button">$9 first month</button>
+    <button id="paywallTrial" type="button">Start a free trial</button>
+    <p id="paywallNote" role="status"></p>
+  </section>
+  <section id="storeCard" class="platformCard" hidden aria-labelledby="storeTitle">
+    <button id="storeClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="storeTitle">Store apps</h2>
+    <p class="platformLead">The phone app loads simkosi.com. Nothing here publishes to Apple or Google.</p>
+    <ul id="storeSteps"></ul>
+  </section>
+  <section id="browseCard" class="platformCard" hidden aria-labelledby="browseTitle">
+    <button id="browseClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="browseTitle">Read a page</h2>
+    <p class="platformLead">Simko SI can fetch one allow-listed page and read the words. It does not log in, and it does not drive a browser. That needs a computer, not shared hosting.</p>
+    <form id="browseForm">
+      <label for="browseUrl">Address</label>
+      <input id="browseUrl" type="url" placeholder="https://example.com/notes">
+      <button type="submit">Read the page</button>
+    </form>
+    <p id="browseText" class="platformLead"></p>
+  </section>
+  <section id="callCard" class="platformCard" hidden aria-labelledby="callTitle">
+    <button id="callClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="callTitle">Phone call</h2>
+    <p id="callReason" class="platformLead">Phone calls are not connected. They cost money per minute, so this stays off until a provider is chosen.</p>
+    <button id="callStart" type="button" disabled>Start call</button>
+  </section>
+  <section id="teamCard" class="platformCard" hidden aria-labelledby="teamTitle">
+    <button id="teamClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="teamTitle">Template and team</h2>
+    <p class="platformLead">Share an agent setup with a link. Invite a co-parent or a teammate.</p>
+    <form id="teamForm">
+      <label for="teamEmail">Email</label>
+      <input id="teamEmail" type="email" placeholder="co-parent@example.com">
+      <label for="teamRole">Role</label>
+      <select id="teamRole"><option value="co-parent">Co-parent</option><option value="teammate">Teammate</option></select>
+      <button type="submit">Send invite</button>
+    </form>
+    <p id="teamNote" class="platformLead"></p>
+    <ul id="teamList"></ul>
+  </section>
+  <section id="agentBoard" class="platformCard" hidden aria-labelledby="agentTitle">
+    <button id="agentClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="agentTitle">Agents side by side</h2>
+    <p class="platformLead">Two to four named agents. One can hand a message to another.</p>
+    <form id="agentForm">
+      <input id="agentName" type="text" placeholder="Name" maxlength="40">
+      <input id="agentPersona" type="text" placeholder="Persona" maxlength="240">
+      <button type="submit">Add agent</button>
+    </form>
+    <div id="agentPanes"></div>
+  </section>
+  <section id="connectorCard" class="platformCard" hidden aria-labelledby="connectorTitle">
+    <button id="connectorClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="connectorTitle">Connectors</h2>
+    <p class="platformLead">Google Drive is read-only. GitHub can read repositories. Gmail and banking are not offered.</p>
+    <ul id="connectorList"></ul>
+  </section>
+  <section id="vaultCard" class="platformCard" hidden aria-labelledby="vaultTitle">
+    <button id="vaultClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="vaultTitle">Vault</h2>
+    <p class="platformLead">Values stay masked. Revealing one asks for your passphrase. The key never leaves this server.</p>
+    <form id="vaultForm">
+      <label for="vaultLabel">Label</label>
+      <input id="vaultLabel" type="text" autocomplete="off">
+      <label for="vaultValue">Value</label>
+      <input id="vaultValue" type="password" autocomplete="new-password">
+      <label for="vaultPass">Passphrase</label>
+      <input id="vaultPass" type="password" autocomplete="new-password">
+      <button type="submit">Lock it in</button>
+    </form>
+    <ul id="vaultList"></ul>
+  </section>
+  <section id="oauthCard" class="platformCard" hidden aria-labelledby="oauthTitle">
+    <button id="oauthClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="oauthTitle">Sign in another way</h2>
+    <p class="platformLead">Google and Apple stay hidden until those apps are registered. Nothing here creates an Apple Developer account.</p>
+    <button id="googleSignIn" type="button" hidden>Continue with Google</button>
+    <button id="appleSignIn" type="button" hidden>Continue with Apple</button>
+  </section>
+  <section id="shareCard" class="platformCard" hidden aria-labelledby="shareTitle">
+    <button id="shareClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="shareTitle">Share a report</h2>
+    <p class="platformLead">A Lifebook progress page with a long, unguessable link. You can revoke it.</p>
+    <button id="shareCreate" type="button">Create report link</button>
+    <p id="shareUrl" class="platformLead"></p>
+    <button id="shareRevoke" type="button" hidden>Revoke link</button>
+  </section>
+  <section id="imageCard" class="platformCard" hidden aria-labelledby="imageTitle">
+    <button id="imageClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="imageTitle">Picture</h2>
+    <p class="platformLead">A picture from a prompt. Video is not made here. Video stays on a rented GPU, on the desktop app Wan path.</p>
+    <form id="imageForm">
+      <label for="imagePrompt">Prompt</label>
+      <input id="imagePrompt" type="text" maxlength="500" placeholder="A sea turtle over the reef">
+      <button type="submit">Make the picture</button>
+    </form>
+    <div id="imageGrid"></div>
+  </section>
+  <section id="routineCard" class="platformCard" hidden aria-labelledby="routineTitle">
+    <button id="routineClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="routineTitle">Routines</h2>
+    <p class="platformLead">Bedtime story, Lifebook check-in, or homework reminder. It shows up in the app, and by email when mail is set up.</p>
+    <form id="routineForm">
+      <label for="routineKind">Kind</label>
+      <select id="routineKind">
+        <option value="bedtime">Bedtime story</option>
+        <option value="lifebook">Daily Lifebook check-in</option>
+        <option value="homework">Homework reminder</option>
+      </select>
+      <label for="routineHour">Hour</label>
+      <input id="routineHour" type="number" min="0" max="23" value="20">
+      <label for="routineMinute">Minute</label>
+      <input id="routineMinute" type="number" min="0" max="59" value="0">
+      <button type="submit">Save routine</button>
+    </form>
+    <ul id="routineList"></ul>
+  </section>
+  <section id="memoryCard" class="platformCard" hidden aria-labelledby="memoryTitle">
+    <button id="memoryClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="memoryTitle">Memory</h2>
+    <p class="platformLead">Facts Simko SI keeps across chats. A child's memory stays on that child.</p>
+    <ul id="memoryList"></ul>
+  </section>
+  <section id="searchCard" class="platformCard" hidden aria-labelledby="searchTitle">
+    <button id="searchClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="searchTitle">Sources</h2>
+    <p class="platformLead">Live web search with safe search on. Child profiles use a stricter block list.</p>
+    <ul id="searchSources"></ul>
+  </section>
+  <section id="approvalCard" class="platformCard" hidden aria-labelledby="approvalTitle">
+    <button id="approvalClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="approvalTitle">Approve this?</h2>
+    <p id="approvalSummary" class="platformLead"></p>
+    <div class="familyActions">
+      <button id="approvalYes" type="button">Approve</button>
+      <button id="approvalNo" type="button">Decline</button>
+    </div>
+    <h3>Audit log</h3>
+    <ul id="auditList"></ul>
+  </section>
+  <section id="usagePage" class="platformCard" hidden aria-labelledby="usageTitle">
+    <button id="usageClose" class="platformClose" type="button" aria-label="Close">×</button>
+    <h2 id="usageTitle">Usage</h2>
+    <p id="usageSummary" class="platformLead"></p>
+    <ul id="usageList"></ul>
+  </section>
+</div>
+<div id="familyStage" hidden>
+  <section class="familyCard" id="familyDash" aria-labelledby="familyDashTitle">
+    <button id="familyClose" class="familyClose" type="button" aria-label="Close">×</button>
+    <h2 id="familyDashTitle">Your kids</h2>
+    <p class="familyLead">Each child has a display name, a character, and an age band. You can see their chats and delete them. No child email or birthdate is stored.</p>
+    <div id="familyKids"></div>
+    <div class="familyActions">
+      <button id="familyAddOpen" type="button">Add a child</button>
+      <button id="familyPickOpen" type="button">Switch profile</button>
+    </div>
+    <p id="familyError" role="alert" hidden></p>
+  </section>
+  <section class="familyCard" id="familyAdd" hidden aria-labelledby="familyAddTitle">
+    <button id="familyAddClose" class="familyClose" type="button" aria-label="Close">×</button>
+    <h2 id="familyAddTitle">Add a child</h2>
+    <p class="familyLead">Only a display name, a sea character, and an age band. This stays on your parent account.</p>
+    <form id="familyAddForm">
+      <label for="childName">Display name</label>
+      <input id="childName" name="display_name" type="text" maxlength="24" autocomplete="off" required>
+      <label for="childAvatar">Character</label>
+      <select id="childAvatar" name="avatar"></select>
+      <label for="childAge">Age band</label>
+      <select id="childAge" name="age_band"></select>
+      <button id="childSave" type="submit">Save child</button>
+    </form>
+  </section>
+  <section class="familyCard" id="familyPick" hidden aria-labelledby="familyPickTitle">
+    <button id="familyPickClose" class="familyClose" type="button" aria-label="Close">×</button>
+    <h2 id="familyPickTitle">Who is chatting?</h2>
+    <p class="familyLead">Pick a child to open only their chats, or stay on your own.</p>
+    <div id="familyPickList"></div>
+  </section>
+</div>
+<div id="authModal" hidden>
+  <div id="authModalCard" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+    <button id="authModalClose" type="button" aria-label="Close">×</button>
+    <div id="authTabs" role="tablist" aria-label="Account">
+      <button id="authTabIn" type="button" role="tab" aria-selected="true">Sign in</button>
+      <button id="authTabUp" type="button" role="tab" aria-selected="false">Create account</button>
+    </div>
+    <h2 id="authModalTitle">Sign in</h2>
+    <form id="authModalForm">
+      <label for="modalEmail">Email</label>
+      <input id="modalEmail" name="email" type="email" autocomplete="username" required>
+      <label for="modalPassword">Password</label>
+      <input id="modalPassword" name="password" type="password" autocomplete="current-password" required>
+      <label id="parentConsentRow" hidden>
+        <input id="parentConsent" type="checkbox">
+        <span>I am the parent or guardian. I agree Simko SI may store a child's display name, character, and age band, and I consent to that.</span>
+      </label>
+      <p id="authModalError" role="alert" hidden></p>
+      <button id="authModalSubmit" type="submit">Sign in</button>
+      <button id="authForgot" type="button">Forgot password?</button>
+    </form>
+    <form id="authResetForm" hidden>
+      <p id="authResetLead">Enter your email. If there is no mail server, the reset code appears here.</p>
+      <label for="modalResetEmail">Email</label>
+      <input id="modalResetEmail" type="email" autocomplete="username">
+      <label for="modalResetToken">Reset code</label>
+      <input id="modalResetToken" type="text" autocomplete="one-time-code">
+      <label for="modalResetPassword">New password</label>
+      <input id="modalResetPassword" type="password" autocomplete="new-password">
+      <p id="authResetError" role="alert" hidden></p>
+      <button id="authResetSubmit" type="submit">Update password</button>
+      <button id="authResetBack" type="button">Back to sign in</button>
+    </form>
+  </div>
+</div>
+<div id="relayOverlay" hidden>
+  <div id="relayCard" role="dialog" aria-modal="true" aria-labelledby="relayTitle">
+    <button id="relayClose" type="button" aria-label="Close">×</button>
+    <h2 id="relayTitle">Send to chat</h2>
+    <p id="relayPreview"></p>
+    <label for="relayTarget">Other chat</label>
+    <select id="relayTarget"></select>
+    <button id="relayGo" type="button">Send</button>
+    <p id="relayError" role="alert" hidden></p>
+  </div>
+</div>
+<script src="/assets/simco-client.js?v=971b21ff3edd"></script>
+<section id="turtleScreen" aria-label="Sea turtle" hidden>
+  <div id="turtleCard">
+    <div class="turtle-stage" aria-hidden="true">
+      <svg class="turtle-swim" viewBox="0 0 200 120" role="img">
+        <title>Sea turtle</title>
+        <ellipse cx="78" cy="78" rx="34" ry="10" fill="rgba(3,20,28,0.35)"/>
+        <ellipse cx="118" cy="62" rx="22" ry="8" fill="#7dcea0" transform="rotate(18 118 62)"/>
+        <ellipse cx="46" cy="70" rx="20" ry="8" fill="#6fbf97" transform="rotate(-16 46 70)"/>
+        <ellipse cx="92" cy="58" rx="36" ry="26" fill="#1f6f5b"/>
+        <ellipse cx="92" cy="58" rx="24" ry="16" fill="#2f8f72"/>
+        <circle cx="78" cy="50" r="4" fill="#ffb4a2"/>
+        <circle cx="96" cy="46" r="3.5" fill="#ffd6c4"/>
+        <circle cx="108" cy="56" r="4" fill="#ffb4a2"/>
+        <circle cx="138" cy="48" r="14" fill="#8fd0ae"/>
+        <circle cx="143" cy="45" r="1.6" fill="#03141c"/>
+        <path d="M150 44c8 2 12 8 10 12" fill="none" stroke="#ffd6c4" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h2>Simko SI</h2>
+    <p id="turtleLead">A sea turtle is crossing the reef while this computer is configured.</p>
+    <details id="turtleDetails">
+      <summary>Details</summary>
+      <div id="turtleLog" aria-live="polite">Reading this computer.</div>
+    </details>
+    <p id="turtleStage" aria-live="polite">Waiting</p>
+    <p id="turtleError" hidden></p>
+    <div id="turtleTools">
+      <button id="turtleRedetect" type="button">Re-detect this computer</button>
+      <button id="turtleCheck" type="button">Run setup check</button>
+    </div>
+    <form id="turtleAsk">
+      <label for="turtleQuestion">Ask the turtle</label>
+      <textarea id="turtleQuestion" rows="2" placeholder="Ask in everyday words"></textarea>
+      <button id="turtleAskSend" type="submit">Send</button>
+    </form>
+    <p id="turtleReply" aria-live="polite"></p>
+    <div id="hostRow" hidden>
+      <label for="hostUrl">Computer</label>
+      <input id="hostUrl" type="url" inputmode="url" placeholder="http://192.168.1.20:8788" autocomplete="off" spellcheck="false">
+      <button id="hostSave" type="button">Connect</button>
+      <p id="hostHint"></p>
+    </div>
+    <div id="turtleActions">
+      <button id="turtleEnter" type="button" hidden>Open chat</button>
+      <button id="turtlePeek" type="button">Look at the chats</button>
+    </div>
+  </div>
+</section>
+<header id="topbar"></header>
+<section id="drawer" hidden>
+<details id="lifebook">
+  <summary>Lifebook</summary>
+  <div id="lifeTags"></div>
+  <p id="lifeLast"></p>
+  <details id="lifeCounts"><summary>Counts</summary><p id="lifeCountBody">No counts yet.</p></details>
+</details>
+<section id="themePicker" aria-label="Theme">
+  <h2>Theme</h2>
+  <div id="themeList"></div>
+</section>
+<section id="voicePicker" aria-label="Voice">
+  <h2>Voice · <span id="voiceNow">Coral</span></h2>
+  <div id="voiceSpeedRow">
+    <label for="voiceSpeed">Speed</label>
+    <input id="voiceSpeed" type="range" min="0.7" max="1.5" step="0.05" value="1">
+    <output id="voiceSpeedOut" for="voiceSpeed">1×  (normal)</output>
+    <button id="voiceSpeedReset" type="button">Normal</button>
+  </div>
+  <div id="voiceList" role="list"></div>
+</section>
+<div id="sheetBar">
+  <span id="stackMark" aria-label="Not connected" title="Not connected">○</span>
+  <span id="installWord">Waiting</span>
+  <span id="authWho"></span>
+  <a id="advancedLink" href="#advanced">Advanced</a>
+  <button id="openTurtle" type="button">Sea turtle</button>
+  <button id="openHost" type="button">Computer</button>
+</div>
+<p id="advancedNote" hidden>Advanced tools, including the translator, run in the desktop app. On the website they stay closed. Renting a GPU computer is confirmed only in the desktop app.</p>
+<button id="whatRent" type="button">What renting would do</button>
+<nav id="chrome">
+  <button id="roleCoding" type="button" aria-pressed="true">Coding</button>
+  <button id="roleVideo" type="button" aria-pressed="false">Video</button>
+  <button id="roleImage" type="button" aria-pressed="false">Image</button>
+  <button id="usageOpen" type="button" hidden>Usage</button>
+  <button id="memoryOpen" type="button" hidden>Memory</button>
+  <button id="routineOpen" type="button" hidden>Routines</button>
+  <button id="imageOpen" type="button" hidden>Picture</button>
+  <button id="shareOpen" type="button" hidden>Share</button>
+  <button id="vaultOpen" type="button" hidden>Vault</button>
+  <button id="connectorOpen" type="button" hidden>Connectors</button>
+  <button id="agentOpen" type="button" hidden>Agents</button>
+  <button id="teamOpen" type="button" hidden>Team</button>
+  <button id="callOpen" type="button" hidden>Call</button>
+  <button id="browseOpen" type="button" hidden>Read page</button>
+  <button id="storeOpen" type="button" hidden>Store</button>
+  <button id="detectHardware" type="button">Detect</button>
+  <button id="downloadNow" type="button">Download</button>
+  <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>
+  <button id="computeLocal" type="button" aria-pressed="false">Local</button>
+  <button id="rentComputer" type="button">Rent</button>
+</nav>
+<section id="auth-bar">
+  <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
+  <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
+  <button id="signUp" type="button">Sign up</button>
+  <button id="signIn" type="button">Sign in</button>
+  <button id="confirmEmail" type="button" hidden>Confirm email</button>
+  <button id="resetPassword" type="button" hidden>Reset password</button>
+  <input id="authTokenBox" type="text" placeholder="Dev inbox token" hidden autocomplete="off">
+  <button id="setPassword" type="button" hidden>Set password</button>
+  <button id="signOut" type="button" hidden>Sign out</button>
+</section>
+<section id="rent-sheet" hidden>
+  <p id="autoOffer"></p>
+  <input id="rentSsh" type="text" placeholder="SSH host of this computer" autocomplete="off">
+  <label><input id="rentWords" type="checkbox"> I confirm RENT</label>
+  <button id="confirmRentGo" type="button">Confirm Rent</button>
+</section>
+</section>
+<div id="app">
+<aside id="chats">
+  <div id="listDock">
+    <div id="listHead">
+      <h2 id="listTitle">Chats</h2>
+      <button id="toolsToggle" type="button" aria-expanded="false" aria-label="Tools">Tools</button>
+    </div>
+    <div id="dockIcons">
+      <button id="newChat" type="button" aria-label="New chat">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="searchChats" type="button" aria-label="Search">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="10.5" cy="10.5" r="5.25" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14.6 14.6L19 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <button id="sendToChat" type="button" aria-label="Send to chat">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 12h12M12 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+  <input id="chatSearch" type="search" placeholder="Search chats" aria-label="Search chats" hidden>
+  <p id="chatEmpty" hidden>No chats yet. Tap New chat to start one.</p>
+  <nav id="sessionList" aria-label="Chats"></nav>
+</aside>
+<section id="stage">
+<header id="threadHead">
+  <button id="backToList" type="button">Back</button>
+  <span id="shellMark" aria-hidden="true"><svg viewBox="0 0 32 32" width="28" height="28"><path d="M16 4c2 4 2 6 0 8 3-1 6-1 8 1-3 1-4 3-4 6 3 0 6 1 7 4-4 0-6 2-7 5-1-4-3-6-7-7 2-2 3-5 2-8-3 1-6 0-8-2 3-1 5-3 5-7z" fill="currentColor"/></svg></span>
+  <h1 id="threadTitle">New chat</h1>
+</header>
+<section id="gallery" hidden aria-label="Gallery">
+  <div id="galleryGrid">
+    <figure>
+      <video muted loop playsinline preload="metadata" poster="/assets/sea-turtle-poster.jpg">
+        <source src="/assets/sea-turtle-loop.mp4" type="video/mp4">
+      </video>
+      <figcaption>Sea turtle</figcaption>
+    </figure>
+    <figure>
+      <img src="/assets/sea-turtle-poster.jpg" alt="Sea turtle, still">
+      <figcaption>Sea turtle, still</figcaption>
+    </figure>
+  </div>
+</section>
+<main id="thread">
+  <div id="historyBubbles"></div>
+  <div id="replyWrap">
+    <div id="reply-bubble" aria-label="Reply" data-placeholder="Reply"></div>
+    <button id="replySpeak" type="button" class="speakReply" aria-label="Play reply"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16.5 8.5a4.5 4.5 0 010 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+  </div>
+</main>
+<form id="composer">
+  <p id="micHint" aria-live="polite" hidden></p>
+  <div id="input-bubble">
+    <textarea id="everyday" rows="1" placeholder="Type everyday English"></textarea>
+    <button id="micButton" type="button" data-state="idle" aria-label="Talk to Simko SI" title="Talk to Simko SI"><span class="micGlyph" aria-hidden="true">🎙</span></button>
+    <button id="go" type="submit" aria-label="Start voice conversation">
+      <span class="goLabel">Send</span>
+      <span class="goWave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+    </button>
+  </div>
+</form>
+<details id="raw"><summary>Raw</summary><pre id="raw-text"></pre></details>
+</section>
+</div>
+<div id="foldGap" aria-hidden="true"></div>
+<script>
+/* Opens the sign-in box even if a cached simco-app.js has no handler for this button. */
+(function () {
+  document.addEventListener("click", function (event) {
+    var node = event.target;
+    if (!node || !node.closest) return;
+    if (!node.closest("#accountSignIn")) return;
+    var modal = document.getElementById("authModal");
+    if (!modal) return;
+    modal.hidden = false;
+  });
+})();
+</script>
+<script src="/assets/theme-host.js?v=971b21ff3edd"></script>
+<script src="/assets/simco-voice.js?v=voice-bots-20261108-v6"></script>
+<script src="/assets/simco-app.js?v=voice-bots-20261108-v5"></script>
+
+</body>
+</html>

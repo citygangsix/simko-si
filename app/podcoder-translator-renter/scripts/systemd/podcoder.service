@@ -1,0 +1,14 @@
+[Unit]
+Description=PodCoder local workbench
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/podcoder-translator-renter/local
+ExecStart=/usr/bin/python3 server.py
+Restart=on-failure
+RestartSec=3
+Environment=PODCODER_PROFILE=aspire
+
+[Install]
+WantedBy=default.target

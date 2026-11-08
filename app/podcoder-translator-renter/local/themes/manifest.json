@@ -1,0 +1,36 @@
+{
+  "default": "reef-live",
+  "themes": [
+    {
+      "id": "reef-live",
+      "name": "Reef Live",
+      "animation": true,
+      "stylesheet": "theme.css",
+      "script": "theme.js",
+      "preview": "linear-gradient(155deg, #7ec8e3 0%, #1f8a70 46%, #f0c36a 100%)"
+    },
+    {
+      "id": "reef-still",
+      "name": "Reef Still",
+      "animation": false,
+      "stylesheet": "theme.css",
+      "preview": "linear-gradient(155deg, #083844 0%, #c45b45 100%)"
+    },
+    {
+      "id": "plain",
+      "name": "No theme / Plain",
+      "animation": false,
+      "stylesheet": "theme.css",
+      "preview": "linear-gradient(155deg, #f7f4ee 0%, #d5cfc3 100%)"
+    },
+    {
+      "id": "reef-video",
+      "name": "Reef Video",
+      "animation": false,
+      "disabled": true,
+      "stylesheet": "theme.css",
+      "note": "Prepared only. Nothing is rendered until the confirm word is given.",
+      "preview": "linear-gradient(155deg, #12343f 0%, #1f8a70 100%)"
+    }
+  ]
+}

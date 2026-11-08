@@ -1,0 +1,12 @@
+{
+  "id": "cloud_3090",
+  "compute": "cloud",
+  "label": "Cloud RTX 3090",
+  "model": "granite4.2:8b-q8_0",
+  "quant": "Q8_0",
+  "device": "cuda",
+  "install": "install-on-pod-q8.sh",
+  "inet_down_floor_mbps": 900,
+  "disk_gb": 150,
+  "note": "Coding role on its own box. Video ComfyUI+Wan is a different preset."
+}

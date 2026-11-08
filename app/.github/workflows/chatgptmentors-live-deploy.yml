@@ -1,0 +1,75 @@
+name: ChatGPTMentors Live Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - src/**
+      - public/**
+      - index.html
+      - package.json
+      - package-lock.json
+      - vite.config.*
+      - tailwind.config.*
+      - postcss.config.*
+      - .github/workflows/chatgptmentors-live-deploy.yml
+      - scripts/chatgptmentors-live-deploy-readiness.mjs
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type deploy-chatgptmentors to deploy production
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chatgptmentors-live-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VITE_STARTER_CHECKOUT_URL: ${{ secrets.VITE_STARTER_CHECKOUT_URL }}
+      VITE_CREATOR_CHECKOUT_URL: ${{ secrets.VITE_CREATOR_CHECKOUT_URL }}
+      VITE_AUTO_CODE_CHECKOUT_URL: ${{ secrets.VITE_AUTO_CODE_CHECKOUT_URL }}
+    steps:
+      - name: Require manual confirmation when dispatched
+        if: github.event_name == 'workflow_dispatch' && inputs.confirm != 'deploy-chatgptmentors'
+        run: |
+          echo "Manual production deploy requires confirm=deploy-chatgptmentors" >&2
+          exit 64
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify live deploy credentials without printing secrets
+        run: npm run deploy:live:ready -- --mode=deploy
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build local app
+        run: npm run build
+
+      - name: Pull Vercel production environment
+        run: npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build with Vercel production settings
+        run: npx vercel@latest build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy prebuilt output to Vercel production
+        run: npx vercel@latest deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"

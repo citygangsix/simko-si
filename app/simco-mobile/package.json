@@ -1,0 +1,22 @@
+{
+  "name": "simco-si",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Simko SI phone client for Android and iOS. Grok powers chat and coding.",
+  "scripts": {
+    "sync:www": "bash sync-www.sh",
+    "test:host": "node test-host-url.mjs",
+    "cap:sync": "npm run sync:www && npx cap sync",
+    "android:debug": "cd android && ./gradlew assembleDebug",
+    "android:bundle": "cd android && ./gradlew bundleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/ios": "^7.4.3"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^7.4.3"
+  }
+}

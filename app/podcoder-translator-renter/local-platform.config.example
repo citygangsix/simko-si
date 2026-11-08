@@ -1,0 +1,51 @@
+# EXAMPLE ONLY. Do not put actual secrets in this file or commit a configured copy.
+# Set process environment using the OS credential manager/launcher.
+# Default-on (owner-approved 2026-11-08, applied by feature_defaults.py at start; set 0 to disable):
+# memory sync, paid search/images (per-call approve_paid), agents, routines, notifications.
+SIMKO_PLATFORM_UI=0
+SIMKO_AGENTS=1
+SIMKO_BROWSER=0
+SIMKO_BROWSER_DOMAINS=
+SIMKO_MEMORY_SYNC=1
+SIMKO_NOTIFICATIONS=1
+SIMKO_ROUTINES=1
+SIMKO_PAID_API_ENABLED=1
+SIMKO_CONNECTORS=0
+SIMKO_CALLS=0
+SIMKO_PAYWALL=0
+# Item 9 encrypted cloud backup (private bucket simko-backups) and background sync retries.
+SIMKO_CLOUD_BACKUP=0
+SIMKO_MEMORY_SYNC_AUTO=1
+# Dev inbox may echo confirm/reset codes to the local UI; release builds set 0 or configure SMTP.
+SIMKO_DEV_INBOX_ECHO=1
+SIMKO_FREE_REQUESTS=50
+# Secrets: env or native vault only; never logs.
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_FROM=
+SMTP_USER=
+SMTP_PASSWORD=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+APPLE_CLIENT_ID=
+SIMKO_APPLE_SUPABASE=0
+# Apple uses the approved Supabase HTTPS broker after provider/redirect setup.
+DRIVE_CLIENT_ID=
+DRIVE_CLIENT_SECRET=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+SUPABASE_URL=https://wxvjajecvklfjxppawdx.supabase.co
+SUPABASE_ANON_KEY=
+SUPABASE_ACCESS_TOKEN=
+# Optional: lets sync/backup refresh an expired user session in memory only.
+SUPABASE_REFRESH_TOKEN=
+SIMKO_SYNC_LOCAL_USER=
+XAI_API_KEY=
+XAI_SEARCH_MODEL=grok-4.7
+SIMKO_ENTITLEMENT_PUBLIC_KEY=
+SIMKO_ENTITLEMENT_JWT=
+SIMKO_CALL_PROVIDER=
+# Public verification key for signed remote team ACL snapshots, no remote writes.
+SIMKO_TEAM_PUBLIC_KEY=
+# Checkout is offline mock-sandbox ONLY, even if SIMKO_PAYWALL is explicitly enabled.
+# No Square keys are accepted or needed; sandbox entitlements never grant paid access.

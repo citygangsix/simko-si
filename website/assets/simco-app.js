@@ -1,0 +1,1256 @@
+(function () {
+  const DEMO_CHATS = [
+    { id: "demo-career", title: "Career plan", messages: [
+      { role: "user", text: "Help me ship the career plan." },
+      { role: "assistant", text: "Career is in play." }
+    ]},
+    { id: "demo-health", title: "Health check", messages: [
+      { role: "user", text: "I slept badly and skipped the gym." },
+      { role: "assistant", text: "Health and Fitness is strained." }
+    ]},
+    { id: "demo-calc", title: "Calculator", messages: [
+      { role: "user", text: "Make multiply show 7 times 8." },
+      { role: "assistant", text: "Multiplication is in. I tested it in a browser: 7 × 8 = shows 56." }
+    ]},
+    { id: "demo-family", title: "Family", messages: [
+      { role: "user", text: "The kids need a quieter evening." },
+      { role: "assistant", text: "Parenting is in play." }
+    ]},
+    { id: "demo-money", title: "Money", messages: [
+      { role: "user", text: "The budget is tight this month." },
+      { role: "assistant", text: "Financial Life is strained." }
+    ]},
+    { id: "demo-friends", title: "Friends", messages: [
+      { role: "user", text: "I want to see friends this weekend." },
+      { role: "assistant", text: "Social Life is in play." }
+    ]},
+    { id: "demo-evening", title: "Quiet evening", messages: [
+      { role: "user", text: "Home feels restless." },
+      { role: "assistant", text: "Quality of Life is in play." }
+    ]},
+    { id: "demo-goal", title: "A goal", messages: [
+      { role: "user", text: "My goal is a calmer year." },
+      { role: "assistant", text: "Life Vision is in play." }
+    ]},
+    { id: "demo-learn", title: "Learning", messages: [
+      { role: "user", text: "I want to read one book." },
+      { role: "assistant", text: "Intellectual Life is in play." }
+    ]},
+    { id: "demo-love", title: "Partner", messages: [
+      { role: "user", text: "Date night went well." },
+      { role: "assistant", text: "Love Relationship is doing well." }
+    ]}
+  ];
+
+  let authToken = "";
+  let signedIn = false;
+  let authMode = "signin";
+  let creatingChat = false;
+  let listEpoch = 0;
+  let activeSessionId = "";
+  let voiceSessionEpoch = 0;
+  let chatRows = [];
+  let sessionCache = {};
+  let activeRole = "coding";
+  let model = "";
+
+  function $(id) { return document.getElementById(id); }
+
+  try {
+    if (new URLSearchParams(location.search).get("family") === "1") {
+      document.documentElement.setAttribute("data-simko-family", "1");
+    }
+  } catch (e) {}
+
+  function familyOn() {
+    return document.documentElement.getAttribute("data-simko-family") === "1";
+  }
+
+  function loadPlatformScript() {
+    const flags = window.simkoPlatformFlags || {};
+    const on = Object.keys(flags).some((name) => flags[name]);
+    if (!on || document.querySelector("script[data-platform='1']")) {
+      if (on && window.simcoPlatform) window.simcoPlatform.boot();
+      return;
+    }
+    const script = document.createElement("script");
+    const build = document.querySelector('meta[name="simko-build"]');
+    const version = build ? build.getAttribute("content") || "" : "";
+    script.src = "/assets/simco-platform.js" + (version ? "?v=" + encodeURIComponent(version) : "");
+    script.dataset.platform = "1";
+    script.onload = () => { if (window.simcoPlatform) window.simcoPlatform.boot(); };
+    document.body.appendChild(script);
+  }
+
+  function loadFamilyScript() {
+    if (!familyOn() || document.querySelector("script[data-family='1']")) {
+      if (familyOn() && window.simcoFamily) window.simcoFamily.boot();
+      return;
+    }
+    const script = document.createElement("script");
+    const build = document.querySelector('meta[name="simko-build"]');
+    const version = build ? build.getAttribute("content") || "" : "";
+    script.src = "/assets/simco-family.js" + (version ? "?v=" + encodeURIComponent(version) : "");
+    script.dataset.family = "1";
+    script.onload = () => { if (window.simcoFamily) window.simcoFamily.boot(); };
+    document.body.appendChild(script);
+  }
+
+  function voiceReply(text) {
+    if (window.simcoVoice) window.simcoVoice.reply(text);
+  }
+
+  function detectIntent(text) {
+    const t = text.toLowerCase();
+    const has = (re) => re.test(t);
+    if (has(/\b(python|javascript|typescript|node|java|rust|golang|ruby|php|bash|kotlin|swift|tkinter|flask|django|command[- ]line|cli|terminal|script|program|module|function|class|pytest|unit tests?|tests?|repo|repository|package|library)\b/)
+        || has(/\b[\w-]+\.(py|js|ts|sh|rb|go|rs|java)\b/) || has(/\bwrite (a|me a) program\b/)) return "";
+    if (has(/\b(division|divide|divided|divides|dividing)\b/)) return "div";
+    if (has(/\bmulti-?digit\b/)) return "mul_multi";
+    if (has(/\bdecimals?\b/)) return "decimal";
+    if (has(/\b(subtract|subtracts|subtracting|subtraction|minus)\b/)) return "sub";
+    if (has(/\b(add|adds|adding|addition|plus)\b/)) return "add";
+    if (has(/\b(multiply|multiplies|multiplying|multiplication|times)\b/)) return "mul";
+    if (has(/\b(calculator|front end|shell)\b/)) return "fe_shell";
+    return "";
+  }
+
+  async function postJson(url, body) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    let data = {};
+    try { data = await response.json(); } catch (e) { data = {}; }
+    return data;
+  }
+
+  function authPost(body) {
+    return postJson("/api/auth", body);
+  }
+
+  function sessionPost(body) {
+    const extra = window.simcoChildId ? { child_id: window.simcoChildId } : {};
+    return postJson("/api/sessions", Object.assign({ token: authToken }, extra, body));
+  }
+
+  function cacheSave() {
+    try {
+      localStorage.setItem("simko.cache.v1", JSON.stringify({
+        email: $("authWho").textContent || "",
+        order: chatRows.map((row) => row.id),
+        sessions: sessionCache
+      }));
+    } catch (e) {}
+  }
+
+  function cacheLoad() {
+    try { return JSON.parse(localStorage.getItem("simko.cache.v1") || "null"); }
+    catch (e) { return null; }
+  }
+
+  function restoreCache() {
+    const bag = cacheLoad();
+    if (!bag || !bag.sessions) return false;
+    const order = bag.order || Object.keys(bag.sessions);
+    chatRows = order.map((id) => bag.sessions[id]).filter(Boolean);
+    sessionCache = bag.sessions;
+    if (!chatRows.length) return false;
+    $("authWho").textContent = bag.email || "";
+    paintChatList(chatRows, false);
+    showSessionFromCache(chatRows[0].id, false);
+    return true;
+  }
+
+  function setConnected(on) {
+    const mark = $("stackMark");
+    mark.textContent = on ? "●" : "○";
+    mark.title = on ? "Connected on this browser" : "Not connected";
+    mark.setAttribute("aria-label", mark.title);
+  }
+
+  async function autoConnect() {
+    try {
+      const response = await fetch("/api/health");
+      const data = await response.json();
+      const on = !!(data && data.ok);
+      setConnected(on);
+      $("installWord").textContent = on ? "Ready" : "Waiting";
+      if (data && data.family_ui) document.documentElement.setAttribute("data-simko-family", "1");
+      window.simkoPlatformFlags = (data && data.platform) || {};
+      window.simkoOauth = (data && data.oauth_buttons) || {};
+      loadFamilyScript();
+      loadPlatformScript();
+    } catch (e) {
+      setConnected(false);
+      $("installWord").textContent = "Waiting";
+    }
+  }
+
+  function openThread() {
+    document.body.classList.add("thread-open");
+  }
+
+  function chatMark(title) {
+    const hay = String(title || "").toLowerCase();
+    const pairs = [
+      ["career", "💼"], ["health", "🩺"], ["calc", "🧮"], ["family", "👨‍👩‍👧"],
+      ["money", "💰"], ["friend", "🤝"], ["evening", "🌙"], ["goal", "🎯"],
+      ["learn", "📚"], ["partner", "❤️"], ["love", "❤️"], ["turtle", "🐢"], ["hello", "🌊"]
+    ];
+    for (let i = 0; i < pairs.length; i++) {
+      if (hay.indexOf(pairs[i][0]) >= 0) return pairs[i][1];
+    }
+    return "💬";
+  }
+
+  function setThreadTitle(title) {
+    $("threadTitle").textContent = title || "Chat";
+  }
+
+  function messageText(message) {
+    if (message.role === "relay") return "From " + (message.from_title || "another chat") + ": " + message.text;
+    if (message.role === "relay_out") return "Sent to " + (message.to_title || "another chat") + ": " + message.text;
+    return message.text;
+  }
+
+  const SPEAKER_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16.5 8.5a4.5 4.5 0 010 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+  let replyAudio = null;
+
+  function setReply(text) {
+    const reply = $("reply-bubble");
+    reply.textContent = text || "";
+    const button = $("replySpeak");
+    if (!button) return;
+    const show = !!(text && text !== "Working on it…");
+    button.classList.toggle("is-shown", show);
+    button.hidden = false;
+    button.dataset.say = show ? text : "";
+  }
+
+  function chosenVoice() {
+    if (window.simcoVoice && window.simcoVoice.state && window.simcoVoice.state.voice) return window.simcoVoice.state.voice;
+    try { return localStorage.getItem("simcoVoice") || "coral"; } catch (e) { return "coral"; }
+  }
+
+  function chosenSpeed() {
+    let speed = 1;
+    try { speed = parseFloat(localStorage.getItem("simcoVoiceSpeed") || "1") || 1; } catch (e) {}
+    return Math.min(1.5, Math.max(0.7, speed));
+  }
+
+  function speakLine(text, button) {
+    const line = String(text || "").replace(/\s+/g, " ").trim().slice(0, 1200);
+    if (!line) return;
+    if (replyAudio) { replyAudio.pause(); replyAudio = null; }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    const speed = chosenSpeed();
+    let fellBack = false;
+    function fallback() {
+      if (fellBack) return;
+      fellBack = true;
+      if (button) button.setAttribute("aria-pressed", "false");
+      if (!window.speechSynthesis) return;
+      const utterance = new SpeechSynthesisUtterance(line);
+      utterance.rate = speed;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    }
+    const url = "/api/voice/speak?voice=" + encodeURIComponent(chosenVoice())
+      + "&speed=" + speed.toFixed(2)
+      + "&text=" + encodeURIComponent(line);
+    const audio = new Audio(url);
+    replyAudio = audio;
+    if (button) button.setAttribute("aria-pressed", "true");
+    audio.addEventListener("ended", () => { if (button) button.setAttribute("aria-pressed", "false"); });
+    audio.addEventListener("error", fallback);
+    audio.play().catch(fallback);
+  }
+
+  function speakButton(text) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "speakReply";
+    button.setAttribute("aria-label", "Play reply");
+    button.innerHTML = SPEAKER_SVG;
+    button.addEventListener("click", () => speakLine(text, button));
+    return button;
+  }
+
+  function makeBubble(message) {
+    const mine = message.role === "user" || message.role === "relay_out";
+    const bubble = document.createElement("div");
+    bubble.className = mine ? "bubble mine" : "bubble theirs";
+    const words = document.createElement("div");
+    words.className = "bubbleText";
+    words.textContent = messageText(message);
+    bubble.appendChild(words);
+    if (!mine) bubble.appendChild(speakButton(messageText(message)));
+    return bubble;
+  }
+
+  function renderHistory(session) {
+    if (session && session.title) setThreadTitle(session.title);
+    const history = $("historyBubbles");
+    history.replaceChildren();
+    const messages = (session && session.messages) || [];
+    messages.forEach((message, index) => {
+      const last = index === messages.length - 1;
+      const mine = message.role === "user";
+      if (last && !mine) {
+        setReply(messageText(message));
+        return;
+      }
+      history.appendChild(makeBubble(message));
+    });
+    const tail = messages[messages.length - 1];
+    if (!tail || tail.role === "user") setReply("");
+  }
+
+  function fillChatSelect(select, rows, skipId) {
+    const previous = select.value;
+    select.replaceChildren();
+    rows.forEach((row) => {
+      if (skipId && row.id === skipId) return;
+      const option = document.createElement("option");
+      option.value = row.id;
+      option.textContent = row.title || "Chat";
+      select.appendChild(option);
+    });
+    if (previous && [...select.options].some((option) => option.value === previous)) {
+      select.value = previous;
+    } else if (select.options.length) {
+      select.selectedIndex = 0;
+    }
+  }
+
+  function revealConversation() {
+    const drawer = $("drawer");
+    if (drawer) drawer.hidden = true;
+    const toggle = $("toolsToggle");
+    if (toggle) toggle.setAttribute("aria-expanded", "false");
+    const sheet = $("relayOverlay");
+    if (sheet) sheet.hidden = true;
+    openThread();
+    const reply = $("reply-bubble");
+    if (reply && reply.scrollIntoView) {
+      try { reply.scrollIntoView({ block: "center" }); } catch (e) {}
+    }
+  }
+
+  function latestNote() {
+    const session = sessionCache[activeSessionId];
+    const messages = (session && session.messages) || [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const text = String(messages[i].text || "").trim();
+      if (text) return text;
+    }
+    return "";
+  }
+
+  function paintChatList(rows, demo) {
+    const list = $("sessionList");
+    const empty = $("chatEmpty");
+    list.replaceChildren();
+    if (empty) {
+      const search = $("chatSearch");
+      const searching = search && !search.hidden && search.value.trim();
+      empty.hidden = rows.length > 0;
+      empty.textContent = searching ? "No chats match that search." : "No chats yet. Tap New chat to start one.";
+    }
+    rows.forEach((row) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.id = row.id;
+      const mark = document.createElement("span");
+      mark.className = "chatEmoji";
+      mark.setAttribute("aria-hidden", "true");
+      mark.textContent = chatMark(row.title);
+      const label = document.createElement("span");
+      label.textContent = row.title || "Chat";
+      button.append(mark, label);
+      button.setAttribute("aria-pressed", row.id === activeSessionId ? "true" : "false");
+      button.addEventListener("click", () => {
+        if (demo) {
+          activeSessionId = row.id;
+          if (window.simcoVoice) window.simcoVoice.setContext(row);
+          document.querySelectorAll("#sessionList button").forEach((item) => {
+            item.setAttribute("aria-pressed", item.dataset.id === row.id ? "true" : "false");
+          });
+          renderHistory(row);
+          openThread();
+          return;
+        }
+        showSession(row.id, true);
+      });
+      list.appendChild(button);
+    });
+  }
+
+  function showDemoList() {
+    document.body.classList.remove("thread-open");
+    activeSessionId = "";
+    if (window.simcoVoice) window.simcoVoice.setContext(null);
+    paintChatList(DEMO_CHATS, true);
+    setThreadTitle("New chat");
+    $("historyBubbles").replaceChildren();
+    setReply("");
+  }
+
+  function showMyMessage(text) {
+    const history = $("historyBubbles");
+    const reply = $("reply-bubble");
+    if (reply.textContent.trim() && reply.textContent !== "Working on it…") {
+      history.appendChild(makeBubble({ role: "assistant", text: reply.textContent }));
+    }
+    history.appendChild(makeBubble({ role: "user", text: text }));
+    setReply("");
+    const thread = $("thread");
+    if (thread) thread.scrollTop = thread.scrollHeight;
+  }
+
+  function showSessionFromCache(sessionId, open) {
+    const session = sessionCache[sessionId];
+    if (!session) return;
+    activeSessionId = session.id;
+    if (window.simcoVoice) window.simcoVoice.setContext(session);
+    document.querySelectorAll("#sessionList button").forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset.id === activeSessionId ? "true" : "false");
+    });
+    renderHistory(session);
+    fillChatSelect($("relayTarget"), chatRows, activeSessionId);
+    if (open) openThread();
+  }
+
+  async function showSession(sessionId, open) {
+    const voiceEpoch = ++voiceSessionEpoch;
+    const data = await sessionPost({ op: "get", session_id: sessionId });
+    if (voiceEpoch !== voiceSessionEpoch) return;
+    if (!data.ok || !data.session) {
+      showSessionFromCache(sessionId, open);
+      return;
+    }
+    activeSessionId = data.session.id;
+    if (window.simcoVoice) window.simcoVoice.setContext(data.session);
+    sessionCache[data.session.id] = data.session;
+    const row = chatRows.find((item) => item.id === data.session.id);
+    if (row) row.title = data.session.title;
+    document.querySelectorAll("#sessionList button").forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset.id === activeSessionId ? "true" : "false");
+      if (button.dataset.id === data.session.id) {
+        const label = button.querySelector("span:last-child");
+        if (label) label.textContent = data.session.title || "Chat";
+      }
+    });
+    renderHistory(data.session);
+    fillChatSelect($("relayTarget"), chatRows, activeSessionId);
+    cacheSave();
+    if (open) openThread();
+  }
+
+  async function refreshChats(preferId, options) {
+    const stayOnList = !!(options && options.stayOnList);
+    const epoch = ++listEpoch;
+    const data = await sessionPost({ op: "list" });
+    if (epoch !== listEpoch) return;
+    if (!data || data.ok === false) {
+      if (!restoreCache()) showDemoList();
+      return;
+    }
+    chatRows = data.sessions || [];
+    chatRows.forEach((row) => {
+      sessionCache[row.id] = Object.assign({}, sessionCache[row.id] || {}, row);
+    });
+    paintChatList(chatRows, false);
+    if (!stayOnList) {
+      const current = activeSessionId && !String(activeSessionId).startsWith("demo-") ? activeSessionId : "";
+      const wanted = preferId || current;
+      const cover = window.matchMedia("(max-width: 640px), (max-height: 560px)").matches;
+      if (wanted && chatRows.some((row) => row.id === wanted)) await showSession(wanted, false);
+      else if (!cover && chatRows[0]) await showSession(chatRows[0].id, false);
+    }
+    cacheSave();
+  }
+
+  async function backToList() {
+    document.body.dataset.listReady = "0";
+    document.body.classList.remove("thread-open");
+    const search = $("chatSearch");
+    if (search && search.value) search.value = "";
+    try {
+      if (!hasSession()) {
+        showDemoList();
+        return;
+      }
+      await refreshChats(null, { stayOnList: true });
+    } finally {
+      document.body.dataset.listReady = "1";
+    }
+  }
+
+  function shortEmail(email) {
+    const value = String(email || "");
+    if (value.length <= 22) return value;
+    const at = value.indexOf("@");
+    if (at < 1) return value.slice(0, 18) + "…";
+    return value.slice(0, 8) + "…@" + value.slice(at + 1);
+  }
+
+  function paintAccount(email) {
+    signedIn = !!email;
+    const signIn = $("accountSignIn");
+    const signed = $("accountSigned");
+    const label = $("accountEmail");
+    if (signIn) signIn.hidden = !!email;
+    if (signed) signed.hidden = !email;
+    if (label) {
+      label.textContent = shortEmail(email || "");
+      label.title = email || "";
+    }
+    document.documentElement.setAttribute("data-simko-signed", email ? "1" : "0");
+  }
+
+  function hasSession() {
+    return signedIn || !!authToken;
+  }
+
+  function showSignedOut() {
+    authToken = "";
+    window.simcoUserToken = "";
+    activeSessionId = "";
+    if (window.simcoVoice) window.simcoVoice.setContext(null);
+    chatRows = [];
+    try { sessionStorage.removeItem("podcoderToken"); } catch (e) {}
+    ["authEmail", "authPassword", "signUp", "signIn", "resetPassword"].forEach((id) => { const el = $(id); if (el) el.hidden = false; });
+    ["signOut", "confirmEmail", "authTokenBox", "setPassword"].forEach((id) => { const el = $(id); if (el) el.hidden = true; });
+    if ($("authWho")) $("authWho").textContent = "";
+    if ($("relayOverlay")) $("relayOverlay").hidden = true;
+    paintAccount("");
+    showDemoList();
+    loadLife();
+  }
+
+  function showSignedIn(email) {
+    if (String(activeSessionId).startsWith("demo-")) activeSessionId = "";
+    window.simcoUserToken = authToken;
+    if (window.simcoThemes) window.simcoThemes.syncFromServer();
+    ["authEmail", "authPassword", "signUp", "signIn", "confirmEmail", "resetPassword", "authTokenBox", "setPassword"].forEach((id) => { const el = $(id); if (el) el.hidden = true; });
+    if ($("signOut")) $("signOut").hidden = false;
+    $("authWho").textContent = email;
+    $("drawer").hidden = true;
+    $("toolsToggle").setAttribute("aria-expanded", "false");
+    paintAccount(email);
+    loadLife();
+  }
+
+  function setAuthError(message) {
+    const line = $("authModalError");
+    line.hidden = !message;
+    line.textContent = message || "";
+  }
+
+  function paintAuthMode() {
+    const creating = authMode === "signup";
+    $("authTabIn").setAttribute("aria-selected", creating ? "false" : "true");
+    $("authTabUp").setAttribute("aria-selected", creating ? "true" : "false");
+    $("authModalTitle").textContent = creating ? "Create account" : "Sign in";
+    $("authModalSubmit").textContent = creating ? "Create account" : "Sign in";
+    $("modalPassword").setAttribute("autocomplete", creating ? "new-password" : "current-password");
+    const consent = $("parentConsentRow");
+    if (consent) consent.hidden = !(familyOn() && creating);
+  }
+
+  function openAuthModal(mode) {
+    authMode = mode === "signup" ? "signup" : "signin";
+    paintAuthMode();
+    setAuthError("");
+    $("authResetForm").hidden = true;
+    $("authModalForm").hidden = false;
+    $("authModal").hidden = false;
+    const email = $("modalEmail");
+    if (email) email.focus();
+  }
+
+  function closeAuthModal() {
+    $("authModal").hidden = true;
+    setAuthError("");
+  }
+
+  function needAccount() {
+    openAuthModal("signin");
+  }
+
+  async function finishAuth(data, email) {
+    authToken = data.token;
+    try { sessionStorage.setItem("podcoderToken", authToken); } catch (e) {}
+    showSignedIn(data.email || email);
+    closeAuthModal();
+    await refreshChats();
+  }
+
+  async function submitAuth(op, email, password) {
+    const payload = { op: op, email: email, password: password };
+    const consent = $("parentConsent");
+    const row = $("parentConsentRow");
+    if (op === "signup" && consent && row && !row.hidden && consent.checked) {
+      payload.parent = true;
+      payload.consent = true;
+    }
+    const data = await authPost(payload);
+    if (!data.ok || !data.token) {
+      setAuthError(data.error || (op === "signup" ? "Could not create the account." : "Sign in failed."));
+      return;
+    }
+    await finishAuth(data, email);
+  }
+
+  async function confirmEmail() {
+    const code = $("authTokenBox").value.trim();
+    if (!code) return;
+    const data = await authPost({ op: "confirm-email", confirm_token: code, token: authToken });
+    if (data.ok) $("confirmEmail").hidden = true;
+  }
+
+  function setResetError(message) {
+    const line = $("authResetError");
+    line.hidden = !message;
+    line.textContent = message || "";
+  }
+
+  function openReset() {
+    setAuthError("");
+    setResetError("");
+    $("authModalForm").hidden = true;
+    $("authResetForm").hidden = false;
+    $("authModalTitle").textContent = "Reset password";
+    $("modalResetEmail").value = $("modalEmail").value.trim();
+    $("authModal").hidden = false;
+    $("modalResetEmail").focus();
+  }
+
+  async function submitReset(event) {
+    if (event) event.preventDefault();
+    setResetError("");
+    const email = $("modalResetEmail").value.trim();
+    const code = $("modalResetToken").value.trim();
+    const password = $("modalResetPassword").value;
+    if (!code) {
+      const data = await authPost({ op: "request-reset", email: email });
+      if (!data.ok) {
+        setResetError(data.error || "Reset failed.");
+        return;
+      }
+      if (data.dev_token) {
+        $("modalResetToken").value = data.dev_token;
+        setResetError("No mail server is set up, so the reset code is filled in. Type a new password, then update.");
+        return;
+      }
+      setResetError("If that email is registered, a reset code was sent. Paste it here with a new password.");
+      return;
+    }
+    const data = await authPost({ op: "reset-password", reset_token: code, password: password });
+    if (!data.ok) {
+      setResetError(data.error || "Reset failed.");
+      return;
+    }
+    $("modalResetToken").value = "";
+    $("modalResetPassword").value = "";
+    $("modalEmail").value = email;
+    $("authResetForm").hidden = true;
+    $("authModalForm").hidden = false;
+    authMode = "signin";
+    paintAuthMode();
+    setAuthError("Password updated. Sign in with the new one.");
+  }
+
+  async function signOut() {
+    if (authToken) await authPost({ op: "signout", token: authToken });
+    showSignedOut();
+    setReply("");
+  }
+
+  function currentChatIsEmpty() {
+    if (!activeSessionId || String(activeSessionId).indexOf("demo-") === 0) return false;
+    const history = $("historyBubbles");
+    const reply = $("reply-bubble");
+    const historyText = history ? history.textContent.trim() : "";
+    const replyText = reply ? reply.textContent.trim() : "";
+    if (historyText || replyText) return false;
+    const cached = sessionCache[activeSessionId];
+    if (cached && Array.isArray(cached.messages)) return cached.messages.length === 0;
+    return true;
+  }
+
+  function focusComposer() {
+    openThread();
+    const box = $("everyday");
+    if (box) box.focus();
+  }
+
+  async function newChat() {
+    if (!hasSession()) {
+      needAccount();
+      return;
+    }
+    if (creatingChat) return;
+    if (currentChatIsEmpty()) {
+      focusComposer();
+      return;
+    }
+    creatingChat = true;
+    const button = $("newChat");
+    if (button) button.disabled = true;
+    try {
+      const created = await sessionPost({ op: "create", title: "Chat " + (chatRows.length + 1) });
+      if (!created.session) {
+        setReply(created.error || "Could not open a chat.");
+        return;
+      }
+      if (created.session) sessionCache[created.session.id] = created.session;
+      await refreshChats(created.session.id);
+      focusComposer();
+    } finally {
+      creatingChat = false;
+      if (button) button.disabled = false;
+    }
+  }
+
+  async function rememberTurn(userText, assistantText) {
+    if (!hasSession()) return;
+    if (!activeSessionId || String(activeSessionId).indexOf("demo-") === 0) {
+      const created = await sessionPost({ op: "create", title: "Chat " + (chatRows.length + 1) });
+      if (created.session) {
+        activeSessionId = created.session.id;
+        if (window.simcoVoice) window.simcoVoice.setContext(created.session);
+        chatRows.unshift(created.session);
+      }
+    }
+    await sessionPost({ op: "append", session_id: activeSessionId, role: "user", text: userText });
+    await sessionPost({ op: "append", session_id: activeSessionId, role: "assistant", text: assistantText });
+    const listed = [...document.querySelectorAll("#sessionList button")].some((button) => button.dataset.id === activeSessionId);
+    if (!listed) paintChatList(chatRows, false);
+    await showSession(activeSessionId, false);
+  }
+
+  async function onSend(event) {
+    if (event) event.preventDefault();
+    const text = $("everyday").value.trim();
+    if (!text) {
+      const fromWave = event && event.submitter && event.submitter.id === "go";
+      if (fromWave && window.simcoVoice && window.simcoVoice.toggleLive) {
+        window.simcoVoice.toggleLive();
+        return;
+      }
+      setReply("Type a message, then Send.");
+      return;
+    }
+    const voiceTurn = window.simcoVoice ? window.simcoVoice.consumeTurn() : false;
+    if (!hasSession()) {
+      needAccount();
+      return;
+    }
+    // Allocate the first chat (and its voice) BEFORE requesting/speaking its
+    // first reply, rather than assigning a different voice afterward.
+    if (!activeSessionId || String(activeSessionId).startsWith("demo-")) {
+      const created = await sessionPost({ op: "create", title: "Chat " + (chatRows.length + 1) });
+      if (!created.ok || !created.session) {
+        setReply(created.error || "Could not open a chat. Please try again.");
+        return;
+      }
+      activeSessionId = created.session.id;
+      sessionCache[activeSessionId] = created.session;
+      chatRows.unshift(created.session);
+      if (window.simcoVoice) window.simcoVoice.setContext(created.session);
+    }
+    showMyMessage(text);
+    $("everyday").value = "";
+    $("everyday").dispatchEvent(new Event("input", { bubbles: true }));
+    setReply("Working on it…");
+    let everyday = "";
+    try {
+      if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace("turn_sent");
+      const data = await postJson("/api/simco/turn", {
+        text: text,
+        token: authToken,
+        session_id: activeSessionId || "",
+        feature: detectIntent(text),
+        voice: !!voiceTurn,
+        child_id: window.simcoChildId || undefined
+      });
+      if (data && data.sources && window.simcoPlatform) window.simcoPlatform.showSources(data.sources);
+      if (data && data.paywall) {
+        if (window.simcoPlatform) window.simcoPlatform.showPaywall(data);
+        setReply(data.error || "The 5 free messages are used up.");
+        return;
+      }
+      everyday = (data && (data.everyday || data.error)) || "";
+      if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace(data && data.ok && everyday ? "turn_reply" : "turn_error", everyday ? "" : "empty");
+      if (data && data.model) model = data.model;
+    } catch (e) {
+      if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace("turn_error", e.name);
+      everyday = "Simko SI could not be reached. Try again in a moment.";
+    }
+    const line = everyday || "No reply came back from Simko SI. Try again in a moment.";
+    setReply(line);
+    voiceReply(line);
+    await rememberTurn(text, line);
+    await tagTurn(text);
+  }
+
+  async function sendToOtherChat() {
+    const box = $("everyday");
+    const typed = box.value.trim();
+    const text = typed || latestNote();
+    const select = $("relayTarget");
+    if (select && !select.value && select.options.length) select.selectedIndex = 0;
+    const target = select ? select.value : "";
+    const targetTitle = (select && select.selectedOptions && select.selectedOptions[0])
+      ? select.selectedOptions[0].textContent
+      : "that chat";
+    if (!text) {
+      revealConversation();
+      setReply("Type a message, then Send to chat.");
+      return;
+    }
+    if (!target || target === activeSessionId) {
+      revealConversation();
+      setReply("Open another chat first.");
+      return;
+    }
+    const data = await sessionPost({
+      op: "relay",
+      from_session_id: activeSessionId,
+      to_session_id: target,
+      text: text
+    });
+    if (data && data.approval && window.simcoPlatform) {
+      window.simcoPlatform.showApproval(data.approval, async (approvalId) => {
+        const again = await sessionPost({
+          op: "relay",
+          from_session_id: activeSessionId,
+          to_session_id: target,
+          text: text,
+          approval_id: approvalId
+        });
+        if (!again.ok) {
+          setReply(again.error || "Could not send to that chat.");
+          return;
+        }
+        revealConversation();
+        setReply("Sent to " + targetTitle + ": " + text);
+      });
+      return;
+    }
+    if (!data.ok) {
+      revealConversation();
+      setReply(data.error || "Could not send to that chat.");
+      return;
+    }
+    box.value = "";
+    await showSession(activeSessionId, true);
+    revealConversation();
+    setReply("Sent to " + targetTitle + ": " + text);
+  }
+
+  async function searchChats() {
+    const q = $("chatSearch").value.trim();
+    if (!hasSession()) {
+      const rows = DEMO_CHATS.filter((row) => {
+        if (!q) return true;
+        const blob = (row.title + " " + (row.messages || []).map((message) => message.text).join(" ")).toLowerCase();
+        return blob.indexOf(q.toLowerCase()) >= 0;
+      });
+      paintChatList(rows, true);
+      return;
+    }
+    try {
+      const data = await sessionPost({ op: "search", q: q });
+      chatRows = (data && data.sessions) || [];
+      paintChatList(chatRows, false);
+    } catch (e) {
+      setReply("Search could not reach Simko SI.");
+    }
+  }
+
+  function paintLife(data) {
+    const box = $("lifeTags");
+    const last = $("lifeLast");
+    const rows = (data && data.categories) || [];
+    const tags = (data && data.tags) || [];
+    const current = tags.length ? tags[tags.length - 1].category : "";
+    box.replaceChildren();
+    rows.forEach((row) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      const words = (data && data.statuses) || {};
+      button.textContent = row.label + " · " + (words[row.id] || "not discussed");
+      button.setAttribute("aria-pressed", row.id === current ? "true" : "false");
+      button.addEventListener("click", () => retag(row.id));
+      box.appendChild(button);
+    });
+    const tagged = tags.length ? "Tagged as " + tags[tags.length - 1].label + "." : "Words only. No grade.";
+    last.textContent = data && data.dominance_note ? data.dominance_note + " " + tagged : tagged;
+    const counts = $("lifeCountBody");
+    if (counts) {
+      const rowsN = (data && data.counts) || [];
+      counts.textContent = rowsN.length
+        ? rowsN.map((row) => row.label + ": " + row.n).join("\n")
+        : "No counts yet.";
+    }
+  }
+
+  async function loadLife() {
+    try {
+      const data = await postJson("/api/memory", { op: "list", token: authToken });
+      paintLife(data);
+    } catch (e) {
+      paintLife(null);
+    }
+  }
+
+  async function tagTurn(text) {
+    if (!hasSession()) return;
+    const data = await postJson("/api/memory", { op: "tag", token: authToken, text: text, session_id: activeSessionId });
+    if (data && data.tagged) paintLife(data);
+  }
+
+  async function retag(category) {
+    if (!hasSession()) {
+      $("lifeLast").textContent = "Sign in to tag a line.";
+      needAccount();
+      return;
+    }
+    const data = await postJson("/api/memory", { op: "retag", token: authToken, category: category });
+    if (!data.ok) {
+      $("lifeLast").textContent = data.error || "Nothing to tag.";
+      return;
+    }
+    paintLife(data);
+  }
+
+  function setRole(role) {
+    activeRole = role;
+    $("roleCoding").setAttribute("aria-pressed", role === "coding" ? "true" : "false");
+    $("roleVideo").setAttribute("aria-pressed", role === "video" ? "true" : "false");
+    $("roleImage").setAttribute("aria-pressed", role === "image" ? "true" : "false");
+    const gallery = $("gallery");
+    if (!gallery) return;
+    const show = role === "video" || role === "image";
+    gallery.hidden = !show;
+    const clip = gallery.querySelector("video");
+    if (!clip) return;
+    if (show) clip.play().catch(function () {});
+    else clip.pause();
+  }
+
+  async function probeMachine() {
+    const cores = navigator.hardwareConcurrency || 0;
+    const ram = navigator.deviceMemory || 0;
+    const ua = navigator.userAgent || "";
+    let os = "this browser";
+    if (/Android/i.test(ua)) os = "Android";
+    else if (/iPhone|iPad|iPod/i.test(ua)) os = "iPhone or iPad";
+    else if (/Mac OS X/i.test(ua)) os = "Mac";
+    else if (/Windows/i.test(ua)) os = "Windows";
+    else if (/Linux/i.test(ua)) os = "Linux";
+    let gpu = "";
+    try {
+      const canvas = document.createElement("canvas");
+      const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+      if (gl) {
+        const ext = gl.getExtension("WEBGL_debug_renderer_info");
+        gpu = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || "") : String(gl.getParameter(gl.RENDERER) || "");
+      }
+    } catch (e) {}
+    let webgpu = "";
+    try {
+      if (navigator.gpu && navigator.gpu.requestAdapter) {
+        const adapter = await Promise.race([
+          navigator.gpu.requestAdapter(),
+          new Promise((resolve) => setTimeout(() => resolve(null), 700))
+        ]);
+        if (adapter) {
+          const info = adapter.info || {};
+          webgpu = adapter.name || info.description || info.vendor || "WebGPU adapter";
+        }
+      }
+    } catch (e) {}
+    const software = /swiftshader|llvmpipe|softpipe|software|microsoft basic/i.test(gpu);
+    const stack = (gpu && !software)
+      ? "Recommended stack: the desktop app on this computer for a local model, and this website for Grok."
+      : "Recommended stack: this website, with Grok. A desktop app can use a GPU machine later.";
+    return [
+      "This browser is on " + os + ".",
+      cores ? (cores + " CPU cores.") : "CPU cores could not be read.",
+      ram ? ("Memory hint " + ram + " GB.") : "Memory hint is hidden by this browser.",
+      "GPU " + (gpu || "could not be read") + ".",
+      webgpu ? ("WebGPU " + webgpu + ".") : "",
+      stack
+    ].filter(Boolean).join(" ");
+  }
+
+  async function detectHardware() {
+    revealConversation();
+    setReply("Reading this browser…");
+    let line = "";
+    try {
+      line = await probeMachine();
+    } catch (e) {
+      line = "This browser could not be read. Recommended stack: this website, with Grok.";
+    }
+    if (!line) line = "This browser could not be read. Recommended stack: this website, with Grok.";
+    setReply(line);
+    if ($("turtleLog")) $("turtleLog").textContent = line;
+    if ($("turtleLead")) $("turtleLead").textContent = "This is the browser on this computer. Nothing was installed.";
+    if ($("turtleStage")) $("turtleStage").textContent = "Ready";
+    revealConversation();
+  }
+
+  async function downloadNow() {
+    let data = {};
+    try {
+      const response = await fetch("/api/installers");
+      data = await response.json();
+    } catch (e) {}
+    const links = (data && data.installers) || [];
+    if (!links.length) {
+      setReply("Desktop app download coming soon.");
+      $("installWord").textContent = "Coming soon";
+      openThread();
+      return;
+    }
+    setReply(links.map((link) => link.label + " " + link.url).join("\n"));
+    openThread();
+  }
+
+  function openRent() {
+    $("drawer").hidden = false;
+    $("toolsToggle").setAttribute("aria-expanded", "true");
+    $("rent-sheet").hidden = false;
+    $("advancedNote").hidden = false;
+    $("autoOffer").textContent = "Renting would reserve a separate GPU computer so a local model can run there. Nothing is ordered from this website. Confirm Rent stays off until you are in the desktop app.";
+  }
+
+  function confirmRent() {
+    setReply("Confirm Rent is turned off on the website. It needs the desktop app. This site does not call a rental service.");
+    openThread();
+  }
+
+  function showTurtle() {
+    $("turtleScreen").hidden = false;
+  }
+
+  function hideTurtle(remember) {
+    $("turtleScreen").hidden = true;
+    if (remember) {
+      try { sessionStorage.setItem("simcoTurtleSeen", "1"); } catch (e) {}
+    }
+  }
+
+  async function bootAuth() {
+    try { authToken = sessionStorage.getItem("podcoderToken") || ""; } catch (e) { authToken = ""; }
+    try {
+      let data = await authPost({ op: "me", token: authToken });
+      if (!data.ok) {
+        const cookieSession = await authPost({ op: "me" });
+        if (cookieSession.ok) {
+          authToken = "";
+          try { sessionStorage.removeItem("podcoderToken"); } catch (e) {}
+          data = cookieSession;
+        }
+      }
+      if (!data.ok) {
+        showSignedOut();
+        return;
+      }
+      showSignedIn(data.email);
+      await refreshChats();
+    } catch (e) {
+      if (!hasSession() || !restoreCache()) showSignedOut();
+    }
+  }
+
+  function applyFold() {
+    let segmented = false;
+    try {
+      segmented = window.matchMedia("(horizontal-viewport-segments: 2), (vertical-viewport-segments: 2)").matches;
+    } catch (err) {
+      segmented = false;
+    }
+    const cover = window.matchMedia("(max-width: 640px), (max-height: 560px)").matches;
+    document.body.classList.toggle("narrow", !segmented && cover);
+  }
+
+  function bindFold() {
+    applyFold();
+    ["(max-width: 640px), (max-height: 560px)", "(horizontal-viewport-segments: 2), (vertical-viewport-segments: 2)"].forEach((query) => {
+      try { window.matchMedia(query).addEventListener("change", applyFold); } catch (err) {}
+    });
+  }
+
+  function armTurtleMotion() {
+    function markHidden() {
+      document.documentElement.classList.toggle("simco-turtle-paused", document.hidden);
+    }
+    document.addEventListener("visibilitychange", markHidden);
+    let idleTimer = 0;
+    function bump() {
+      document.documentElement.classList.remove("simco-turtle-idle");
+      window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(() => document.documentElement.classList.add("simco-turtle-idle"), 20000);
+    }
+    ["pointermove", "keydown", "touchstart"].forEach((name) => {
+      window.addEventListener(name, bump, { passive: true });
+    });
+    markHidden();
+    bump();
+  }
+
+  $("composer").addEventListener("submit", onSend);
+  $("everyday").addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      $("composer").requestSubmit();
+    }
+  });
+  $("signUp").addEventListener("click", () => openAuthModal("signup"));
+  $("signIn").addEventListener("click", () => openAuthModal("signin"));
+  $("confirmEmail").addEventListener("click", confirmEmail);
+  $("resetPassword").addEventListener("click", () => openReset());
+  $("setPassword").addEventListener("click", () => openReset());
+  $("signOut").addEventListener("click", signOut);
+  $("accountSignIn").addEventListener("click", () => openAuthModal("signin"));
+  $("accountSignOut").addEventListener("click", signOut);
+  $("authTabIn").addEventListener("click", () => { authMode = "signin"; paintAuthMode(); setAuthError(""); });
+  $("authTabUp").addEventListener("click", () => { authMode = "signup"; paintAuthMode(); setAuthError(""); });
+  $("authModalClose").addEventListener("click", closeAuthModal);
+  $("authModal").addEventListener("click", (event) => { if (event.target === $("authModal")) closeAuthModal(); });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !$("authModal").hidden) closeAuthModal();
+  });
+  $("authModalForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    setAuthError("");
+    submitAuth(authMode === "signup" ? "signup" : "signin", $("modalEmail").value.trim(), $("modalPassword").value);
+  });
+  $("authForgot").addEventListener("click", () => openReset());
+  $("authResetBack").addEventListener("click", () => openAuthModal("signin"));
+  $("authResetForm").addEventListener("submit", submitReset);
+  $("replySpeak").addEventListener("click", () => speakLine($("replySpeak").dataset.say || $("reply-bubble").textContent, $("replySpeak")));
+  $("toolsToggle").addEventListener("click", () => {
+    const drawer = $("drawer");
+    drawer.hidden = !drawer.hidden;
+    $("toolsToggle").setAttribute("aria-expanded", drawer.hidden ? "false" : "true");
+  });
+  $("newChat").addEventListener("click", newChat);
+  $("searchChats").addEventListener("click", () => {
+    $("chatSearch").hidden = false;
+    $("chatSearch").focus();
+  });
+  $("chatSearch").addEventListener("input", () => searchChats());
+  $("sendToChat").addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!hasSession()) {
+      needAccount();
+      return;
+    }
+    const typed = $("everyday").value.trim();
+    const note = typed || latestNote();
+    const preview = $("relayPreview");
+    if (preview) {
+      preview.textContent = note
+        ? ("Send this note: " + note)
+        : "Type a message in the box, then send it to another chat.";
+    }
+    const error = $("relayError");
+    if (error) {
+      error.hidden = true;
+      error.textContent = "";
+    }
+    fillChatSelect($("relayTarget"), chatRows, activeSessionId);
+    $("relayOverlay").hidden = false;
+  });
+  $("relayClose").addEventListener("click", () => { $("relayOverlay").hidden = true; });
+  $("relayOverlay").addEventListener("click", (event) => {
+    if (event.target === $("relayOverlay")) $("relayOverlay").hidden = true;
+  });
+  $("relayGo").addEventListener("click", sendToOtherChat);
+  $("backToList").addEventListener("click", () => { backToList(); });
+  $("roleCoding").addEventListener("click", () => setRole("coding"));
+  $("roleVideo").addEventListener("click", () => setRole("video"));
+  $("roleImage").addEventListener("click", () => setRole("image"));
+  $("detectHardware").addEventListener("click", detectHardware);
+  $("downloadNow").addEventListener("click", downloadNow);
+  $("whatRent").addEventListener("click", openRent);
+  $("confirmRentGo").addEventListener("click", confirmRent);
+  $("advancedLink").addEventListener("click", (event) => {
+    event.preventDefault();
+    $("drawer").hidden = false;
+    $("toolsToggle").setAttribute("aria-expanded", "true");
+    $("advancedNote").hidden = false;
+    $("rent-sheet").hidden = false;
+    openRent();
+  });
+  $("turtleEnter").addEventListener("click", () => hideTurtle(true));
+  $("turtlePeek").addEventListener("click", () => hideTurtle(false));
+  $("openTurtle").addEventListener("click", () => showTurtle());
+  $("openHost").addEventListener("click", () => {
+    $("hostRow").hidden = false;
+    $("hostHint").textContent = "This website talks to Grok here. The phone app can point at a computer. That redirect is off on the website.";
+    showTurtle();
+  });
+  $("hostSave").addEventListener("click", () => {
+    $("hostHint").textContent = "Left on this website. Chats stay with your account and Grok answers them here.";
+  });
+  $("turtleRedetect").addEventListener("click", () => detectHardware().then(() => showTurtle()));
+  $("turtleCheck").addEventListener("click", () => {
+    $("turtleStage").textContent = "Waiting";
+    $("turtleLead").textContent = "This website does not install a local model. The desktop app does that on the computer.";
+    $("turtleError").hidden = false;
+    $("turtleError").textContent = "Desktop app download coming soon.";
+  });
+  $("turtleAsk").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const text = $("turtleQuestion").value.trim();
+    if (!text) {
+      $("turtleError").hidden = false;
+      $("turtleError").textContent = "Type a question, then Send.";
+      return;
+    }
+    if (!hasSession()) {
+      $("turtleError").hidden = false;
+      $("turtleError").textContent = "Sign in to ask Simko SI.";
+      needAccount();
+      return;
+    }
+    $("turtleError").hidden = true;
+    $("turtleReply").textContent = "Working on it…";
+    $("everyday").value = text;
+    await onSend();
+    $("turtleReply").textContent = $("reply-bubble").textContent;
+    $("turtleQuestion").value = "";
+  });
+
+  window.addEventListener("simko-child", () => {
+    activeSessionId = "";
+    if (window.simcoVoice) window.simcoVoice.setContext(null);
+    refreshChats(null, { stayOnList: true });
+  });
+
+  bindFold();
+  armTurtleMotion();
+  showDemoList();
+  autoConnect();
+  bootAuth();
+  loadFamilyScript();
+  document.addEventListener("simco:voice-saved", function (event) {
+    const saved = event.detail;
+    if (sessionCache[saved.id]) sessionCache[saved.id].voice_id = saved.voice_id;
+    const row = chatRows.find(function (item) { return item.id === saved.id; });
+    if (row) row.voice_id = saved.voice_id;
+    cacheSave();
+  });
+  window.simcoApp = { needAccount: needAccount };
+})();

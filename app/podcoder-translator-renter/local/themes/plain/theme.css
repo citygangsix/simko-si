@@ -1,0 +1,68 @@
+/* No theme / Plain. No reef art and no decorative motion. */
+html[data-theme="plain"] body {
+  background-color: #f7f4ee !important;
+  background-image: none !important;
+  color: #1b2430;
+}
+html[data-theme="plain"] #themeStage,
+html[data-theme="plain"] #shellMark {
+  display: none !important;
+}
+html[data-theme="plain"] #themeStage,
+html[data-theme="plain"] #themeStage *,
+html[data-theme="plain"] .turtle-swim {
+  animation: none !important;
+  animation-play-state: paused !important;
+}
+html[data-theme="plain"] #chats,
+html[data-theme="plain"] #listDock,
+html[data-theme="plain"] #threadHead,
+html[data-theme="plain"] #drawer,
+html[data-theme="plain"] #input-bubble,
+html[data-theme="plain"] #turtleCard,
+html[data-theme="plain"] #sessionList button,
+html[data-theme="plain"] .bubble,
+html[data-theme="plain"] #reply-bubble,
+html[data-theme="plain"] #turtleLog {
+  background: #fff;
+  color: #1b2430;
+  border-color: #d9d3c7;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+html[data-theme="plain"] #threadTitle,
+html[data-theme="plain"] #turtleCard h2,
+html[data-theme="plain"] #turtleCard p,
+html[data-theme="plain"] #sheetBar,
+html[data-theme="plain"] #advancedLink,
+html[data-theme="plain"] #lifebook,
+html[data-theme="plain"] #lifeLast,
+html[data-theme="plain"] button,
+html[data-theme="plain"] #chrome a {
+  color: #1b2430;
+}
+html[data-theme="plain"] button,
+html[data-theme="plain"] #go,
+html[data-theme="plain"] #turtleAskSend {
+  background: #efeae2;
+  border-color: #cfc6b8;
+  color: #1b2430;
+}
+html[data-theme="plain"] #chatSearch,
+html[data-theme="plain"] #auth-bar input,
+html[data-theme="plain"] #hostUrl,
+html[data-theme="plain"] textarea,
+html[data-theme="plain"] #relay-sheet select,
+html[data-theme="plain"] #rent-sheet input[type="text"] {
+  background: #fff;
+  color: #1b2430;
+  border-color: #d9d3c7;
+}
+html[data-theme="plain"] textarea::placeholder,
+html[data-theme="plain"] #chatSearch::placeholder,
+html[data-theme="plain"] #reply-bubble:empty::before {
+  color: #66707a;
+}
+html[data-theme="plain"] #turtleScreen {
+  background: rgba(247, 244, 238, 0.92);
+}

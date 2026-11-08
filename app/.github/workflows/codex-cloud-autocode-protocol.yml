@@ -1,0 +1,60 @@
+name: Codex Cloud Autocode Protocol
+
+on:
+  pull_request:
+    paths:
+      - AGENTS.md
+      - CODEX_CLOUD_REPRO.md
+      - docs/CODEX_CLOUD_*.md
+      - artemis-templates/*master-batch.json
+      - artemis-templates/master-command-prompt-autocode.md
+      - scripts/codex-cloud-*.mjs
+      - scripts/master-batch-runner.mjs
+      - scripts/test-codex-cloud-autocode-protocol.mjs
+      - scripts/verify-codex-cloud-autocoding-completion.mjs
+      - package.json
+      - package-lock.json
+      - .github/workflows/codex-cloud-autocode-protocol.yml
+  push:
+    branches:
+      - main
+    paths:
+      - AGENTS.md
+      - CODEX_CLOUD_REPRO.md
+      - docs/CODEX_CLOUD_*.md
+      - artemis-templates/*master-batch.json
+      - artemis-templates/master-command-prompt-autocode.md
+      - scripts/codex-cloud-*.mjs
+      - scripts/master-batch-runner.mjs
+      - scripts/test-codex-cloud-autocode-protocol.mjs
+      - scripts/verify-codex-cloud-autocoding-completion.mjs
+      - package.json
+      - package-lock.json
+      - .github/workflows/codex-cloud-autocode-protocol.yml
+
+jobs:
+  protocol:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Doctor checks include canonical autocode entrypoint
+        run: npm run codex:cloud:doctor
+
+      - name: Syntax check protocol scripts
+        run: |
+          node --check scripts/master-batch-runner.mjs
+          node --check scripts/codex-cloud-autocode-run.mjs
+          node --check scripts/verify-codex-cloud-autocoding-completion.mjs
+          node --check scripts/test-codex-cloud-autocode-protocol.mjs
+
+      - name: Enforced protocol failure-mode tests
+        run: npm run codex:cloud:autocode-run:test

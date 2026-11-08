@@ -1,0 +1,6 @@
+cryptography>=44,<50
+keyring>=25,<26
+# Optional integrations
+plyer>=2.1,<3
+PyJWT[crypto]>=2.10,<3
+# Browser driving: install playwright separately, then python -m playwright install chromium

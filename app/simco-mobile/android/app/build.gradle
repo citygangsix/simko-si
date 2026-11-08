@@ -1,0 +1,78 @@
+apply plugin: 'com.android.application'
+
+// Release signing reads a properties file that lives OUTSIDE the repo.
+// Point SIMCO_KEYSTORE_PROPERTIES at it (default: ~/simco-si-keys/keystore.properties).
+// Keys: storeFile, storePassword, keyAlias, keyPassword. Never commit that file or the .jks.
+def simcoKeystorePropsPath = System.getenv("SIMCO_KEYSTORE_PROPERTIES") ?: "${System.getProperty('user.home')}/simco-si-keys/keystore.properties"
+def simcoKeystoreProps = new Properties()
+def simcoKeystoreFile = file(simcoKeystorePropsPath)
+if (simcoKeystoreFile.exists()) {
+    simcoKeystoreFile.withInputStream { simcoKeystoreProps.load(it) }
+}
+def simcoHasReleaseKey = simcoKeystoreProps.getProperty('storeFile') != null
+
+android {
+    namespace "com.simkosi.simcosi"
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.simkosi.simcosi"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode ((System.getenv("SIMCO_VERSION_CODE") ?: "1") as Integer)
+        versionName (System.getenv("SIMCO_VERSION_NAME") ?: "1.0")
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            if (simcoHasReleaseKey) {
+                storeFile file(simcoKeystoreProps.getProperty('storeFile'))
+                storePassword simcoKeystoreProps.getProperty('storePassword')
+                keyAlias simcoKeystoreProps.getProperty('keyAlias')
+                keyPassword simcoKeystoreProps.getProperty('keyPassword')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Signed with the upload key when the keystore properties file exists outside the repo.
+            // Without it the release stays unsigned, as before.
+            signingConfig simcoHasReleaseKey ? signingConfigs.release : null
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

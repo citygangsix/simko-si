@@ -1,0 +1,87 @@
+# Logs
+logs
+*.log
+.hermes-hands/
+.dev-server/
+.frontier-worker/
+.background-jobs/
+.local-services/
+.workflow/
+.artemis/
+.artemis-test/
+.openclaw/
+.omega/
+project-autosaves/snapshots/
+project-autosaves/latest-manifest.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+!.env.worker.example
+supabase/.env
+supabase/.env.local
+supabase/.env.*.local
+supabase/.temp/
+
+# Generated local browser/runtime artifacts
+public/artemis-screenshots/
+public/artemis-status.json
+
+# Local/exported bundles and generated archives
+*.zip
+backups/
+hostinger-upload-these-files/
+project-autosaves/
+organicsraw-*/
+OGRAW-LIVE-UPDATE.zip
+OGRAW-live-index-*.js
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# IBM/local transfer state: keep templates in Git, never runtime data or secrets
+*.dump
+*.backup
+*.sql.gz
+*.tar.gz
+*.enc
+.ibm-runtime/
+ibm-data/
+ibm-secrets/
+TRANSFER-MANIFEST.local.json
+.granite-github-agent/
+granite-github-state/
+granite-github-repositories/
+
+# Phone signing material and native build output. Never commit a keystore.
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+simco-mobile/android/.gradle/
+simco-mobile/android/app/build/
+simco-mobile/android/build/
+simco-mobile/android/local.properties
+simco-mobile/ios/App/Pods/
+simco-mobile/ios/DerivedData/
+simco-mobile/node_modules/
+
+# Python tool bytecode (generated, never source)
+tools/__pycache__/

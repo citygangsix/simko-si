@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+status/
+missions/
+.env
+*.key
+secrets*
+vault/
+.aider*
+AIDER_MSG*
+mission-*-status.json

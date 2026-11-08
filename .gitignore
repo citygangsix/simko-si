@@ -1,0 +1,26 @@
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+config.php
+simkosi-private/
+*.pem
+*.key
+*.p8
+*.p12
+# Data
+data/
+*.sqlite
+*.sqlite3
+*.db
+*.log
+# Deps / builds
+node_modules/
+dist/
+target/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/

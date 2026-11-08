@@ -1,0 +1,23 @@
+FROM node:22-alpine
+
+RUN apk add --no-cache ca-certificates git \
+  && mkdir -p /app/server/lib /app/scripts /app/public /var/lib/granite-github /var/lib/granite-repositories \
+  && chown -R node:node /app /var/lib/granite-github /var/lib/granite-repositories
+
+WORKDIR /app
+COPY --chown=node:node package.json ./package.json
+COPY --chown=node:node server/lib/graniteGithubAgent.js server/lib/graniteGithubAgentLoop.js server/lib/graniteGithubAgentServer.js server/lib/graniteGithubAppAuth.js server/lib/graniteGithubApprovalStore.js server/lib/graniteGithubAuditStore.js server/lib/graniteGithubCrypto.js server/lib/graniteGithubRepositoryManager.js server/lib/graniteGithubStore.js ./server/lib/
+COPY --chown=node:node scripts/granite-github-agent-server.mjs ./scripts/
+COPY --chown=node:node public/granite-github-agent.html ./public/
+
+ENV NODE_ENV=production \
+    HOME=/tmp \
+    GRANITE_GITHUB_HOST=0.0.0.0 \
+    GRANITE_GITHUB_PORT=8791 \
+    GRANITE_GITHUB_STATE_DIR=/var/lib/granite-github \
+    GRANITE_GITHUB_REPOSITORIES_DIR=/var/lib/granite-repositories
+
+USER node
+EXPOSE 8791
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=5 CMD ["node", "-e", "fetch('http://127.0.0.1:8791/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+CMD ["node", "scripts/granite-github-agent-server.mjs"]

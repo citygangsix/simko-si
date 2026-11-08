@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Calculator</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; }
+button { margin: 5px; padding: 10px; font-size: 16px; }
+#display { font-size: 24px; margin: 10px; text-align: right; }
+</style>
+</head>
+<body>
+<div>
+<input type="text" id="display" readonly>
+<button id="clear">c</button>
+<button id="eq">=</button>
+<button id="back">⌫</button>
+<button id="7">7</button>
+<button id="8">8</button>
+<button id="9">9</button>
+<button id="4">4</button>
+<button id="5">5</button>
+<button id="6">6</button>
+<button id="1">1</button>
+<button id="2">2</button>
+<button id="3">3</button>
+<button id="0">0</button>
+<button id=".">.</button>
+<button id="minus">-</button>
+<button id="plus">+</button>
+<button id="times">*</button>
+<button id="divide">÷</button>
+</div>
+
+<script>
+const display = document.getElementById('display');
+let expr = '';               // full expression string without '='
+let waitingForOperand = true; // true after clear or after operator; false after digits
+const ops = {
+    '*': (a, b) => a * b,
+    '+': (a, b) => a + b,
+    '-': (a, b) => a - b,
+    '/': (a, b) => b !== 0 ? a / b : NaN
+};
+
+function updateDisplay() {
+    display.value = expr || '0';
+}
+
+function evalExpr(expr) {
+    if (!expr) return 0;
+    // simple left-to-right eval respecting * precedence
+    // parse numbers and operators; handle * before + - /
+    // first pass: collect numbers and operators
+    const tokens = [];
+    for (let i = 0; i < expr.length; i++) {
+        if (expr[i].match(/^\d/)) {
+            let numStr = '';
+            while (i < expr.length && (expr[i].match(/^\d/) || expr[i] === '.')) {
+                numStr += expr[i];
+                i++;
+            }
+            i--; // step back because loop increments
+            tokens.push({type: 'num', val: parseFloat(numStr)});
+        } else if (expr[i] === '*' || expr[i] === '+' || expr[i] === '-' || expr[i] === '/') {
+            tokens.push({type: 'op', val: expr[i]});
+        }
+        // ignore spaces
+    }
+    // evaluate * first
+    for (let i = 0; i < tokens.length; i++) {
+        if (tokens[i].type === 'op' && tokens[i].val === '*') {
+            const left = tokens[i-1].val;
+            const right = tokens[i+1].val;
+            tokens[i-1].val = ops['*'](left, right);
+            tokens[i] = null;
+            tokens[i+1] = null;
+            // adjust length
+            tokens.splice(i-1, 3); // remove left num, op *, right num
+            i = -1; // restart scan
+        }
+    }
+    // now tokens should be numbers and +/-/\/ only
+    let result = tokens[0].val;
+    for (let i = 1; i < tokens.length; i++) {
+        if (tokens[i].type === 'op') {
+            const op = tokens[i].val;
+            const right = tokens[i+1].val;
+            switch (op) {
+                case '+': result = ops['+'](result, right); break;
+                case '-': result = ops['-'](result, right); break;
+                case '/': result = ops['/'](result, right); break;
+            }
+        }
+    }
+    return result;
+}
+
+function handleDigit(d) {
+    if (waitingForOperand) {
+        expr = '';
+        waitingForOperand = false;
+    }
+    expr += d;
+    updateDisplay();
+}
+
+function handleDecimal() {
+    if (!waitingForOperand) {
+        // allow decimal after start or after operator
+        expr += '.';
+        updateDisplay();
+    } else {
+        // if expr is empty, start number with '.'? not ideal but allow
+        expr = '.';
+        updateDisplay();
+        waitingForOperand = false;
+    }
+}
+
+function handleOperator(op) {
+    if (waitingForOperand) {
+        // just starting expression, put operator after first number? No, we need number first.
+        // So if expr is empty and waitingForOperand true, ignore or set expr = ''? We'll require number first.
+        return;
+    }
+    // add operator to expr
+    expr += op;
+    waitingForOperand = true;
+    updateDisplay();
+}
+
+function handleEqual() {
+    if (!waitingForOperand && expr) {
+        const val = evalExpr(expr);
+        expr = String(val); // keep simple string without trailing .0 maybe
+        updateDisplay();
+        waitingForOperand = true; // after result, wait for next operand
+    }
+}
+
+function handleClear() {
+    expr = '';
+    waitingForOperand = true;
+    updateDisplay();
+}
+
+function handleBack() {
+    if (expr) {
+        expr = expr.slice(0, -1);
+        updateDisplay();
+        // if expr becomes empty, set waitingForOperand = true
+        if (expr === '') waitingForOperand = true;
+    }
+}
+
+// Attach listeners
+document.getElementById('eq').addEventListener('click', handleEqual);
+document.getElementById('c').addEventListener('click', handleClear);
+document.getElementById('⌫').addEventListener('click', handleBack); // back button id is 'back' actually we used 'back' id? We used 'back' id? In buttons we have id="back"? No, we used id="back"? Actually we wrote <button id="back">⌫</button> yes id="back". So correct.
+document.getElementById('back').addEventListener('click', handleBack);
+
+// digits
+for (let i = 0; i < 10; i++) {
+    const btn = document.getElementById(String(i));
+    if (btn) {
+        btn.addEventListener('click', () => handleDigit(String(i)));
+    }
+}
+document.getElementById('.').addEventListener('click', handleDecimal);
+
+// operators
+document.getElementById('times').addEventListener('click', () => handleOperator('*'));
+document.getElementById('plus').addEventListener('click', () => handleOperator('+'));
+document.getElementById('minus').addEventListener('click', () => handleOperator('-'));
+document.getElementById('divide').addEventListener('click', () => handleOperator('/'));
+
+// initial display
+updateDisplay();
+</script>
+</body>
+</html>

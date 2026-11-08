@@ -1,0 +1,118 @@
+{
+  "version": "2026.05.30.master-batch-template-v1",
+  "subject": "Generic MASTER autocoding template",
+  "batchGoal": "Use this generic template only as a base. Every real task must create a feature-specific artemis-templates/<feature-name>-master-batch.json overlay.",
+  "scope": "Discovery, implementation, verification, repair, and handoff.",
+  "sequencingRule": "Execute batches in listed order. Do not start batch N+1 until batch N has fully passed verification.",
+  "failPolicy": "Run targeted FIX -> RETEST loops for ordinary failures until all required deliverables pass or a true approval/secret/access/external/platform blocker is reached.",
+  "maxRetryLoopsPerBatch": "Unlimited",
+  "globalOutputFormat": [
+    "generated batch plan",
+    "feature-specific MASTER template path",
+    "selected batch count",
+    "prompt count",
+    "max verify loops",
+    "each batch status",
+    "retry/fix history",
+    "changed files",
+    "tests/checks run",
+    "risks",
+    "approval-gated items not executed",
+    "MASTER runner output",
+    "HEAD SHA",
+    "valid GitHub PR URL",
+    "PR committed file list",
+    "final deliverables completion matrix"
+  ],
+  "deliverablesCompletionMatrix": [
+    {
+      "batchId": "batch-1-discovery-template",
+      "deliverable": "Feature-specific MASTER template is created before implementation.",
+      "status": "planned"
+    },
+    {
+      "batchId": "batch-2-implementation-template",
+      "deliverable": "Implementation updates the required frontend, backend, docs, tests, and config surfaces.",
+      "status": "planned"
+    },
+    {
+      "batchId": "batch-3-verification-template",
+      "deliverable": "Verification passes or reports an exact approval/external blocker.",
+      "status": "planned"
+    }
+  ],
+  "batches": [
+    {
+      "id": "batch-1-discovery-template",
+      "objective": "Inspect the repo and create a feature-specific MASTER batch template.",
+      "deliverables": [
+        "Feature-specific template exists",
+        "Template includes deliverables matrix",
+        "Template includes acceptance criteria and approval gates"
+      ],
+      "verify": {
+        "files": [
+          "AGENTS.md",
+          "artemis-templates/master-command-prompt-autocode.md"
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Patch missing template requirements and rerun this batch."
+        ]
+      }
+    },
+    {
+      "id": "batch-2-implementation-template",
+      "objective": "Implement the requested product or code outcome.",
+      "deliverables": [
+        "Code or docs are updated in canonical repo files",
+        "Approval-gated actions are preserved",
+        "Unrelated refactors are avoided"
+      ],
+      "verify": {
+        "commands": [
+          "npm run typecheck"
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Patch failed implementation checks and rerun this batch."
+        ]
+      }
+    },
+    {
+      "id": "batch-3-verification-template",
+      "objective": "Run final verification and report completion proof.",
+      "deliverables": [
+        "Relevant checks pass",
+        "MASTER runner output exists",
+        "Final answer includes completion proof"
+      ],
+      "verify": {
+        "commands": [
+          "npm run codex:cloud:startup -- --json"
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Patch failed verification and rerun this batch."
+        ]
+      }
+    }
+  ],
+  "graniteCloudDefault": {
+    "model": "granite4.2:8b-q8_0",
+    "runtime": "Ollama raw /api/chat",
+    "params": {
+      "think": false,
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "num_ctx": 8192,
+      "stream": true
+    },
+    "codingOrder": "Granite primary \u2192 verify \u2192 Aider only-when-needed after \u22652 raw FAIL",
+    "gpuClass": "RTX 3090-class ~24GB",
+    "updated": "2026-10-28T10:18EDT"
+  }
+}

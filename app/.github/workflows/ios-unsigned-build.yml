@@ -1,0 +1,100 @@
+# Simko SI: unsigned iOS builds on a macOS runner. No Apple account, no secrets, no signing.
+#   - Simulator build: App.app zipped (runs in the Xcode iOS Simulator on any Mac).
+#   - Device build: unsigned .xcarchive plus an unsigned .ipa (cannot install on a real
+#     iPhone until it is signed with a paid Apple Developer team; see ios-testflight.yml).
+# Nothing is uploaded to Apple and nothing is submitted for review.
+name: iOS unsigned build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [cursor/simko-si-ios-build]
+    paths:
+      - "simco-mobile/**"
+      - "podcoder-translator-renter/local/**"
+      - ".github/workflows/ios-unsigned-build.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-unsigned-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: simco-mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: simco-mobile/package-lock.json
+
+      - name: Select newest Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)" && xcodebuild -version
+
+      - name: Install JS deps, bundle UI, sync iOS (runs pod install)
+        run: |
+          npm ci --no-audit --no-fund
+          node test-host-url.mjs
+          bash sync-www.sh
+          npx cap sync ios
+          test -d ios/App/Pods || (cd ios/App && pod install)
+
+      - name: Build for iOS Simulator (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd-sim" \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee "$RUNNER_TEMP/sim.log" | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
+          APP="$RUNNER_TEMP/dd-sim/Build/Products/Debug-iphonesimulator/App.app"
+          test -d "$APP" || { tail -150 "$RUNNER_TEMP/sim.log"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/out"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "$RUNNER_TEMP/out/SimkoSI-simulator.app.zip"
+
+      - name: Archive for device (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/SimkoSI.xcarchive" \
+            -derivedDataPath "$RUNNER_TEMP/dd-dev" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tee "$RUNNER_TEMP/archive.log" | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          test -d "$RUNNER_TEMP/SimkoSI.xcarchive/Products/Applications/App.app" || { tail -150 "$RUNNER_TEMP/archive.log"; exit 1; }
+          cd "$RUNNER_TEMP"
+          ditto -c -k --sequesterRsrc --keepParent SimkoSI.xcarchive out/SimkoSI-unsigned.xcarchive.zip
+          mkdir -p ipa/Payload && cp -R SimkoSI.xcarchive/Products/Applications/App.app ipa/Payload/
+          (cd ipa && zip -qry ../out/SimkoSI-unsigned.ipa Payload)
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simko-si-ios-unsigned
+          path: ${{ runner.temp }}/out/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: simko-si-ios-build-logs
+          path: ${{ runner.temp }}/*.log
+          if-no-files-found: ignore

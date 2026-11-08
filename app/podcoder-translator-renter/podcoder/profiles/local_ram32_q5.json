@@ -1,0 +1,11 @@
+{
+  "id": "local_ram32_q5",
+  "compute": "local",
+  "label": "Aspire Ryzen 7000 32GB",
+  "model": "granite4.2:8b-q5_0",
+  "quant": "Q5",
+  "device": "cpu_igpu",
+  "ram_gb": 32,
+  "install": "install-local-aspire.sh",
+  "note": "Joseph's Acer Aspire (Ryzen 7000, Radeon, 32GB RAM). Coding Download uses granite4.2:8b-q5_0. Do not pull the cloud q8 tag here."
+}

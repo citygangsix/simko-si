@@ -1,0 +1,12 @@
+[Unit]
+Description=Ollama for PodCoder
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env ollama serve
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

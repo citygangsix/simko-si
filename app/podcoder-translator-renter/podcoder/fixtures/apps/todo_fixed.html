@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>To-Do</title>
+<style>.done{text-decoration:line-through;color:#888}li{cursor:pointer}</style></head><body>
+<h1>My To-Do List</h1>
+<input type="text" id="task" placeholder="New task"> <button id="add">Add</button>
+<ul id="list"></ul>
+<script>
+function addTask() {
+  const input = document.getElementById('task');
+  const text = input.value.trim();
+  if (!text) return;
+  const li = document.createElement('li');
+  li.textContent = text;
+  li.addEventListener('click', () => li.classList.toggle('done'));
+  document.getElementById('list').appendChild(li);
+  input.value = '';
+}
+document.getElementById('add').addEventListener('click', addTask);
+document.getElementById('task').addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+</script></body></html>

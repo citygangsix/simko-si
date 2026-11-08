@@ -1,0 +1,19 @@
+{
+  "name": "simko-si-tauri",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:mac:universal": "tauri build --target universal-apple-darwin --config src-tauri/tauri.macos.conf.json",
+    "build:windows": "tauri build --config src-tauri/tauri.windows.conf.json",
+    "build:linux": "tauri build --config src-tauri/tauri.linux.conf.json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4"
+  }
+}
