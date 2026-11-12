@@ -106,11 +106,14 @@ if ($reply === '') {
 simko_usage_record((int) $user['id'], !empty($body['voice']) ? 'voice' : 'message');
 simko_memory_learn((int) $user['id'], $memoryChild, $text);
 
-simko_ok([
+$payload = [
     'everyday' => $reply,
     'raw' => '',
     'model' => $model,
     'intent' => $feature === '' ? 'chat' : $feature,
     'usage' => simko_flag('paywall') ? simko_usage_snapshot((int) $user['id']) : null,
-    'sources' => simko_flag('search') ? simko_search_sources($data, $strictSearch) : [],
-]);
+];
+if (simko_flag('search')) {
+    $payload['sources'] = simko_search_sources($data, $strictSearch);
+}
+simko_ok($payload);

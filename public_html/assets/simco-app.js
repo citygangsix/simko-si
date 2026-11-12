@@ -755,7 +755,7 @@
         voice: !!voiceTurn,
         child_id: window.simcoChildId || undefined
       });
-      if (data && data.sources && window.simcoPlatform) window.simcoPlatform.showSources(data.sources);
+      if (data && Array.isArray(data.sources) && data.sources.length && window.simcoPlatform) window.simcoPlatform.showSources(data.sources);
       if (data && data.paywall) {
         if (window.simcoPlatform) window.simcoPlatform.showPaywall(data);
         setReply(data.error || "The 5 free messages are used up.");
@@ -1157,7 +1157,7 @@
   $("roleVideo").addEventListener("click", () => setRole("video"));
   $("roleImage").addEventListener("click", () => setRole("image"));
   $("detectHardware").addEventListener("click", detectHardware);
-  $("downloadNow").addEventListener("click", downloadNow);
+  // Download uses the installer href on #downloadNow.
   $("whatRent").addEventListener("click", openRent);
   $("confirmRentGo").addEventListener("click", confirmRent);
   $("advancedLink").addEventListener("click", (event) => {

@@ -353,7 +353,7 @@
     max-height: 8rem;
   }
   textarea::placeholder { color: #f3e6d8; opacity: 1; }
-  button {
+  button, #downloadNow {
     border: 1px solid rgba(255, 196, 176, 0.75);
     border-radius: 999px;
     background: rgba(255, 127, 106, 0.2);
@@ -362,6 +362,7 @@
     font: inherit;
     padding: 0.55rem 0.95rem;
     touch-action: manipulation;
+    text-decoration: none;
   }
   button[aria-pressed="true"] { outline: 2px solid #ffd6c4; }
   #micButton {
@@ -1515,7 +1516,7 @@
   <button id="browseOpen" type="button" hidden>Read page</button>
   <button id="storeOpen" type="button" hidden>Store</button>
   <button id="detectHardware" type="button">Detect</button>
-  <button id="downloadNow" type="button">Download</button>
+  <a id="downloadNow" href="https://github.com/citygangsix/simko-si/releases/download/v0.2.0/SimkoSI_0.2.0_x64-setup.exe">Download</a>
   <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>
   <button id="computeLocal" type="button" aria-pressed="false">Local</button>
   <button id="rentComputer" type="button">Rent</button>
