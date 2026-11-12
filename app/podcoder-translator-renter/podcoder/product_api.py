@@ -882,6 +882,10 @@ def _try_handle(method: str, path: str, body: dict | None, state: Path) -> tuple
         voiced = _voice_route(method, path, body, state)
         if voiced is not None:
             return voiced
+    import core_api
+    core = core_api.try_handle(method, path, body, state)
+    if core is not None:
+        return core
     import independence_api
     extra = independence_api.try_handle(method, path, body, state)
     if extra is not None:

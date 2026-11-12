@@ -149,6 +149,11 @@ class H(BaseHTTPRequestHandler):
 
     def _product(self, method: str, body: dict | None = None) -> bool:
         path = urlparse(self.path).path.rstrip("/") or "/"
+        if method == "GET" and body is None:
+            import core_api
+            if core_api.handles(path):
+                from urllib.parse import parse_qs
+                body = {k: v[-1] for k, v in parse_qs(urlparse(self.path).query).items()}
         if path.startswith("/api/platform/"):
             import platform_api
             from http.cookies import SimpleCookie

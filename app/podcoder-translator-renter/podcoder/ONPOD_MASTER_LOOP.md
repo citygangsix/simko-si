@@ -46,10 +46,11 @@ Add one **on-pod daemon** the rented box starts with Ollama. The chat/renter UI 
 ### Daemon loop (per batch in template)
 
 1. **Translate** everyday/current batch objective → Type A payload (reuse `everyday_to_granite` / Utah detectIntent).
+   **Seed verify:** the runner checks that the seed file and the batch objective are both in the Type A prompt. If either is missing it fails loudly (`seed_verify_fail`) and never calls Granite or Aider.
 2. **Granite primary:** `POST localhost:11434/api/chat` (think:false, temp 1.0, top_p 0.95, num_ctx≥8192). Abort if no useful tokens in 60–90s.
 3. **Write** model HTML/patch into workspace; record artifact.
 4. **Verify** batch `verify.commands` / click-assert / file checks.
-5. On FAIL: FIX→RETEST with a tighter Type A rewrite (same batch). After 2 fails → if `allowAider`, **one surgical Aider**; else RUNAROUND BREAKER and stop with report.
+5. On FAIL: FIX→RETEST with a tighter Type A rewrite (same batch). After 2 fails → if `allowAider`, **at most ONE surgical Aider round per task** (never a second); else RUNAROUND BREAKER and stop with report.
 6. On PASS: advance to next batch. Never call Vast rent/destroy unless mission `allowRent` **and** Joseph exact words already recorded in mission.
 7. Write `mission-status.json` + `final-response.md` the UI polls.
 

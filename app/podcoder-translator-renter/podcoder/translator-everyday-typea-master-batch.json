@@ -1,5 +1,5 @@
 {
-  "version": "2026.10.28.translator-everyday-typea-master-batch-v2-granite-first",
+  "version": "2026.10.30.translator-everyday-typea-master-batch-v3-master-sync",
   "subject": "Everyday English \u2192 Type A Granite translator + chat picker + confirm-gated Vast rent",
   "basedOn": [
     "artemis-templates/master-batch-template.json@2026.05.30",
@@ -10,7 +10,7 @@
   "batchGoal": "Finish the translator product path on Utah Vast 58092881 using MASTER sequential batches: FE shell \u2192 translate logic \u2192 chat+picker \u2192 Send \u2192 confirm-gated rent UI; optional Aider only for surgical fails. Dual success = working UI + Type A POST that produces usable Granite prompts; Gate6 rent must be confirm-gated and must NOT rent without Joseph's exact words.",
   "scope": "Discovery, implementation, verification, repair, handoff. No second rent, no destroy, no Wan unless Joseph asks.",
   "sequencingRule": "Execute batches in listed order. Do not start batch N+1 until batch N has fully passed verification.",
-  "failPolicy": "ALWAYS lead with raw Granite Type A (granite4.2:8b-q8_0). Targeted FIX\u2192RETEST on current batch (max 2 raw). Aider ONLY when necessary after those raw fails \u2014 one surgical round then RUNAROUND BREAKER. Abort empty GPU burns ~60\u201390s. Never Vast rent/destroy without Joseph exact words. Seed-aware prompts: edit THIS file; reject Calculator-style wipe of translator.",
+  "failPolicy": "ALWAYS lead with raw Granite Type A (granite4.2:8b-q8_0). Targeted FIX\u2192RETEST on current batch (max 2 raw). Aider ONLY when necessary after those raw fails \u2014 at most ONE surgical round per task, then RUNAROUND BREAKER. Abort empty GPU burns ~60\u201390s. Never Vast rent/destroy without Joseph exact words. Seed-aware prompts: edit THIS file; reject Calculator-style wipe of translator. Seed verify: seed + objective must survive into the Type A prompt or the task fails loudly before Granite.",
   "maxRetryLoopsPerBatch": "Unlimited targeted; abort empty GPU burns quickly",
   "approvalGate": {
     "requiredFor": [
@@ -65,7 +65,7 @@
     {
       "batchId": "batch-6-granite-click-assert",
       "deliverable": "Same tag FE then logic: raw Ollama think:false; optional Aider surgical only after raw fail; no thrash.",
-      "status": "planned"
+      "status": "skipped_mvp"
     },
     {
       "batchId": "batch-7-onpod-runner",
@@ -199,7 +199,9 @@
     "utah": "58092881 shut by Joseph 2026-10-28; not a live target",
     "model": "granite4.2:8b-q8_0",
     "method": "Granite-first; Aider only-when-needed (locked v2)",
-    "updated": "2026-10-28T14:21:09Z"
+    "updated": "2026-10-28T14:21:09Z",
+    "batch7": "PASS dry-verify",
+    "masterSync": "2026-10-30"
   },
   "executorPolicy": {
     "primary": "granite4.2:8b-q8_0 via Ollama raw /api/chat",
@@ -212,11 +214,11 @@
     },
     "promptStyle": "Type A DOCTYPE-first; one feature per prompt; when editing, include full seed HTML (surgical rewrite of THIS file)",
     "orderOfOperations": [
-      "1. Translate everyday/batch objective \u2192 Type A (seed-aware if file exists)",
+      "1. Translate everyday/batch objective \u2192 Type A (seed-aware if file exists), then SEED VERIFY: seed + objective present in prompt or fail loudly",
       "2. Granite raw /api/chat (never lead with Aider)",
       "3. Verify (DOCTYPE, feature checks, reject unrelated page e.g. Calculator wipe)",
       "4. On FAIL: FIX\u2192RETEST with tighter Type A rewrite (same batch), max 2 raw attempts",
-      "5. Aider ONLY if allowAider and after \u22652 raw Granite FAIL/incomplete \u2014 one surgical round, then RUNAROUND",
+      "5. Aider ONLY if allowAider and after \u22652 raw Granite FAIL/incomplete \u2014 at most ONE surgical round per task, then RUNAROUND",
       "6. Never Vast rent/destroy without Joseph exact words"
     ],
     "aider": {
@@ -224,7 +226,8 @@
       "when": "ONLY after raw Granite FAIL or incomplete (\u22652 attempts) OR explicit surgical finish of a verify-near-miss",
       "maxSurgicalRounds": 1,
       "stopThrash": true,
-      "neverReplaceSeedWithUnrelatedApp": true
+      "neverReplaceSeedWithUnrelatedApp": true,
+      "maxRoundsPerTask": 1
     },
     "abortEmptySeconds": [
       60,
@@ -240,7 +243,15 @@
       "defaultModel": "granite4.2:8b-q8_0",
       "note": "Joseph plan 2026-10-28: use this Granite tag going forward on cloud computers of similar strength"
     },
-    "updated": "2026-10-28T10:18EDT"
+    "updated": "2026-10-30 master-sync",
+    "seedVerify": {
+      "required": true,
+      "checks": [
+        "seed (current file) verbatim in Type A user prompt",
+        "objective verbatim in Type A user prompt"
+      ],
+      "onFail": "seed_verify_fail; stop before Granite/Aider"
+    }
   },
   "codingPreference": {
     "primary": "ollama raw /api/chat Type A with granite4.2:8b-q8_0",
@@ -264,6 +275,6 @@
     "runtime": "Ollama /api/chat",
     "gpuClass": "RTX 3090-class 24GB high-BW (or equal)",
     "futurePods": "Prefer same model tag + recipe on every rented box of this class",
-    "aiderRole": "secondary surgical only"
+    "aiderRole": "secondary surgical only; max 1 round per task"
   }
 }

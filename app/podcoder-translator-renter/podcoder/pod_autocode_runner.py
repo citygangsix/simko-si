@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Thin on-pod MASTER autocode loop. Granite-first; Aider only if necessary.
+"""Thin on-pod MASTER autocode loop. Granite-first; Aider at most ONE round per task, only if necessary.
+Seed verify: the task seed + objective must survive into the Type A prompt or the task fails loudly.
 Never calls Vast rent/destroy. Prefer --dry-verify for smoke without GPU thrash.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -17,13 +19,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-ROOT = Path("/opt/podcoder")
+ROOT = Path(os.environ.get("PODCODER_ROOT") or "/opt/podcoder")
 INBOX = ROOT / "missions" / "inbox"
 STATUS_DIR = ROOT / "status"
 DEFAULT_TEMPLATE = ROOT / "translator-everyday-typea-master-batch.json"
 OLLAMA = "http://127.0.0.1:11434/api/chat"
 MODEL = "granite4.2:8b-q8_0"
-AIDER = Path("/root/run-aider-granite.sh")
+AIDER = Path(os.environ.get("PODCODER_AIDER") or "/root/run-aider-granite.sh")
+MAX_AIDER_ROUNDS_PER_TASK = 1
 ABORT_USEFUL_S = 75
 VAST_BAN = ("vast.ai", "console.vast.ai", "create_instance", "/api/v0/commands/create")
 
@@ -43,15 +46,66 @@ except Exception:
 
 
 def take_aider_round(mission: dict[str, Any]) -> bool:
-    """Hard cap: one surgical Aider round per mission."""
+    """Hard cap: at most ONE surgical Aider round per task (mission).
+
+    Granite always goes first; callers only ask for Aider after raw Granite
+    attempts failed. A mission-supplied maxSurgicalRounds can lower the cap
+    to 0 but can never raise it above MAX_AIDER_ROUNDS_PER_TASK.
+    """
     if not mission.get("allowAider"):
         return False
+    try:
+        cap = int(mission.get("maxSurgicalRounds", MAX_AIDER_ROUNDS_PER_TASK))
+    except (TypeError, ValueError):
+        cap = MAX_AIDER_ROUNDS_PER_TASK
+    cap = max(0, min(cap, MAX_AIDER_ROUNDS_PER_TASK))
     used = int(mission.get("_aider_used") or 0)
-    if used >= 1:
+    if used >= cap:
         return False
     mission["_aider_used"] = used + 1
-    mission["maxSurgicalRounds"] = 1
+    mission["maxSurgicalRounds"] = cap
     return True
+
+
+class SeedVerifyError(RuntimeError):
+    """Raised when the task seed or objective did not survive into the Type A prompt."""
+
+
+def _norm(text: str) -> str:
+    return re.sub(r"\s+", " ", text or "").strip()
+
+
+def verify_seed_in_payload(payload: dict[str, Any], seed_html: str | None, objective: str | None) -> str:
+    """Confirm the seed HTML and objective are present in the Type A user prompt.
+
+    Fails loudly (SeedVerifyError) instead of letting Granite invent an unrelated page.
+    """
+    msgs = payload.get("messages") or []
+    user = "\n".join(str(m.get("content") or "") for m in msgs if m.get("role") == "user")
+    if not user.strip():
+        raise SeedVerifyError("SEED VERIFY FAIL: Type A payload has no user prompt")
+    problems = []
+    obj = (objective or "").strip()
+    if obj and _norm(obj) not in _norm(user):
+        problems.append("objective missing from Type A prompt")
+    seed = (seed_html or "").strip()
+    if seed and seed.lstrip().lower().startswith("<!doctype") and seed not in user:
+        problems.append(f"seed ({len(seed)} chars) missing from Type A prompt")
+    if problems:
+        raise SeedVerifyError("SEED VERIFY FAIL: " + "; ".join(problems))
+    return "seed verify ok" + (" (seed+objective)" if seed else " (objective; no seed)")
+
+
+def seed_verify_fail(mission_dir: Path, status: dict[str, Any], bid: str, err: Exception) -> dict[str, Any]:
+    msg = str(err)
+    print(msg, file=sys.stderr, flush=True)
+    status["status"] = "fail"
+    status["breaker"] = "SEED VERIFY FAIL"
+    status["seed_verify"] = msg
+    status["batches"].append({"id": bid, "status": "seed_verify_fail", "verify": msg})
+    write_status(mission_dir, status)
+    write_final(mission_dir, f"# FAIL {bid}\n\n{msg}\n")
+    return status
 
 
 def everyday_line(text: str, feature: str | None = None, ask: str | None = None) -> str:
@@ -250,7 +304,15 @@ def build_type_a_payload(everyday: str, seed_html: str | None, objective: str, m
         if not res.get("ok"):
             res = eg_translate(text or "front-end shell", feature="fe_shell", seed_html=None)
         if res.get("ok") and res.get("payload"):
-            return res["payload"]
+            payload = res["payload"]
+            obj = (objective or "").strip()
+            if obj:
+                for m in reversed(payload.get("messages") or []):
+                    if m.get("role") == "user":
+                        if _norm(obj) not in _norm(str(m.get("content") or "")):
+                            m["content"] = f"{m.get('content') or ''}\nObjective: {obj}\n"
+                        break
+            return payload
     user = f"{USER_OPENER}\n\nRewrite for objective: {objective}\nEveryday: {text}\n"
     return {
         "model": MODEL,
@@ -414,7 +476,18 @@ def run_dry_verify(mission: dict[str, Any]) -> dict[str, Any]:
 
     batches_out = []
     overall = "pass"
-    for b in template.get("batches") or []:
+    seed_txt = artifact.read_text(encoding="utf-8") if artifact.is_file() else None
+    dry_obj = mission.get("objective") or (mission.get("everyday") or "dry verify")
+    try:
+        sv = verify_seed_in_payload(
+            build_type_a_payload(mission.get("everyday") or "", seed_txt, dry_obj, mission_id=mid), seed_txt, dry_obj
+        )
+        batches_out.append({"id": "seed-verify", "status": "pass", "verify": sv})
+    except SeedVerifyError as e:
+        print(str(e), file=sys.stderr, flush=True)
+        batches_out.append({"id": "seed-verify", "status": "seed_verify_fail", "verify": str(e)})
+        overall = "fail"
+    for b in (template.get("batches") or []) if overall == "pass" else []:
         bid = b["id"]
         # honor completion matrix
         matrix = {r["batchId"]: r.get("status") for r in template.get("deliverablesCompletionMatrix") or []}
@@ -508,6 +581,11 @@ def run_one_shot(mission: dict[str, Any]) -> dict[str, Any]:
     }
     write_status(mission_dir, status)
     payload = build_type_a_payload(everyday, seed_html, objective, mission_id=mid)
+    try:
+        status["seed_verify"] = verify_seed_in_payload(payload, seed_html, objective)
+    except SeedVerifyError as e:
+        status["batches"] = []
+        return seed_verify_fail(mission_dir, status, mission.get("batchId") or "batch-adhoc", e)
     abort_s = float(mission.get("abortSeconds") or ABORT_USEFUL_S)
     if mission.get("maxSeconds"):
         abort_s = min(abort_s, float(mission["maxSeconds"]))
@@ -533,12 +611,17 @@ def run_one_shot(mission: dict[str, Any]) -> dict[str, Any]:
         if ok:
             break
         # tighten objective note on retry
+        retry_seed = seed_html if seed_html else (artifact.read_text(encoding="utf-8") if artifact.is_file() else None)
         payload = build_type_a_payload(
             everyday + f" (retry {attempt}: keep Chat Translator; add status line only)",
-            seed_html if seed_html else (artifact.read_text(encoding="utf-8") if artifact.is_file() else None),
+            retry_seed,
             objective,
             mission_id=mid,
         )
+        try:
+            verify_seed_in_payload(payload, retry_seed, objective)
+        except SeedVerifyError as e:
+            return seed_verify_fail(mission_dir, status, mission.get("batchId") or "batch-adhoc", e)
     if (not ok) and take_aider_round(mission) and AIDER.is_file() and seed_html:
         artifact.write_text(seed_html, encoding="utf-8")
         msg_file = mission_dir / "aider_fix.txt"
@@ -563,6 +646,7 @@ def run_one_shot(mission: dict[str, Any]) -> dict[str, Any]:
     }]
     status["status"] = "pass" if ok else "fail"
     status["artifact"] = str(artifact) if artifact.is_file() else None
+    status["aider_rounds"] = int(mission.get("_aider_used") or 0)
     reply = artifact.read_text(encoding="utf-8") if artifact.is_file() else (msg or "")
     if meta.get("aider"):
         reply = "aider applied edit\n" + reply
@@ -637,6 +721,10 @@ def run_mission(mission: dict[str, Any], dry_verify: bool = False) -> dict[str, 
         while attempts < 2 and not passed:
             attempts += 1
             payload = build_type_a_payload(mission.get("everyday") or "", seed_html, b.get("objective") or "", mission_id=mid)
+            try:
+                verify_seed_in_payload(payload, seed_html, b.get("objective") or "")
+            except SeedVerifyError as e:
+                return seed_verify_fail(mission_dir, status, bid, e)
             # refuse if payload somehow points elsewhere
             raw, meta = granite_chat(payload)
             html = strip_html(raw)
@@ -672,6 +760,7 @@ def run_mission(mission: dict[str, Any], dry_verify: bool = False) -> dict[str, 
                 status["batches"].append({"id": bid, "attempt": "aider", "status": "fail", "verify": str(e)})
             write_status(mission_dir, status)
 
+        status["aider_rounds"] = int(mission.get("_aider_used") or 0)
         if not passed:
             status["status"] = "fail"
             status["breaker"] = "RUNAROUND BREAKER"

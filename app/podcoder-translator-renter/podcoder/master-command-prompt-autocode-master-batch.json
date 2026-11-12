@@ -1,0 +1,249 @@
+{
+  "version": "2026.05.30.master-command-prompt-autocode-v1",
+  "subject": "Persist Master Command Prompt Autocode as the Codex Cloud direct-session contract",
+  "batchGoal": "Make the user-provided master command prompt autocode template the canonical repo contract for Codex Cloud coding requests and adaptive autocoding batches.",
+  "scope": "Startup contract docs, reusable template artifact, adaptive Codex Cloud autocoding prompts, verification tests, approval gates, and completion reporting.",
+  "constraints": [
+    "Use OpenClaw + MASTER batching for this task.",
+    "Do not manually implement outside the OpenClaw plan/execute/verify/FIX -> RETEST/next-batch cycle.",
+    "RUNAROUND BREAKER MODE must activate before another implementation prompt when two FIX -> RETEST loops fail or the same user-facing goal remains broken after two prompts.",
+    "No deploy, publish, secrets, database writes or migrations, destructive filesystem actions, paid provider actions, production reverse-proxy changes, or live external submissions without owner approval.",
+    "Do not log tokens or secrets.",
+    "Do not raw-upload local private state.",
+    "Granite first; Aider at most ONE surgical round per task, only if Granite still fails after its raw FIX->RETEST attempts; then RUNAROUND BREAKER.",
+    "Seed verify: before any Granite call, the runner confirms the task seed (current file) and objective appear verbatim in the Type A prompt; if either is missing it fails loudly (status seed_verify_fail) and does not call Granite or Aider."
+  ],
+  "sequencingRule": "Execute batches in listed order. Do not start batch N+1 until batch N has fully passed verification.",
+  "failPolicy": "Run targeted FIX -> RETEST loops for the current batch using the smallest failing/changed-file command first; cap full verification loops to avoid repeated repo-wide checks unless targeted evidence shows broader risk.",
+  "maxRetryLoopsPerBatch": "Targeted retries; full verification loop capped",
+  "approvalGate": {
+    "requiredFor": [
+      "deploy",
+      "publish",
+      "secrets or credential changes",
+      "database writes or migrations",
+      "destructive filesystem actions",
+      "paid provider actions",
+      "production reverse-proxy changes",
+      "live external submissions"
+    ]
+  },
+  "globalOutputFormat": [
+    "generated batch plan",
+    "each batch status",
+    "retry/fix history",
+    "changed files",
+    "tests/checks run",
+    "risks",
+    "approval-gated items not executed",
+    "deliverables completion matrix"
+  ],
+  "deliverablesCompletionMatrix": [
+    {
+      "batchId": "batch-1-template-contract",
+      "deliverable": "Canonical master command prompt autocode template exists and startup docs point to it.",
+      "status": "planned"
+    },
+    {
+      "batchId": "batch-2-adaptive-planner-wiring",
+      "deliverable": "Codex Cloud adaptive planner wraps generated prompts in the master command prompt autocode contract.",
+      "status": "planned"
+    },
+    {
+      "batchId": "batch-3-verification-and-approval-gates",
+      "deliverable": "Feature tests and repo checks verify the contract, safety gates, and generated prompts.",
+      "status": "planned"
+    }
+  ],
+  "batches": [
+    {
+      "id": "batch-1-template-contract",
+      "objective": "Persist the user-provided master command prompt autocode template and make startup docs reference it as the direct-session coding contract.",
+      "constraints": [
+        "Patch only canonical branch files.",
+        "Preserve approval gates and private-state protections."
+      ],
+      "promptSteps": [
+        "Inspect AGENTS.md and docs/CODEX_CLOUD_STARTUP_CONTRACT.md.",
+        "Add the canonical reusable template at artemis-templates/master-command-prompt-autocode.md.",
+        "Update startup docs so coding requests automatically use the Master Command Prompt Autocode contract."
+      ],
+      "verify": {
+        "deliverables": [
+          "Canonical master command prompt autocode template exists",
+          "AGENTS.md references the master command prompt autocode contract",
+          "Startup contract references the master command prompt autocode contract",
+          "Approval gates remain explicit"
+        ],
+        "files": [
+          "AGENTS.md",
+          "docs/CODEX_CLOUD_STARTUP_CONTRACT.md",
+          "artemis-templates/master-command-prompt-autocode.md",
+          "artemis-templates/master-command-prompt-autocode-master-batch.json"
+        ],
+        "documentsContain": [
+          {
+            "file": "AGENTS.md",
+            "phrases": [
+              "Master Command Prompt Autocode",
+              "RUNAROUND BREAKER MODE",
+              "Use the full OpenClaw autocoding loop as the executor, not manual Codex implementation.",
+              "Do not manually implement outside the OpenClaw plan/execute/verify/FIX -> RETEST/next-batch cycle."
+            ]
+          },
+          {
+            "file": "docs/CODEX_CLOUD_STARTUP_CONTRACT.md",
+            "phrases": [
+              "Master Command Prompt Autocode",
+              "RUNAROUND BREAKER MODE",
+              "Use the full OpenClaw autocoding loop as the executor, not manual Codex implementation.",
+              "artemis-templates/master-command-prompt-autocode.md"
+            ]
+          },
+          {
+            "file": "artemis-templates/master-command-prompt-autocode.md",
+            "phrases": [
+              "master command prompt autocode",
+              "RUNAROUND BREAKER MODE",
+              "Create or update a feature-specific MASTER batch template",
+              "npm run artemis:batch:run -- --template artemis-templates/<feature-name>-master-batch.json --max-verify-loops 1 --json",
+              "Commit the final changes on the current branch."
+            ]
+          }
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Restore missing template/doc phrases and rerun this batch."
+        ],
+        "commands": []
+      }
+    },
+    {
+      "id": "batch-2-adaptive-planner-wiring",
+      "objective": "Ensure Codex Cloud adaptive autocoding prompts include the Master Command Prompt Autocode protocol while still choosing one or more efficient batches.",
+      "constraints": [
+        "Do not remove adaptive one-batch versus multi-batch selection.",
+        "Keep generated prompts explicit about sequential verification and approval gates."
+      ],
+      "promptSteps": [
+        "Wrap single-batch and multi-batch generated prompts in the Master Command Prompt Autocode contract.",
+        "Keep one complete batch available for small tasks and multi-batch sequences available for larger tasks.",
+        "Extend tests to prove the generated prompts include the new contract."
+      ],
+      "verify": {
+        "deliverables": [
+          "Adaptive planner emits master command prompt autocode wording",
+          "Small tasks still select one complete batch",
+          "App-sized tasks still select multiple batches",
+          "Feature-specific template requirement appears in generated prompts"
+        ],
+        "files": [
+          "src/artemis/openclaw/codexCloudAutocodingPlan.js",
+          "scripts/test-codex-cloud-autocoding-plan.mjs",
+          "scripts/build-codex-cloud-autocoding-plan.mjs"
+        ],
+        "documentsContain": [
+          {
+            "file": "src/artemis/openclaw/codexCloudAutocodingPlan.js",
+            "phrases": [
+              "master command prompt autocode",
+              "Use the full OpenClaw autocoding loop as the executor, not manual Codex implementation.",
+              "Create or update a feature-specific MASTER batch template"
+            ]
+          },
+          {
+            "file": "scripts/test-codex-cloud-autocoding-plan.mjs",
+            "phrases": [
+              "Use the full OpenClaw autocoding loop as the executor, not manual Codex implementation.",
+              "Create or update a feature-specific MASTER batch template",
+              "Master Command Prompt Autocode",
+              "RUNAROUND BREAKER MODE"
+            ]
+          }
+        ],
+        "commands": [
+          "npm run artemis:test-codex-cloud-autocoding-plan"
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Patch planner/test wording or batch wrapping, then rerun the feature test."
+        ],
+        "commands": []
+      }
+    },
+    {
+      "id": "batch-3-verification-and-approval-gates",
+      "objective": "Verify the updated contract, safety gates, and repo checks without performing approval-gated actions.",
+      "constraints": [
+        "No deploy, publish, secrets, database, destructive, paid provider, production reverse-proxy, or live external submission actions.",
+        "A perceptible UI screenshot is not applicable because this change is docs/planner/test-only."
+      ],
+      "promptSteps": [
+        "Run startup contract and boundary checks.",
+        "Run typecheck, lint, build, and feature-specific tests.",
+        "Report migration audit blockers without bypassing private-state protections."
+      ],
+      "verify": {
+        "deliverables": [
+          "Startup contract still passes",
+          "Cloud boundary report still passes",
+          "Typecheck passes",
+          "Lint passes",
+          "Build passes",
+          "Approval-gated actions were not executed"
+        ],
+        "files": [
+          "AGENTS.md",
+          "docs/CODEX_CLOUD_STARTUP_CONTRACT.md",
+          "artemis-templates/master-command-prompt-autocode.md",
+          "artemis-templates/master-command-prompt-autocode-master-batch.json",
+          "src/artemis/openclaw/codexCloudAutocodingPlan.js",
+          "scripts/test-codex-cloud-autocoding-plan.mjs"
+        ],
+        "documentsContain": [
+          {
+            "file": "artemis-templates/master-command-prompt-autocode-master-batch.json",
+            "phrases": [
+              "deliverablesCompletionMatrix",
+              "approvalGate",
+              "RUNAROUND BREAKER MODE",
+              "live external submissions",
+              "Do not raw-upload local private state."
+            ]
+          }
+        ],
+        "commands": [
+          "npm run codex:cloud:startup -- --json",
+          "npm run codex:cloud:boundaries -- --json",
+          "npm run artemis:test-codex-cloud-autocoding-plan",
+          "npm run typecheck",
+          "npm run lint",
+          "npm run build"
+        ]
+      },
+      "fix": {
+        "steps": [
+          "Apply targeted code/doc/test fixes for the failing verification and rerun this batch."
+        ],
+        "commands": []
+      }
+    }
+  ],
+  "aiderPolicy": {
+    "leadWithAider": false,
+    "maxRawGraniteAttempts": 2,
+    "maxAiderRoundsPerTask": 1,
+    "when": "Only after raw Granite FAIL/incomplete on the current task",
+    "afterAiderFail": "RUNAROUND BREAKER"
+  },
+  "seedVerify": {
+    "required": true,
+    "checks": [
+      "seed (current file) verbatim in Type A user prompt",
+      "objective verbatim in Type A user prompt"
+    ],
+    "onFail": "seed_verify_fail; stop before Granite/Aider"
+  }
+}
