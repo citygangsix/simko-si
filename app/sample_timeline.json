@@ -1,0 +1,3732 @@
+{
+ "ok": true,
+ "vast_calls": 0,
+ "destroyed": false,
+ "schema": "simco.timeline.v1",
+ "user": "demo_dana",
+ "display_name": "Demo Dana (fictional, synthetic)",
+ "synthetic": true,
+ "details": false,
+ "range": {
+  "start": "2026-09-16",
+  "end": "2026-10-30",
+  "days": 45
+ },
+ "levels": [
+  "Needs care",
+  "Steady",
+  "Growing",
+  "Thriving"
+ ],
+ "no_data_word": "Not discussed",
+ "categories": [
+  {
+   "id": "health_fitness",
+   "label": "Health and Fitness"
+  },
+  {
+   "id": "intellectual_life",
+   "label": "Intellectual Life"
+  },
+  {
+   "id": "emotional_life",
+   "label": "Emotional Life"
+  },
+  {
+   "id": "character",
+   "label": "Character"
+  },
+  {
+   "id": "spiritual_life",
+   "label": "Spiritual Life"
+  },
+  {
+   "id": "love_relationship",
+   "label": "Love Relationship"
+  },
+  {
+   "id": "parenting",
+   "label": "Parenting"
+  },
+  {
+   "id": "social_life",
+   "label": "Social Life"
+  },
+  {
+   "id": "financial_life",
+   "label": "Financial Life"
+  },
+  {
+   "id": "career",
+   "label": "Career"
+  },
+  {
+   "id": "quality_of_life",
+   "label": "Quality of Life"
+  },
+  {
+   "id": "life_vision",
+   "label": "Life Vision"
+  },
+  {
+   "id": "sex_and_sensuality",
+   "label": "Sex and Sensuality"
+  }
+ ],
+ "metrics": [
+  {
+   "key": "sleep_hours",
+   "label": "Sleep",
+   "unit": "h",
+   "min": 3,
+   "max": 11
+  },
+  {
+   "key": "sleep_quality",
+   "label": "Sleep quality",
+   "unit": "1-10",
+   "min": 1,
+   "max": 10
+  },
+  {
+   "key": "steps",
+   "label": "Steps",
+   "unit": "steps",
+   "min": 0,
+   "max": 25000
+  },
+  {
+   "key": "exercise_min",
+   "label": "Exercise",
+   "unit": "min",
+   "min": 0,
+   "max": 150
+  },
+  {
+   "key": "mood",
+   "label": "Mood",
+   "unit": "1-10",
+   "min": 1,
+   "max": 10
+  },
+  {
+   "key": "focus",
+   "label": "Focus",
+   "unit": "1-10",
+   "min": 1,
+   "max": 10
+  },
+  {
+   "key": "stress",
+   "label": "Stress",
+   "unit": "1-10",
+   "min": 1,
+   "max": 10
+  },
+  {
+   "key": "spending",
+   "label": "Spending",
+   "unit": "USD",
+   "min": 0,
+   "max": 1000
+  }
+ ],
+ "event_kinds": [
+  "milestone",
+  "life_event",
+  "workout",
+  "gap"
+ ],
+ "display_rule": "Words first. Numbers (0-100) only in the details view: add details=1.",
+ "days": [
+  {
+   "day": "2026-09-16",
+   "weekday": "Wed",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "character": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": null,
+    "sleep_quality": 4.9,
+    "steps": null,
+    "exercise_min": 0,
+    "mood": 5.6,
+    "focus": 5.8,
+    "stress": 4.4,
+    "spending": 31.44
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-09-17",
+   "weekday": "Thu",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "character": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.2,
+    "sleep_quality": 7.1,
+    "steps": 10930,
+    "exercise_min": null,
+    "mood": null,
+    "focus": 4.2,
+    "stress": 3.7,
+    "spending": 38.45
+   },
+   "events": [
+    {
+     "id": "ev-2026-09-17-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Yoga",
+     "detail": "50 min",
+     "day": "2026-09-17",
+     "end_day": "2026-09-17",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Yoga",
+   "chats": 1,
+   "gap": false
+  },
+  {
+   "day": "2026-09-18",
+   "weekday": "Fri",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.4,
+    "sleep_quality": 6.2,
+    "steps": 11510,
+    "exercise_min": 54,
+    "mood": 6.3,
+    "focus": 4.8,
+    "stress": 3.7,
+    "spending": 50.15
+   },
+   "events": [
+    {
+     "id": "ev-2026-09-18-intellectual_life",
+     "kind": "milestone",
+     "category": "intellectual_life",
+     "title": "Started the 6-week reading plan",
+     "detail": "",
+     "day": "2026-09-18",
+     "end_day": "2026-09-18",
+     "synthetic": true
+    },
+    {
+     "id": "ev-2026-09-18-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Bike 20 km",
+     "detail": "54 min",
+     "day": "2026-09-18",
+     "end_day": "2026-09-18",
+     "synthetic": true
+    }
+   ],
+   "milestone": "Started the 6-week reading plan",
+   "workout": "Bike 20 km",
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-09-19",
+   "weekday": "Sat",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.2,
+    "sleep_quality": 6.5,
+    "steps": 3900,
+    "exercise_min": 0,
+    "mood": null,
+    "focus": 5.8,
+    "stress": 4.9,
+    "spending": 137.24
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-09-20",
+   "weekday": "Sun",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.4,
+    "sleep_quality": 5.9,
+    "steps": null,
+    "exercise_min": 38,
+    "mood": 5.3,
+    "focus": 6.8,
+    "stress": 5.4,
+    "spending": 58.97
+   },
+   "events": [
+    {
+     "id": "ev-2026-09-20-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Bike 20 km",
+     "detail": "38 min",
+     "day": "2026-09-20",
+     "end_day": "2026-09-20",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Bike 20 km",
+   "chats": 1,
+   "gap": false
+  },
+  {
+   "day": "2026-09-21",
+   "weekday": "Mon",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.9,
+    "sleep_quality": 5.5,
+    "steps": 10470,
+    "exercise_min": 44,
+    "mood": 6.1,
+    "focus": null,
+    "stress": 4.2,
+    "spending": 16.6
+   },
+   "events": [
+    {
+     "id": "ev-2026-09-21-health_fitness",
+     "kind": "milestone",
+     "category": "health_fitness",
+     "title": "Started couch-to-5k",
+     "detail": "Goal: run 5 km without stopping",
+     "day": "2026-09-21",
+     "end_day": "2026-09-21",
+     "synthetic": true
+    },
+    {
+     "id": "ev-2026-09-21-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Bike 20 km",
+     "detail": "44 min",
+     "day": "2026-09-21",
+     "end_day": "2026-09-21",
+     "synthetic": true
+    }
+   ],
+   "milestone": "Started couch-to-5k",
+   "workout": "Bike 20 km",
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-09-22",
+   "weekday": "Tue",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.9,
+    "sleep_quality": 6.8,
+    "steps": 8600,
+    "exercise_min": 52,
+    "mood": 7.3,
+    "focus": 5.6,
+    "stress": 4.0,
+    "spending": 69.77
+   },
+   "events": [
+    {
+     "id": "ev-2026-09-22-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Bike 20 km",
+     "detail": "52 min",
+     "day": "2026-09-22",
+     "end_day": "2026-09-22",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Bike 20 km",
+   "chats": 1,
+   "gap": false
+  },
+  {
+   "day": "2026-09-23",
+   "weekday": "Wed",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Growing",
+     "level": 2
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.7,
+    "sleep_quality": 5.5,
+    "steps": 6420,
+    "exercise_min": 0,
+    "mood": null,
+    "focus": 6.2,
+    "stress": 4.3,
+    "spending": 48.49
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 1,
+   "gap": false
+  },
+  {
+   "day": "2026-09-24",
+   "weekday": "Thu",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Growing",
+     "level": 2
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Thriving",
+     "level": 3
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.8,
+    "sleep_quality": 6.9,
+    "steps": 8260,
+    "exercise_min": 41,
+    "mood": 7.7,
+    "focus": 5.0,
+    "stress": 4.1,
+    "spending": 44.81
+   },
+   "events": [
+    {
+     "id": "ev-2026-09-24-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Yoga",
+     "detail": "41 min",
+     "day": "2026-09-24",
+     "end_day": "2026-09-24",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Yoga",
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-09-25",
+   "weekday": "Fri",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.1,
+    "sleep_quality": null,
+    "steps": 5880,
+    "exercise_min": 0,
+    "mood": 5.7,
+    "focus": 5.8,
+    "stress": 5.0,
+    "spending": 55.02
+   },
+   "events": [
+    {
+     "id": "ev-2026-09-25-love_relationship",
+     "kind": "life_event",
+     "category": "love_relationship",
+     "title": "Tense week with partner",
+     "detail": "Several strained chats",
+     "day": "2026-09-25",
+     "end_day": "2026-09-25",
+     "synthetic": true
+    }
+   ],
+   "milestone": "Tense week with partner",
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-09-26",
+   "weekday": "Sat",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Growing",
+     "level": 2
+    },
+    "intellectual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Growing",
+     "level": 2
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.3,
+    "sleep_quality": null,
+    "steps": null,
+    "exercise_min": 60,
+    "mood": 5.8,
+    "focus": 5.7,
+    "stress": null,
+    "spending": 45.76
+   },
+   "events": [
+    {
+     "id": "ev-2026-09-26-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Yoga",
+     "detail": "60 min",
+     "day": "2026-09-26",
+     "end_day": "2026-09-26",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Yoga",
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-09-27",
+   "weekday": "Sun",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Growing",
+     "level": 2
+    },
+    "intellectual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Growing",
+     "level": 2
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 8.1,
+    "sleep_quality": 5.0,
+    "steps": 9200,
+    "exercise_min": 39,
+    "mood": 8.0,
+    "focus": 8.0,
+    "stress": 4.5,
+    "spending": 58.28
+   },
+   "events": [
+    {
+     "id": "ev-2026-09-27-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Strength",
+     "detail": "39 min",
+     "day": "2026-09-27",
+     "end_day": "2026-09-27",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Strength",
+   "chats": 0,
+   "gap": false
+  },
+  {
+   "day": "2026-09-28",
+   "weekday": "Mon",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Growing",
+     "level": 2
+    },
+    "intellectual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Growing",
+     "level": 2
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.5,
+    "sleep_quality": 7.4,
+    "steps": 10290,
+    "exercise_min": 46,
+    "mood": 7.9,
+    "focus": 6.3,
+    "stress": 5.2,
+    "spending": 73.55
+   },
+   "events": [
+    {
+     "id": "ev-2026-09-28-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Strength",
+     "detail": "46 min",
+     "day": "2026-09-28",
+     "end_day": "2026-09-28",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Strength",
+   "chats": 1,
+   "gap": false
+  },
+  {
+   "day": "2026-09-29",
+   "weekday": "Tue",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Growing",
+     "level": 2
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.0,
+    "sleep_quality": 4.2,
+    "steps": 4670,
+    "exercise_min": 0,
+    "mood": 5.5,
+    "focus": 6.5,
+    "stress": 4.1,
+    "spending": 36.28
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-09-30",
+   "weekday": "Wed",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Growing",
+     "level": 2
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "parenting": {
+     "word": "Growing",
+     "level": 2
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.8,
+    "sleep_quality": 4.8,
+    "steps": 6930,
+    "exercise_min": 0,
+    "mood": 7.0,
+    "focus": 6.8,
+    "stress": 3.8,
+    "spending": 54.07
+   },
+   "events": [
+    {
+     "id": "ev-2026-09-30-career",
+     "kind": "milestone",
+     "category": "career",
+     "title": "Shipped the portfolio site",
+     "detail": "",
+     "day": "2026-09-30",
+     "end_day": "2026-09-30",
+     "synthetic": true
+    }
+   ],
+   "milestone": "Shipped the portfolio site",
+   "workout": null,
+   "chats": 3,
+   "gap": false
+  },
+  {
+   "day": "2026-10-01",
+   "weekday": "Thu",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Growing",
+     "level": 2
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": null,
+    "sleep_quality": 5.1,
+    "steps": 5750,
+    "exercise_min": 0,
+    "mood": 8.2,
+    "focus": 7.5,
+    "stress": 3.8,
+    "spending": 10.91
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-02",
+   "weekday": "Fri",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Growing",
+     "level": 2
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 5.8,
+    "sleep_quality": 6.4,
+    "steps": 8520,
+    "exercise_min": 36,
+    "mood": 7.2,
+    "focus": 6.2,
+    "stress": 3.4,
+    "spending": 142.99
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-02-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Long walk",
+     "detail": "36 min",
+     "day": "2026-10-02",
+     "end_day": "2026-10-02",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Long walk",
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-03",
+   "weekday": "Sat",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.6,
+    "sleep_quality": 5.5,
+    "steps": 8890,
+    "exercise_min": 47,
+    "mood": 5.2,
+    "focus": 5.4,
+    "stress": 5.3,
+    "spending": 32.13
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-03-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Yoga",
+     "detail": "47 min",
+     "day": "2026-10-03",
+     "end_day": "2026-10-03",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Yoga",
+   "chats": 3,
+   "gap": false
+  },
+  {
+   "day": "2026-10-04",
+   "weekday": "Sun",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.7,
+    "sleep_quality": null,
+    "steps": 10150,
+    "exercise_min": 49,
+    "mood": null,
+    "focus": null,
+    "stress": null,
+    "spending": 75.96
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-04-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Yoga",
+     "detail": "49 min",
+     "day": "2026-10-04",
+     "end_day": "2026-10-04",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Yoga",
+   "chats": 0,
+   "gap": false
+  },
+  {
+   "day": "2026-10-05",
+   "weekday": "Mon",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.5,
+    "sleep_quality": 5.1,
+    "steps": 2090,
+    "exercise_min": 0,
+    "mood": 4.9,
+    "focus": 5.7,
+    "stress": 4.3,
+    "spending": null
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-06",
+   "weekday": "Tue",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": null,
+    "sleep_quality": null,
+    "steps": 7980,
+    "exercise_min": null,
+    "mood": null,
+    "focus": null,
+    "stress": null,
+    "spending": null
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-06-quality_of_life",
+     "kind": "gap",
+     "category": "quality_of_life",
+     "title": "Vacation, no tracking",
+     "detail": "3 days with no check-ins or chats",
+     "day": "2026-10-06",
+     "end_day": "2026-10-08",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": null,
+   "chats": 0,
+   "gap": true
+  },
+  {
+   "day": "2026-10-07",
+   "weekday": "Wed",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": null,
+    "sleep_quality": null,
+    "steps": 13190,
+    "exercise_min": null,
+    "mood": null,
+    "focus": null,
+    "stress": null,
+    "spending": null
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 0,
+   "gap": true
+  },
+  {
+   "day": "2026-10-08",
+   "weekday": "Thu",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": null,
+    "sleep_quality": null,
+    "steps": 3810,
+    "exercise_min": null,
+    "mood": null,
+    "focus": null,
+    "stress": null,
+    "spending": null
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 0,
+   "gap": true
+  },
+  {
+   "day": "2026-10-09",
+   "weekday": "Fri",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 4.9,
+    "sleep_quality": 5.4,
+    "steps": 4610,
+    "exercise_min": 0,
+    "mood": 5.1,
+    "focus": 6.9,
+    "stress": 3.2,
+    "spending": 54.0
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 1,
+   "gap": false
+  },
+  {
+   "day": "2026-10-10",
+   "weekday": "Sat",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.8,
+    "sleep_quality": 3.7,
+    "steps": 4280,
+    "exercise_min": 0,
+    "mood": 4.0,
+    "focus": 5.2,
+    "stress": 4.5,
+    "spending": 57.21
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-11",
+   "weekday": "Sun",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.8,
+    "sleep_quality": 8.6,
+    "steps": 10280,
+    "exercise_min": 46,
+    "mood": 6.0,
+    "focus": 4.5,
+    "stress": 4.2,
+    "spending": 37.15
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-11-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Swim",
+     "detail": "46 min",
+     "day": "2026-10-11",
+     "end_day": "2026-10-11",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Swim",
+   "chats": 0,
+   "gap": false
+  },
+  {
+   "day": "2026-10-12",
+   "weekday": "Mon",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.2,
+    "sleep_quality": 6.7,
+    "steps": null,
+    "exercise_min": 49,
+    "mood": 7.1,
+    "focus": 4.8,
+    "stress": 4.4,
+    "spending": 20.43
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-12-financial_life",
+     "kind": "milestone",
+     "category": "financial_life",
+     "title": "Budget reset",
+     "detail": "Moved $200 to the trip fund",
+     "day": "2026-10-12",
+     "end_day": "2026-10-12",
+     "synthetic": true
+    },
+    {
+     "id": "ev-2026-10-12-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Run 5 km",
+     "detail": "49 min",
+     "day": "2026-10-12",
+     "end_day": "2026-10-12",
+     "synthetic": true
+    }
+   ],
+   "milestone": "Budget reset",
+   "workout": "Run 5 km",
+   "chats": 1,
+   "gap": false
+  },
+  {
+   "day": "2026-10-13",
+   "weekday": "Tue",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.1,
+    "sleep_quality": 5.3,
+    "steps": 4140,
+    "exercise_min": 0,
+    "mood": 5.2,
+    "focus": 5.5,
+    "stress": 3.5,
+    "spending": 59.4
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 3,
+   "gap": false
+  },
+  {
+   "day": "2026-10-14",
+   "weekday": "Wed",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "emotional_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": null,
+    "sleep_quality": 5.0,
+    "steps": null,
+    "exercise_min": 0,
+    "mood": 6.5,
+    "focus": 6.0,
+    "stress": 5.2,
+    "spending": 216.32
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-15",
+   "weekday": "Thu",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Needs care",
+     "level": 0
+    }
+   },
+   "metrics": {
+    "sleep_hours": 8.3,
+    "sleep_quality": null,
+    "steps": null,
+    "exercise_min": 0,
+    "mood": 4.4,
+    "focus": 7.5,
+    "stress": 7.6,
+    "spending": 33.28
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-16",
+   "weekday": "Fri",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "character": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "spiritual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Needs care",
+     "level": 0
+    }
+   },
+   "metrics": {
+    "sleep_hours": 8.2,
+    "sleep_quality": 2.8,
+    "steps": 6360,
+    "exercise_min": 0,
+    "mood": 7.8,
+    "focus": 6.1,
+    "stress": 4.9,
+    "spending": 19.65
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-16-career",
+     "kind": "life_event",
+     "category": "career",
+     "title": "Big work launch",
+     "detail": "Long days and late nights",
+     "day": "2026-10-16",
+     "end_day": "2026-10-16",
+     "synthetic": true
+    }
+   ],
+   "milestone": "Big work launch",
+   "workout": null,
+   "chats": 3,
+   "gap": false
+  },
+  {
+   "day": "2026-10-17",
+   "weekday": "Sat",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "character": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "spiritual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Needs care",
+     "level": 0
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.2,
+    "sleep_quality": 5.7,
+    "steps": 5950,
+    "exercise_min": 0,
+    "mood": 7.5,
+    "focus": 5.7,
+    "stress": 5.0,
+    "spending": 71.52
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-18",
+   "weekday": "Sun",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "character": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "spiritual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Needs care",
+     "level": 0
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.2,
+    "sleep_quality": 3.0,
+    "steps": 4870,
+    "exercise_min": 0,
+    "mood": null,
+    "focus": null,
+    "stress": null,
+    "spending": null
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 0,
+   "gap": false
+  },
+  {
+   "day": "2026-10-19",
+   "weekday": "Mon",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "character": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "spiritual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Needs care",
+     "level": 0
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.5,
+    "sleep_quality": 2.2,
+    "steps": 6850,
+    "exercise_min": null,
+    "mood": 5.6,
+    "focus": 3.8,
+    "stress": 4.3,
+    "spending": 177.57
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-20",
+   "weekday": "Tue",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Steady",
+     "level": 1
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "spiritual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Needs care",
+     "level": 0
+    }
+   },
+   "metrics": {
+    "sleep_hours": null,
+    "sleep_quality": 6.8,
+    "steps": 8290,
+    "exercise_min": 38,
+    "mood": 5.9,
+    "focus": 6.0,
+    "stress": 6.0,
+    "spending": null
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-20-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Long walk",
+     "detail": "38 min",
+     "day": "2026-10-20",
+     "end_day": "2026-10-20",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Long walk",
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-21",
+   "weekday": "Wed",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "spiritual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Not discussed",
+     "level": null
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Needs care",
+     "level": 0
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.3,
+    "sleep_quality": 5.3,
+    "steps": 6820,
+    "exercise_min": 0,
+    "mood": 5.0,
+    "focus": 7.9,
+    "stress": 4.8,
+    "spending": 60.57
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-22",
+   "weekday": "Thu",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "spiritual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "love_relationship": {
+     "word": "Growing",
+     "level": 2
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Steady",
+     "level": 1
+    }
+   },
+   "metrics": {
+    "sleep_hours": 5.5,
+    "sleep_quality": 4.9,
+    "steps": 4700,
+    "exercise_min": 0,
+    "mood": 6.0,
+    "focus": 7.4,
+    "stress": 4.7,
+    "spending": null
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-22-health_fitness",
+     "kind": "milestone",
+     "category": "health_fitness",
+     "title": "First 5 km run",
+     "detail": "",
+     "day": "2026-10-22",
+     "end_day": "2026-10-22",
+     "synthetic": true
+    }
+   ],
+   "milestone": "First 5 km run",
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-23",
+   "weekday": "Fri",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Steady",
+     "level": 1
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Steady",
+     "level": 1
+    }
+   },
+   "metrics": {
+    "sleep_hours": 5.6,
+    "sleep_quality": 6.2,
+    "steps": 8840,
+    "exercise_min": 38,
+    "mood": 6.7,
+    "focus": 7.4,
+    "stress": 4.6,
+    "spending": null
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-23-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Strength",
+     "detail": "38 min",
+     "day": "2026-10-23",
+     "end_day": "2026-10-23",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Strength",
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-24",
+   "weekday": "Sat",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Growing",
+     "level": 2
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Steady",
+     "level": 1
+    }
+   },
+   "metrics": {
+    "sleep_hours": null,
+    "sleep_quality": 4.6,
+    "steps": 2900,
+    "exercise_min": 0,
+    "mood": 5.8,
+    "focus": 6.8,
+    "stress": 4.6,
+    "spending": 33.61
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-25",
+   "weekday": "Sun",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "career": {
+     "word": "Growing",
+     "level": 2
+    },
+    "quality_of_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Steady",
+     "level": 1
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.2,
+    "sleep_quality": 4.8,
+    "steps": 5490,
+    "exercise_min": 0,
+    "mood": 6.8,
+    "focus": 7.9,
+    "stress": 4.2,
+    "spending": 28.52
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 1,
+   "gap": false
+  },
+  {
+   "day": "2026-10-26",
+   "weekday": "Mon",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Growing",
+     "level": 2
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Steady",
+     "level": 1
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.4,
+    "sleep_quality": 6.5,
+    "steps": 8260,
+    "exercise_min": 54,
+    "mood": null,
+    "focus": 7.4,
+    "stress": 2.6,
+    "spending": 27.48
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-26-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Yoga",
+     "detail": "54 min",
+     "day": "2026-10-26",
+     "end_day": "2026-10-26",
+     "synthetic": true
+    }
+   ],
+   "milestone": null,
+   "workout": "Yoga",
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-27",
+   "weekday": "Tue",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Thriving",
+     "level": 3
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Growing",
+     "level": 2
+    },
+    "sex_and_sensuality": {
+     "word": "Steady",
+     "level": 1
+    }
+   },
+   "metrics": {
+    "sleep_hours": 8.1,
+    "sleep_quality": 3.4,
+    "steps": 1850,
+    "exercise_min": 0,
+    "mood": 6.8,
+    "focus": 7.4,
+    "stress": 4.0,
+    "spending": 150.44
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-27-life_vision",
+     "kind": "milestone",
+     "category": "life_vision",
+     "title": "Wrote the one-year vision",
+     "detail": "",
+     "day": "2026-10-27",
+     "end_day": "2026-10-27",
+     "synthetic": true
+    }
+   ],
+   "milestone": "Wrote the one-year vision",
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  },
+  {
+   "day": "2026-10-28",
+   "weekday": "Wed",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Growing",
+     "level": 2
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Thriving",
+     "level": 3
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Steady",
+     "level": 1
+    }
+   },
+   "metrics": {
+    "sleep_hours": 7.3,
+    "sleep_quality": 3.0,
+    "steps": 8840,
+    "exercise_min": 0,
+    "mood": 6.5,
+    "focus": null,
+    "stress": 5.9,
+    "spending": null
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 1,
+   "gap": false
+  },
+  {
+   "day": "2026-10-29",
+   "weekday": "Thu",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Growing",
+     "level": 2
+    },
+    "intellectual_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Steady",
+     "level": 1
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Thriving",
+     "level": 3
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.4,
+    "sleep_quality": 7.4,
+    "steps": 10070,
+    "exercise_min": 52,
+    "mood": null,
+    "focus": null,
+    "stress": 5.4,
+    "spending": 21.6
+   },
+   "events": [
+    {
+     "id": "ev-2026-10-29-social_life",
+     "kind": "milestone",
+     "category": "social_life",
+     "title": "Booked the coast trip with friends",
+     "detail": "",
+     "day": "2026-10-29",
+     "end_day": "2026-10-29",
+     "synthetic": true
+    },
+    {
+     "id": "ev-2026-10-29-workout",
+     "kind": "workout",
+     "category": "health_fitness",
+     "title": "Yoga",
+     "detail": "52 min",
+     "day": "2026-10-29",
+     "end_day": "2026-10-29",
+     "synthetic": true
+    }
+   ],
+   "milestone": "Booked the coast trip with friends",
+   "workout": "Yoga",
+   "chats": 3,
+   "gap": false
+  },
+  {
+   "day": "2026-10-30",
+   "weekday": "Fri",
+   "lifebook": {
+    "health_fitness": {
+     "word": "Growing",
+     "level": 2
+    },
+    "intellectual_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "emotional_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "character": {
+     "word": "Growing",
+     "level": 2
+    },
+    "spiritual_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "love_relationship": {
+     "word": "Steady",
+     "level": 1
+    },
+    "parenting": {
+     "word": "Steady",
+     "level": 1
+    },
+    "social_life": {
+     "word": "Needs care",
+     "level": 0
+    },
+    "financial_life": {
+     "word": "Steady",
+     "level": 1
+    },
+    "career": {
+     "word": "Growing",
+     "level": 2
+    },
+    "quality_of_life": {
+     "word": "Growing",
+     "level": 2
+    },
+    "life_vision": {
+     "word": "Steady",
+     "level": 1
+    },
+    "sex_and_sensuality": {
+     "word": "Not discussed",
+     "level": null
+    }
+   },
+   "metrics": {
+    "sleep_hours": 6.4,
+    "sleep_quality": 5.0,
+    "steps": 5250,
+    "exercise_min": null,
+    "mood": 5.7,
+    "focus": 5.0,
+    "stress": 4.9,
+    "spending": 23.82
+   },
+   "events": [],
+   "milestone": null,
+   "workout": null,
+   "chats": 2,
+   "gap": false
+  }
+ ]
+}

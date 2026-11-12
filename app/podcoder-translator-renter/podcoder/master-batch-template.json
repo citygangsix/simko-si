@@ -111,8 +111,25 @@
       "num_ctx": 8192,
       "stream": true
     },
-    "codingOrder": "Granite primary \u2192 verify \u2192 Aider only-when-needed after \u22652 raw FAIL",
+    "codingOrder": "Granite primary \u2192 verify \u2192 up to 2 raw FIX\u2192RETEST \u2192 Aider at most 1 surgical round per task (only if still FAIL) \u2192 RUNAROUND BREAKER",
     "gpuClass": "RTX 3090-class ~24GB",
-    "updated": "2026-10-28T10:18EDT"
-  }
+    "updated": "2026-10-28T10:18EDT",
+    "maxAiderRoundsPerTask": 1
+  },
+  "aiderPolicy": {
+    "leadWithAider": false,
+    "maxRawGraniteAttempts": 2,
+    "maxAiderRoundsPerTask": 1,
+    "when": "Only after raw Granite FAIL/incomplete on the current task",
+    "afterAiderFail": "RUNAROUND BREAKER"
+  },
+  "seedVerify": {
+    "required": true,
+    "checks": [
+      "seed (current file) verbatim in Type A user prompt",
+      "objective verbatim in Type A user prompt"
+    ],
+    "onFail": "seed_verify_fail; stop before Granite/Aider"
+  },
+  "masterSync": "2026-10-30 reconciled copies; one Aider round per task; seed verify"
 }

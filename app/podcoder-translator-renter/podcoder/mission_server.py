@@ -86,6 +86,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _product(self, method: str, body: dict | None = None) -> bool:
         path = urlparse(self.path).path.rstrip("/") or "/"
+        if method == "GET" and body is None:
+            import core_api
+            if core_api.handles(path):
+                from urllib.parse import parse_qs
+                body = {k: v[-1] for k, v in parse_qs(urlparse(self.path).query).items()}
         hit = product_api.try_handle(method, path, body, self._state())
         if hit is None:
             return False
