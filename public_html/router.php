@@ -19,6 +19,7 @@ $routes = [
     '/api/oauth/callback' => ['/api/oauth-callback.php', null],
     '/api/connector/callback' => ['/api/connector-callback.php', null],
     '/api/agent-stream' => ['/api/agent-stream.php', null],
+    '/api/stripe-webhook' => ['/api/stripe-webhook.php', null],
     '/api/health' => ['/api/machine.php', 'health'],
     '/api/installers' => ['/api/machine.php', 'installers'],
 ];

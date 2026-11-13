@@ -28,12 +28,21 @@
     var stage = $("platformStage");
     if (stage) stage.hidden = true;
   }
+  function planLabel(data) {
+    return (data && data.plan_label) ? data.plan_label : "$9.99/month";
+  }
+  function billingProvider(data) {
+    if (data && data.billing && data.billing.provider) return data.billing.provider;
+    return "stripe";
+  }
   function showPaywall(data) {
     var lead = $("paywallLead");
     if (lead) {
       var used = data && data.used != null ? data.used : 5;
-      lead.textContent = used + " messages are used. Nothing is charged until you tap pay.";
+      lead.textContent = used + " messages are used. Pictures stay on the paid plan. Nothing is charged until you tap pay.";
     }
+    var buy = $("paywallBuy");
+    if (buy) buy.textContent = planLabel(data);
     var note = $("paywallNote");
     if (note) note.textContent = "";
     show("paywallCard");
@@ -42,8 +51,13 @@
     var summary = $("usageSummary");
     var list = $("usageList");
     if (summary) {
-      if (data.status === "paid") summary.textContent = "This month is paid. " + data.used + " messages so far.";
+      if (data.status === "paid") summary.textContent = "This month is paid at " + planLabel(data) + ". " + data.used + " messages so far.";
       else summary.textContent = data.used + " of " + data.limit + " messages used. " + data.remaining + " left.";
+    }
+    var portal = $("usagePortal");
+    if (portal) {
+      var showPortal = data.status === "paid" && billingProvider(data) === "stripe";
+      portal.hidden = !showPortal;
     }
     if (!list) return;
     list.replaceChildren();
@@ -531,6 +545,10 @@
         imageForm.addEventListener("submit", function (event) {
           event.preventDefault();
           post({ op: "imagine", prompt: $("imagePrompt").value }).then(function (data) {
+            if (data && data.paywall) {
+              showPaywall(data);
+              return;
+            }
             if (!data.ok) return;
             paintImages(data.images || []);
           });
@@ -680,21 +698,40 @@
         button.addEventListener("click", pair[1]);
       }
     });
+    function openPortal() {
+      var note = $("paywallNote");
+      post({ op: "billing-portal" }).then(function (data) {
+        if (data.url) {
+          window.location.href = data.url;
+          return;
+        }
+        if (note) note.textContent = data.error || "The billing portal could not open.";
+      });
+    }
     var buy = $("paywallBuy");
     if (buy && !buy.dataset.bound) {
       buy.dataset.bound = "1";
       buy.addEventListener("click", function () {
         var note = $("paywallNote");
         post({ op: "checkout" }).then(function (data) {
+          var provider = billingProvider(data);
+          var host = provider === "square" ? "Square" : "Stripe";
           if (data.url) {
-            if (note) note.textContent = "Checkout is ready. Opening Square does not charge you until you pay there.";
+            if (note) note.textContent = "Checkout is ready. Opening " + host + " does not charge you until you pay there.";
             window.location.href = data.url;
             return;
           }
-          if (note) note.textContent = data.error || "Square is not connected yet. Nothing was charged.";
+          if (note) note.textContent = data.error || (host + " is not connected yet. Nothing was charged.");
         });
       });
     }
+    ["paywallPortal", "usagePortal"].forEach(function (id) {
+      var button = $(id);
+      if (button && !button.dataset.bound) {
+        button.dataset.bound = "1";
+        button.addEventListener("click", openPortal);
+      }
+    });
     var trial = $("paywallTrial");
     if (trial && !trial.dataset.bound) {
       trial.dataset.bound = "1";

@@ -91,7 +91,16 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     status TEXT NOT NULL,
     trial_until INTEGER,
     square_link_id TEXT,
+    stripe_customer_id TEXT,
+    stripe_subscription_id TEXT,
+    stripe_session_id TEXT,
     updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS stripe_events (
+    event_id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    processed_at INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_usage_user ON usage_events(user_id, id);

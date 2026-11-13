@@ -42,7 +42,7 @@ return [
     // "Desktop app download coming soon." Each url must be https.
     'installers' => [],
     // New screens stay hidden until a flag is true. All default off.
-    // The message cap runs only when platform.paywall is true.
+    // The message cap and paid-only images run only when platform.paywall is true.
     'platform' => [
         'paywall' => false,
         'approvals' => false,
@@ -60,8 +60,24 @@ return [
         'browse' => false,
         'store' => false,
     ],
-    // Square hosted checkout. Leave the access token empty. Sandbox only.
-    // Nothing is charged until the person taps the pay button and Square takes payment.
+    // Billing. Default is Stripe. Square stays in the code as a fallback.
+    // platform.paywall stays false until Joseph turns it on. Nothing is charged
+    // until a person completes Stripe Checkout for the $9.99/month plan.
+    // Free tier: 5 text messages, no images. Images are only on the paid plan.
+    // Put the restricted key and webhook secret in this private config (or env),
+    // never in git. Leave the values empty here.
+    'billing' => [
+        'provider' => 'stripe',
+    ],
+    'stripe' => [
+        'restricted_key' => '',
+        'secret_key' => '',
+        'webhook_secret' => '',
+        'price_id' => '',
+        'api_base' => 'https://api.stripe.com',
+        'api_version' => '2026-09-30.endive',
+    ],
+    // Square hosted checkout. Leave the access token empty. Used only if billing.provider is square.
     // Apple and Google sign-in. Leave the client ids empty until Joseph registers them.
     // Buttons stay hidden while an id is empty, and while platform.oauth is false.
     // Google: Cloud Console, OAuth client, redirect https://simkosi.com/api/oauth/callback

@@ -3,6 +3,32 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 
+
+function simko_plan_amount(): int
+{
+    return 999;
+}
+
+function simko_plan_label(): string
+{
+    return '$9.99/month';
+}
+
+function simko_plan_name(): string
+{
+    return 'Simko SI $9.99/month';
+}
+
+function simko_billing_provider(): string
+{
+    $cfg = simko_config_or_empty();
+    $env = getenv('BILLING_PROVIDER');
+    $raw = is_string($env) && trim($env) !== '' ? $env : (string) (($cfg['billing']['provider'] ?? 'stripe'));
+    $raw = strtolower(trim($raw));
+    return $raw === 'square' ? 'square' : 'stripe';
+}
+
+
 function simko_usage_free_limit(): int
 {
     return 5;
@@ -22,18 +48,85 @@ function simko_usage_count(int $userId): int
 
 function simko_subscription(int $userId): array
 {
-    $stmt = simko_db()->prepare('SELECT status, trial_until, square_link_id, updated_at FROM subscriptions WHERE user_id = ?');
+    $stmt = simko_db()->prepare(
+        'SELECT status, trial_until, square_link_id, stripe_customer_id, stripe_subscription_id, stripe_session_id, updated_at
+         FROM subscriptions WHERE user_id = ?'
+    );
     $stmt->execute([$userId]);
     $row = $stmt->fetch();
     if (!$row) {
-        return ['status' => 'free', 'trial_until' => 0, 'square_link_id' => '', 'updated_at' => 0];
+        return [
+            'status' => 'free',
+            'trial_until' => 0,
+            'square_link_id' => '',
+            'stripe_customer_id' => '',
+            'stripe_subscription_id' => '',
+            'stripe_session_id' => '',
+            'updated_at' => 0,
+        ];
     }
     return [
         'status' => (string) $row['status'],
         'trial_until' => (int) $row['trial_until'],
         'square_link_id' => (string) ($row['square_link_id'] ?? ''),
+        'stripe_customer_id' => (string) ($row['stripe_customer_id'] ?? ''),
+        'stripe_subscription_id' => (string) ($row['stripe_subscription_id'] ?? ''),
+        'stripe_session_id' => (string) ($row['stripe_session_id'] ?? ''),
         'updated_at' => (int) $row['updated_at'],
     ];
+}
+
+function simko_subscription_save(int $userId, array $fields): void
+{
+    $current = simko_subscription($userId);
+    $status = (string) ($fields['status'] ?? $current['status']);
+    if ($status === '') {
+        $status = 'free';
+    }
+    $trialUntil = array_key_exists('trial_until', $fields) ? (int) $fields['trial_until'] : (int) $current['trial_until'];
+    $squareLink = array_key_exists('square_link_id', $fields)
+        ? (string) $fields['square_link_id']
+        : (string) $current['square_link_id'];
+    $customer = array_key_exists('stripe_customer_id', $fields)
+        ? (string) $fields['stripe_customer_id']
+        : (string) $current['stripe_customer_id'];
+    $subscription = array_key_exists('stripe_subscription_id', $fields)
+        ? (string) $fields['stripe_subscription_id']
+        : (string) $current['stripe_subscription_id'];
+    $session = array_key_exists('stripe_session_id', $fields)
+        ? (string) $fields['stripe_session_id']
+        : (string) $current['stripe_session_id'];
+    if ($customer === '' && $current['stripe_customer_id'] !== '') {
+        $customer = $current['stripe_customer_id'];
+    }
+    if ($subscription === '' && $current['stripe_subscription_id'] !== '') {
+        $subscription = $current['stripe_subscription_id'];
+    }
+    if ($session === '' && $current['stripe_session_id'] !== '') {
+        $session = $current['stripe_session_id'];
+    }
+    $stmt = simko_db()->prepare(
+        'INSERT INTO subscriptions (
+            user_id, status, trial_until, square_link_id, stripe_customer_id, stripe_subscription_id, stripe_session_id, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+            status = excluded.status,
+            trial_until = excluded.trial_until,
+            square_link_id = excluded.square_link_id,
+            stripe_customer_id = excluded.stripe_customer_id,
+            stripe_subscription_id = excluded.stripe_subscription_id,
+            stripe_session_id = excluded.stripe_session_id,
+            updated_at = excluded.updated_at'
+    );
+    $stmt->execute([$userId, $status, $trialUntil, $squareLink, $customer, $subscription, $session, time()]);
+}
+
+function simko_images_allowed(int $userId): bool
+{
+    if (!simko_flag('paywall')) {
+        return true;
+    }
+    return simko_subscription($userId)['status'] === 'paid';
 }
 
 function simko_usage_snapshot(int $userId): array
@@ -44,12 +137,21 @@ function simko_usage_snapshot(int $userId): array
     $paid = $sub['status'] === 'paid';
     $limit = $paid ? 0 : simko_usage_free_limit() + ($trial ? simko_usage_trial_bonus() : 0);
     $allowed = $paid || $used < $limit;
+    if ($paid) {
+        $status = 'paid';
+    } elseif ($trial) {
+        $status = 'trial';
+    } elseif ($sub['status'] === 'past_due') {
+        $status = 'past_due';
+    } else {
+        $status = 'free';
+    }
     return [
         'used' => $used,
         'limit' => $paid ? null : $limit,
         'remaining' => $paid ? null : max(0, $limit - $used),
         'allowed' => $allowed,
-        'status' => $paid ? 'paid' : ($trial ? 'trial' : 'free'),
+        'status' => $status,
         'trial_until' => $sub['trial_until'],
     ];
 }
@@ -104,7 +206,7 @@ function simko_square_settings(): array
         'access_token' => $connected ? $token : '',
         'connected' => $connected,
         'api_base' => rtrim((string) ($raw['api_base'] ?? 'https://connect.squareupsandbox.com'), '/'),
-        'plan_label' => '$9 first month',
+        'plan_label' => simko_plan_label(),
     ];
 }
 
@@ -119,9 +221,9 @@ function simko_square_checkout(int $userId): array
         'order' => [
             'location_id' => $square['location_id'] !== '' ? $square['location_id'] : 'sandbox-location',
             'line_items' => [[
-                'name' => 'Simko SI first month',
+                'name' => simko_plan_name(),
                 'quantity' => '1',
-                'base_price_money' => ['amount' => 900, 'currency' => 'USD'],
+                'base_price_money' => ['amount' => simko_plan_amount(), 'currency' => 'USD'],
             ]],
         ],
         'checkout_options' => ['redirect_url' => rtrim((string) (simko_config_or_empty()['site_url'] ?? 'https://simkosi.com'), '/') . '/'],
@@ -148,13 +250,10 @@ function simko_square_checkout(int $userId): array
     if ($code >= 400 || !is_array($link) || empty($link['url']) || empty($link['id'])) {
         return ['connected' => true, 'error' => 'Square did not open a checkout. Nothing was charged.'];
     }
-    $now = time();
-    $stmt = simko_db()->prepare(
-        'INSERT INTO subscriptions (user_id, status, trial_until, square_link_id, updated_at)
-         VALUES (?, ?, 0, ?, ?)
-         ON CONFLICT(user_id) DO UPDATE SET square_link_id = excluded.square_link_id, updated_at = excluded.updated_at'
-    );
-    $stmt->execute([$userId, simko_subscription($userId)['status'] === 'paid' ? 'paid' : 'free', $link['id'], $now]);
+    simko_subscription_save($userId, [
+        'status' => simko_subscription($userId)['status'] === 'paid' ? 'paid' : 'free',
+        'square_link_id' => (string) $link['id'],
+    ]);
     return ['connected' => true, 'url' => (string) $link['url'], 'id' => (string) $link['id']];
 }
 
@@ -184,10 +283,7 @@ function simko_square_confirm(int $userId, string $linkId): array
     if (!$paid) {
         return ['paid' => false, 'error' => 'Square has not taken a payment. Nothing was charged.'];
     }
-    $stmt = simko_db()->prepare(
-        'UPDATE subscriptions SET status = ?, updated_at = ? WHERE user_id = ?'
-    );
-    $stmt->execute(['paid', time(), $userId]);
+    simko_subscription_save($userId, ['status' => 'paid']);
     return ['paid' => true];
 }
 
@@ -201,11 +297,6 @@ function simko_usage_start_trial(int $userId): array
         simko_fail(400, 'The free trial is already on this account.');
     }
     $until = time() + 7 * 24 * 3600;
-    $stmt = simko_db()->prepare(
-        'INSERT INTO subscriptions (user_id, status, trial_until, square_link_id, updated_at)
-         VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT(user_id) DO UPDATE SET status = excluded.status, trial_until = excluded.trial_until, updated_at = excluded.updated_at'
-    );
-    $stmt->execute([$userId, 'trial', $until, '', time()]);
+    simko_subscription_save($userId, ['status' => 'trial', 'trial_until' => $until]);
     return simko_usage_snapshot($userId);
 }

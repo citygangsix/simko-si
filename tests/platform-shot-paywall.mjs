@@ -14,7 +14,7 @@ export default async function paywallShot(page, shot, token) {
   await page.locator("#everyday").fill("one more please");
   await page.click("#go");
   await page.locator("#paywallCard").waitFor({ state: "visible" });
-  await page.waitForFunction(() => (document.getElementById("paywallBuy").textContent || "").includes("$9"));
+  await page.waitForFunction(() => (document.getElementById("paywallBuy").textContent || "").includes("$9.99"));
   await shot(page, 1280, "paywall");
   await shot(page, 390, "paywall");
   await page.click("#paywallTrial");

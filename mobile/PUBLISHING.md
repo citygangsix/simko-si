@@ -10,7 +10,7 @@ These are the public account fees, not a quote from this repo:
 
 - Apple Developer Program: US$99 per membership year. Required before an iOS build can be uploaded. Enrolling is Joseph's decision.
 - Google Play Console: US$25 once, for the developer account.
-- Apple and Google commissions apply to digital goods sold inside the app (often 15% or 30%). Simko SI's $9 plan is a Square checkout on the website. Keep that payment on the website. Do not add an in-app purchase until Joseph decides to.
+- Apple and Google commissions apply to digital goods sold inside the app (often 15% or 30%). Simko SI's $9.99/month plan is a Stripe checkout on the website. Keep that payment on the website. Do not add an in-app purchase until Joseph decides to.
 
 No store fee is charged by uploading nothing. This repo does not upload.
 

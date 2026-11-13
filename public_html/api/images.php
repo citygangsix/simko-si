@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/usage.php';
 
 function simko_image_model(): string
 {
@@ -29,6 +30,9 @@ function simko_image_blocked(string $prompt, bool $kid): bool
 
 function simko_image_generate(int $userId, string $prompt, ?int $childId): array
 {
+    if (!simko_images_allowed($userId)) {
+        simko_fail(402, 'Pictures are on the $9.99/month plan.', ['paywall' => true]);
+    }
     $prompt = trim($prompt);
     if ($prompt === '' || simko_len($prompt) > 500) {
         simko_fail(400, 'Describe the picture in a short prompt.');

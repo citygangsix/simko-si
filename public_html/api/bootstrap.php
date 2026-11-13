@@ -395,7 +395,20 @@ function simko_migrate(PDO $db): void
             status TEXT NOT NULL,
             trial_until INTEGER,
             square_link_id TEXT,
+            stripe_customer_id TEXT,
+            stripe_subscription_id TEXT,
+            stripe_session_id TEXT,
             updated_at INTEGER NOT NULL
+        )'
+    );
+    simko_add_column($db, 'subscriptions', 'stripe_customer_id', 'TEXT');
+    simko_add_column($db, 'subscriptions', 'stripe_subscription_id', 'TEXT');
+    simko_add_column($db, 'subscriptions', 'stripe_session_id', 'TEXT');
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS stripe_events (
+            event_id TEXT PRIMARY KEY,
+            event_type TEXT NOT NULL,
+            processed_at INTEGER NOT NULL
         )'
     );
     $db->exec('CREATE INDEX IF NOT EXISTS idx_usage_user ON usage_events(user_id, id)');
@@ -576,6 +589,11 @@ function simko_add_column(PDO $db, string $table, string $column, string $defini
         'chats' => ['child_profile_id' => true],
         'oauth_states' => ['nonce' => true],
         'oauth_identities' => ['email_relay' => true],
+        'subscriptions' => [
+            'stripe_customer_id' => true,
+            'stripe_subscription_id' => true,
+            'stripe_session_id' => true,
+        ],
     ];
     if (!isset($allowed[$table][$column])) {
         return;

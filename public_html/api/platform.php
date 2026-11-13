@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/usage.php';
+require_once __DIR__ . '/stripe.php';
 require_once __DIR__ . '/approvals.php';
 require_once __DIR__ . '/recall.php';
 require_once __DIR__ . '/routines.php';
@@ -30,15 +31,24 @@ switch ($op) {
         }
         $snap = simko_usage_snapshot($userId);
         $snap['events'] = simko_usage_events($userId);
-        $snap['square'] = ['connected' => simko_square_settings()['connected'], 'plan_label' => '$9 first month'];
+        $snap['plan_label'] = simko_plan_label();
+        $snap['plan_amount'] = simko_plan_amount();
+        $provider = simko_billing_provider();
+        $connected = $provider === 'square'
+            ? simko_square_settings()['connected']
+            : simko_stripe_settings()['connected'];
+        $snap['billing'] = ['provider' => $provider, 'connected' => $connected];
+        $snap['square'] = ['connected' => simko_square_settings()['connected'], 'plan_label' => simko_plan_label()];
         simko_ok($snap);
         break;
     case 'checkout':
         if (!simko_flag('paywall')) {
             simko_fail(404, 'Usage is turned off.');
         }
-        simko_guard_approval($userId, $body, 'spend', 'Pay $9 for the first month of Simko SI', ['op' => 'checkout']);
-        $result = simko_square_checkout($userId);
+        simko_guard_approval($userId, $body, 'spend', 'Pay ' . simko_plan_label() . ' for Simko SI', ['op' => 'checkout']);
+        $result = simko_billing_provider() === 'square'
+            ? simko_square_checkout($userId)
+            : simko_stripe_checkout($userId, $user);
         if (!empty($result['error']) && empty($result['url'])) {
             simko_fail(402, (string) $result['error'], ['connected' => !empty($result['connected'])]);
         }
@@ -48,11 +58,28 @@ switch ($op) {
         if (!simko_flag('paywall')) {
             simko_fail(404, 'Usage is turned off.');
         }
+        if (simko_billing_provider() === 'stripe') {
+            // Access comes from the Stripe webhook, not from the success page.
+            simko_ok(simko_usage_snapshot($userId));
+        }
         $result = simko_square_confirm($userId, trim((string) ($body['link_id'] ?? '')));
         if (empty($result['paid'])) {
             simko_fail(402, (string) ($result['error'] ?? 'Nothing was charged.'));
         }
         simko_ok(simko_usage_snapshot($userId));
+        break;
+    case 'billing-portal':
+        if (!simko_flag('paywall')) {
+            simko_fail(404, 'Usage is turned off.');
+        }
+        if (simko_billing_provider() !== 'stripe') {
+            simko_fail(400, 'The customer portal is available when billing uses Stripe.');
+        }
+        $result = simko_stripe_portal($userId);
+        if (!empty($result['error']) && empty($result['url'])) {
+            simko_fail(402, (string) $result['error'], ['connected' => !empty($result['connected'])]);
+        }
+        simko_ok($result);
         break;
     case 'decide':
         if (!simko_flag('approvals')) {
@@ -84,7 +111,7 @@ switch ($op) {
                 'Leave platform flags off until the mockups are signed off.',
                 'Apple: enroll, register com.simkosi.simcosi, archive in Xcode, upload. Joseph decides on the $99 membership.',
                 'Google: register Play Console, build an Android App Bundle, upload. The account fee is $25 once.',
-                'Keep the $9 plan on the website Square checkout. Do not add an in-app purchase from here.',
+                'Keep the $9.99/month plan on the website Stripe checkout. Do not add an in-app purchase from here.',
             ],
         ]);
         break;
@@ -207,6 +234,9 @@ switch ($op) {
     case 'imagine':
         if (!simko_flag('images')) {
             simko_fail(404, 'Pictures are turned off.');
+        }
+        if (!simko_images_allowed($userId)) {
+            simko_fail(402, 'Pictures are on the $9.99/month plan.', ['paywall' => true]);
         }
         $childId = simko_requested_child($userId, $body);
         $image = simko_image_generate($userId, (string) ($body['prompt'] ?? ''), $childId);

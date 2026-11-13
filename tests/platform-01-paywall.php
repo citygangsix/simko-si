@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 require __DIR__ . '/platform-support.php';
 
-$mockPort = 8791;
-$sitePort = 8792;
+$basePort = 21000 + (getmypid() % 20000);
+$mockPort = $basePort + 1;
+$sitePort = $basePort + 2;
+$offPort = $basePort + 4;
 [$mock, $mockPipes] = platform_mock($mockPort);
 $private = platform_private('paywall', ['paywall' => true], [
     'xai_base_url' => 'http://127.0.0.1:' . $mockPort . '/v1',
@@ -13,7 +15,7 @@ $private = platform_private('paywall', ['paywall' => true], [
         'application_id' => 'sandbox-sq-app',
         'location_id' => 'sandbox-location',
         'access_token' => '',
-        'api_base' => 'http://127.0.0.1:8793',
+        'api_base' => 'http://127.0.0.1:' . ($basePort + 3),
     ],
 ]);
 [$site, $sitePipes] = platform_site($private, $sitePort);
@@ -32,6 +34,9 @@ for ($i = 1; $i <= 5; $i++) {
 }
 $voice = platform_api($sitePort, '/api/platform', ['op' => 'usage'], $token);
 platform_assert(($voice['data']['used'] ?? 0) === 5, 'five messages counted');
+platform_assert(($voice['data']['plan_label'] ?? '') === '$9.99/month', 'plan label is $9.99/month');
+platform_assert(($voice['data']['plan_amount'] ?? 0) === 999, 'plan amount is 999 cents');
+platform_assert(($voice['data']['billing']['provider'] ?? '') === 'stripe', 'billing provider defaults to stripe');
 platform_assert(($voice['data']['events'][0]['kind'] ?? '') === 'voice', 'the last turn is a voice turn');
 $blocked = platform_api($sitePort, '/api/simco/turn', ['text' => 'one more'], $token);
 platform_assert($blocked['status'] === 402 && !empty($blocked['data']['paywall']), 'sixth message opens the paywall');
@@ -47,11 +52,11 @@ platform_assert($after['status'] === 200, 'trial allows another message without 
 $offPrivate = platform_private('paywall-off', ['paywall' => false], [
     'xai_base_url' => 'http://127.0.0.1:' . $mockPort . '/v1',
 ]);
-[$off, $offPipes] = platform_site($offPrivate, 8794);
-$offUser = platform_signup(8794, 'off-' . getmypid() . '@simkosi.test');
+[$off, $offPipes] = platform_site($offPrivate, $offPort);
+$offUser = platform_signup($offPort, 'off-' . getmypid() . '@simkosi.test');
 $sixth = null;
 for ($i = 1; $i <= 6; $i++) {
-    $sixth = platform_api(8794, '/api/simco/turn', ['text' => 'open ' . $i], $offUser['token']);
+    $sixth = platform_api($offPort, '/api/simco/turn', ['text' => 'open ' . $i], $offUser['token']);
 }
 platform_assert($sixth['status'] === 200 && empty($sixth['data']['paywall']), 'paywall flag off does not cap messages');
 
