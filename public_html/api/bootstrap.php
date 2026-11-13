@@ -784,6 +784,38 @@ function simko_supabase_hook(string $event, array $user): void
 
 function simko_choice_text(array $data): string
 {
+    if (isset($data['output_text']) && is_string($data['output_text']) && trim($data['output_text']) !== '') {
+        return trim($data['output_text']);
+    }
+    if (!empty($data['output']) && is_array($data['output'])) {
+        $parts = [];
+        foreach ($data['output'] as $item) {
+            if (!is_array($item) || ($item['type'] ?? '') !== 'message') {
+                continue;
+            }
+            $content = $item['content'] ?? [];
+            if (!is_array($content)) {
+                continue;
+            }
+            foreach ($content as $part) {
+                if (is_string($part)) {
+                    $parts[] = $part;
+                    continue;
+                }
+                if (!is_array($part) || !isset($part['text']) || !is_string($part['text'])) {
+                    continue;
+                }
+                $partType = (string) ($part['type'] ?? 'output_text');
+                if ($partType === 'output_text' || $partType === 'text') {
+                    $parts[] = $part['text'];
+                }
+            }
+        }
+        $text = trim(implode('', $parts));
+        if ($text !== '') {
+            return $text;
+        }
+    }
     $content = $data['choices'][0]['message']['content'] ?? '';
     if (is_string($content)) {
         return trim($content);

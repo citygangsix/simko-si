@@ -87,17 +87,25 @@ $timeout = (int) ($cfg['timeout_seconds'] ?? 45);
 if ($timeout < 5) {
     $timeout = 45;
 }
+// Agentic web_search on the Responses API can take a few extra steps.
+if (simko_flag('search') && $timeout < 90) {
+    $timeout = 90;
+}
 @set_time_limit($timeout + 5);
 
-$completion = [
-    'model' => $model,
-    'stream' => false,
-    'messages' => $messages,
-];
 if (simko_flag('search')) {
-    $completion['search_parameters'] = simko_search_parameters($strictSearch);
+    $data = simko_curl_json(
+        simko_xai_url('responses'),
+        simko_search_payload($model, $messages, $strictSearch),
+        $timeout
+    );
+} else {
+    $data = simko_curl_json(simko_xai_url('chat/completions'), [
+        'model' => $model,
+        'stream' => false,
+        'messages' => $messages,
+    ], $timeout);
 }
-$data = simko_curl_json(simko_xai_url('chat/completions'), $completion, $timeout);
 $reply = simko_choice_text($data);
 if ($reply === '') {
     simko_fail(502, 'No reply came back from Simko SI. Try again in a moment.');

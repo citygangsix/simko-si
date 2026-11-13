@@ -65,6 +65,75 @@ if ($path === '/v1/chat/completions') {
     return;
 }
 
+if ($path === '/v1/responses') {
+    $body = json_decode(file_get_contents('php://input') ?: '', true);
+    if (!is_array($body)) {
+        $body = [];
+    }
+    $text = '';
+    $system = '';
+    foreach ($body['input'] ?? [] as $message) {
+        if (!is_array($message)) {
+            continue;
+        }
+        $content = $message['content'] ?? '';
+        $flat = is_string($content) ? $content : json_encode($content);
+        if (($message['role'] ?? '') === 'system') {
+            $system = (string) $flat;
+        }
+        if (($message['role'] ?? '') === 'user') {
+            $text = $flat;
+        }
+    }
+    $text = trim((string) preg_replace('/\s+/', ' ', $text));
+    if (str_contains($system, 'asked you to remember')) {
+        $text .= ' [remembered]';
+    }
+    $reply = 'The reef heard you: ' . $text;
+    $payload = [
+        'id' => 'mock-response',
+        'object' => 'response',
+        'model' => $body['model'] ?? 'grok-4.7',
+        'status' => 'completed',
+        'output_text' => $reply,
+        'output' => [[
+            'type' => 'message',
+            'role' => 'assistant',
+            'status' => 'completed',
+            'content' => [[
+                'type' => 'output_text',
+                'text' => $reply,
+            ]],
+        ]],
+    ];
+    $hasSearch = false;
+    foreach ($body['tools'] ?? [] as $tool) {
+        if (is_array($tool) && ($tool['type'] ?? '') === 'web_search') {
+            $hasSearch = true;
+            break;
+        }
+    }
+    if ($hasSearch) {
+        $payload['citations'] = [
+            'https://example.com/reef',
+            'https://evil.example/casino-tips',
+        ];
+        $payload['output'] = array_merge([[
+            'type' => 'web_search_call',
+            'status' => 'completed',
+            'action' => [
+                'sources' => [
+                    ['url' => 'https://example.com/reef'],
+                    ['url' => 'https://evil.example/casino-tips'],
+                ],
+            ],
+        ]], $payload['output']);
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+    return;
+}
+
 if ($path === '/v1/images/generations') {
     header('Content-Type: application/json; charset=utf-8');
     $png = base64_encode(base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
