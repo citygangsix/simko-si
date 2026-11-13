@@ -1,0 +1,11 @@
+.venv/
+models/
+data/
+__pycache__/
+*.pyc
+install.log
+eval/out/
+*.vp
+.key
+*.egg-info/
+eval/run.log
