@@ -236,3 +236,16 @@ register_shutdown_function(static function (): void {
     }
     $GLOBALS['platform_procs'] = [];
 });
+
+function platform_mark_paid(string $private, array $user): void
+{
+    $db = new PDO('sqlite:' . $private . '/data/simko.sqlite', null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $db->exec('PRAGMA busy_timeout = 3000');
+    $email = (string) ($user['user']['email'] ?? $user['email'] ?? '');
+    $stmt = $db->prepare('SELECT id FROM users WHERE email = ?');
+    $stmt->execute([$email]);
+    $id = (int) $stmt->fetchColumn();
+    platform_assert($id > 0, 'found user to mark paid');
+    $db->prepare('INSERT OR REPLACE INTO subscriptions (user_id, status, trial_until, updated_at) VALUES (?, ?, 0, ?)')
+        ->execute([$id, 'paid', time()]);
+}

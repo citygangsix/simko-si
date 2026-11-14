@@ -121,12 +121,27 @@ function simko_subscription_save(int $userId, array $fields): void
     $stmt->execute([$userId, $status, $trialUntil, $squareLink, $customer, $subscription, $session, time()]);
 }
 
+function simko_images_daily_cap(): int
+{
+    $cap = (int) (simko_config_or_empty()['images_daily_cap'] ?? 10);
+    return max(0, min($cap, 50));
+}
+
+function simko_images_today(int $userId): int
+{
+    $stmt = simko_db()->prepare('SELECT COUNT(*) FROM generated_images WHERE user_id = ? AND created_at > ?');
+    $stmt->execute([$userId, time() - 86400]);
+    return (int) $stmt->fetchColumn();
+}
+
+// Pictures are paid-only, even while the paywall is off, and capped per person per day.
+// Free accounts get 5 text messages and no pictures.
 function simko_images_allowed(int $userId): bool
 {
-    if (!simko_flag('paywall')) {
-        return true;
+    if (simko_subscription($userId)['status'] !== 'paid') {
+        return false;
     }
-    return simko_subscription($userId)['status'] === 'paid';
+    return simko_images_today($userId) < simko_images_daily_cap();
 }
 
 function simko_usage_snapshot(int $userId): array
