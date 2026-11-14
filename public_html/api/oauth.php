@@ -66,6 +66,17 @@ function simko_apple_ready(): bool
     return true;
 }
 
+// Google returns email_verified as a JSON boolean. Accept only a real true
+// (or the string "true" some older endpoints send). Missing means not verified.
+function simko_oauth_email_verified($info): bool
+{
+    if (!is_array($info) || !array_key_exists('email_verified', $info)) {
+        return false;
+    }
+    $flag = $info['email_verified'];
+    return $flag === true || (is_string($flag) && strtolower($flag) === 'true');
+}
+
 function simko_oauth_start(string $provider): array
 {
     if (!in_array($provider, ['google', 'apple'], true)) {
@@ -149,6 +160,9 @@ function simko_oauth_finish(string $provider, string $code, string $state, array
     $email = is_array($info) ? strtolower(trim((string) ($info['email'] ?? ''))) : '';
     if ($sub === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         simko_fail(401, 'That sign-in did not include an email.');
+    }
+    if ($provider === 'google' && !simko_oauth_email_verified($info)) {
+        simko_fail(403, 'Google has not verified that email address, so Simko SI cannot sign you in with it. Verify the email with Google, or sign in with your email and password.');
     }
     $link = simko_db()->prepare('SELECT user_id FROM oauth_identities WHERE provider = ? AND subject = ?');
     $link->execute([$provider, $sub]);

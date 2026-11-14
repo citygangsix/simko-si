@@ -55,6 +55,20 @@ while (microtime(true) < $deadline) {
 $ctx = stream_context_create(['http' => ['ignore_errors' => true]]);
 $html = file_get_contents('http://127.0.0.1:' . $sitePort . '/api/oauth/callback?provider=google&code=abc&state=' . $state, false, $ctx);
 platform_assert(is_string($html) && str_contains($html, 'ada@simkosi.test'), 'the code exchange signs the person in');
+foreach (['unverified' => 'email_verified false', 'noflag' => 'email_verified missing'] as $code => $label) {
+    $again = platform_api($sitePort, '/api/platform', ['op' => 'oauth-start', 'provider' => 'google']);
+    $refused = file_get_contents('http://127.0.0.1:' . $sitePort . '/api/oauth/callback?provider=google&code=' . $code . '&state=' . $again['data']['state'], false, $ctx);
+    $status = 0;
+    foreach ($http_response_header ?? [] as $header) {
+        if (preg_match('#HTTP/\S+\s+(\d+)#', $header, $m)) {
+            $status = (int) $m[1];
+        }
+    }
+    platform_assert($status === 403 && is_string($refused) && str_contains($refused, 'not verified') && !str_contains($refused, 'Signed in'), 'Google sign-in is refused when ' . $label);
+}
+$db = new PDO('sqlite:' . $ready . '/data/simko.sqlite');
+$linked = (int) $db->query("SELECT COUNT(*) FROM oauth_identities WHERE subject IN ('google-subject-2', 'google-subject-3')")->fetchColumn();
+platform_assert($linked === 0, 'an unverified Google email is never linked to the existing account');
 $apple = platform_api($sitePort, '/api/platform', ['op' => 'oauth-start', 'provider' => 'apple']);
 platform_assert($apple['status'] === 404, 'Apple stays hidden without a Services ID');
 
