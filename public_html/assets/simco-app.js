@@ -48,6 +48,7 @@
   let creatingChat = false;
   let listEpoch = 0;
   let activeSessionId = "";
+  let voiceSessionEpoch = 0;
   let chatRows = [];
   let sessionCache = {};
   let activeRole = "coding";
@@ -373,6 +374,7 @@
       button.addEventListener("click", () => {
         if (demo) {
           activeSessionId = row.id;
+          if (window.simcoVoice) window.simcoVoice.setContext(row);
           document.querySelectorAll("#sessionList button").forEach((item) => {
             item.setAttribute("aria-pressed", item.dataset.id === row.id ? "true" : "false");
           });
@@ -389,6 +391,7 @@
   function showDemoList() {
     document.body.classList.remove("thread-open");
     activeSessionId = "";
+    if (window.simcoVoice) window.simcoVoice.setContext(null);
     paintChatList(DEMO_CHATS, true);
     setThreadTitle("New chat");
     $("historyBubbles").replaceChildren();
@@ -411,6 +414,7 @@
     const session = sessionCache[sessionId];
     if (!session) return;
     activeSessionId = session.id;
+    if (window.simcoVoice) window.simcoVoice.setContext(session);
     document.querySelectorAll("#sessionList button").forEach((button) => {
       button.setAttribute("aria-pressed", button.dataset.id === activeSessionId ? "true" : "false");
     });
@@ -420,12 +424,15 @@
   }
 
   async function showSession(sessionId, open) {
+    const voiceEpoch = ++voiceSessionEpoch;
     const data = await sessionPost({ op: "get", session_id: sessionId });
+    if (voiceEpoch !== voiceSessionEpoch) return;
     if (!data.ok || !data.session) {
       showSessionFromCache(sessionId, open);
       return;
     }
     activeSessionId = data.session.id;
+    if (window.simcoVoice) window.simcoVoice.setContext(data.session);
     sessionCache[data.session.id] = data.session;
     const row = chatRows.find((item) => item.id === data.session.id);
     if (row) row.title = data.session.title;
@@ -512,6 +519,7 @@
     authToken = "";
     window.simcoUserToken = "";
     activeSessionId = "";
+    if (window.simcoVoice) window.simcoVoice.setContext(null);
     chatRows = [];
     try { sessionStorage.removeItem("podcoderToken"); } catch (e) {}
     ["authEmail", "authPassword", "signUp", "signIn", "resetPassword"].forEach((id) => { const el = $(id); if (el) el.hidden = false; });
@@ -714,6 +722,7 @@
       const created = await sessionPost({ op: "create", title: "Chat " + (chatRows.length + 1) });
       if (created.session) {
         activeSessionId = created.session.id;
+        if (window.simcoVoice) window.simcoVoice.setContext(created.session);
         chatRows.unshift(created.session);
       }
     }
@@ -741,12 +750,26 @@
       needAccount();
       return;
     }
+    // Allocate the first chat (and its voice) BEFORE requesting/speaking its
+    // first reply, rather than assigning a different voice afterward.
+    if (!activeSessionId || String(activeSessionId).startsWith("demo-")) {
+      const created = await sessionPost({ op: "create", title: "Chat " + (chatRows.length + 1) });
+      if (!created.ok || !created.session) {
+        setReply(created.error || "Could not open a chat. Please try again.");
+        return;
+      }
+      activeSessionId = created.session.id;
+      sessionCache[activeSessionId] = created.session;
+      chatRows.unshift(created.session);
+      if (window.simcoVoice) window.simcoVoice.setContext(created.session);
+    }
     showMyMessage(text);
     $("everyday").value = "";
     $("everyday").dispatchEvent(new Event("input", { bubbles: true }));
     setReply("Working on it…");
     let everyday = "";
     try {
+      if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace("turn_sent");
       const data = await postJson("/api/simco/turn", {
         text: text,
         token: authToken,
@@ -762,8 +785,10 @@
         return;
       }
       everyday = (data && (data.everyday || data.error)) || "";
+      if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace(data && data.ok && everyday ? "turn_reply" : "turn_error", everyday ? "" : "empty");
       if (data && data.model) model = data.model;
     } catch (e) {
+      if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace("turn_error", e.name);
       everyday = "Simko SI could not be reached. Try again in a moment.";
     }
     const line = everyday || "No reply came back from Simko SI. Try again in a moment.";
@@ -1210,6 +1235,7 @@
 
   window.addEventListener("simko-child", () => {
     activeSessionId = "";
+    if (window.simcoVoice) window.simcoVoice.setContext(null);
     refreshChats(null, { stayOnList: true });
   });
 
@@ -1219,5 +1245,12 @@
   autoConnect();
   bootAuth();
   loadFamilyScript();
+  document.addEventListener("simco:voice-saved", function (event) {
+    const saved = event.detail;
+    if (sessionCache[saved.id]) sessionCache[saved.id].voice_id = saved.voice_id;
+    const row = chatRows.find(function (item) { return item.id === saved.id; });
+    if (row) row.voice_id = saved.voice_id;
+    cacheSave();
+  });
   window.simcoApp = { needAccount: needAccount };
 })();

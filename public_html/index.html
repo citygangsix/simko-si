@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
 <title>Simko SI</title>
-<meta name="simko-build" content="971b21ff3edd"/>
+<meta name="simko-build" content="voice-bots-20261108-v5"/>
 <link rel="icon" href="/assets/favicon.svg?v=971b21ff3edd" type="image/svg+xml"/>
 <script>
 (function () {
@@ -434,57 +434,33 @@
     50% { height: 100%; }
   }
   #liveVoice {
-    position: fixed;
-    z-index: 34;
-    top: calc(env(safe-area-inset-top, 0px) + 7.15rem);
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    width: min(20rem, calc(100vw - 1.25rem));
-    padding: 0.4rem 0.45rem 0.4rem 0.8rem;
-    border-radius: 999px;
-    background: rgba(3, 20, 28, 0.78);
-    border: 1px solid rgba(255, 214, 196, 0.55);
-    backdrop-filter: blur(16px);
-    color: #fff;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+    position: fixed; z-index: 34; left: 50%; bottom: max(18px, env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%); box-sizing: border-box; width: min(384px, calc(100vw - 24px));
+    padding: 10px 14px; border-radius: 22px; background: rgba(3, 20, 28, 0.88);
+    border: 1px solid rgba(255, 214, 196, 0.55); backdrop-filter: blur(16px);
+    color: #fff; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
   }
-  #liveVoice[hidden] { display: none !important; }
-  #liveBars {
-    display: flex;
-    align-items: flex-end;
-    gap: 3px;
-    height: 1.35rem;
-    width: 1.7rem;
-    flex: none;
-  }
-  #liveBars i {
-    display: block;
-    width: 3px;
-    height: 20%;
-    border-radius: 999px;
-    background: #a0f0f5;
-  }
-  #liveVoiceState {
-    flex: 1;
-    margin: 0;
-    font-size: 0.98rem;
-    min-width: 0;
-  }
-  #liveVoiceClose {
-    flex: none;
-    width: 2.4rem;
-    height: 2.4rem;
-    padding: 0;
-    border-radius: 999px;
-    font-size: 1.2rem;
-    line-height: 1;
-  }
-  @media (min-width: 900px) {
-    #liveVoice { left: 68%; }
-  }
+  #liveVoice[hidden], #liveVoiceSettings[hidden], #liveVoiceNote[hidden] { display: none !important; }
+  .liveVoiceTop { display: flex; align-items: center; gap: 9px; height: 23px; margin-bottom: 6px; }
+  .liveVoiceDot { width: 9px; height: 9px; border-radius: 50%; background: #a0f0f5; box-shadow: 0 0 10px #80e5ed; flex: none; }
+  #liveVoiceState { flex: 1; margin: 0; font-size: 0.98rem; min-width: 0; }
+  #liveBars { display: flex; align-items: center; gap: 3px; height: 24px; width: 68px; flex: none; }
+  #liveBars i { display: block; width: 3px; height: 20%; border-radius: 999px; background: #a0f0f5; }
+  .liveVoiceControls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .liveVoiceControls button { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0; border-radius: 999px; background: rgba(255,255,255,.10); border: 1px solid rgba(219,235,237,.42); color: white; }
+  .liveVoiceControls button svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #liveVoiceMic[aria-pressed="true"] { background: rgba(64,196,210,.30); border-color: #a0f0f5; }
+  #liveVoiceMute[aria-pressed="true"] { background: rgba(161,94,77,.58); }
+  #liveVoiceClose { background: rgba(144,77,65,.65); border-color: #ffc5b2; }
+  .liveVoiceControls button:focus-visible, #liveVoiceSettings :focus-visible { outline: 2px solid #a0f0f5; outline-offset: 3px; }
+  #liveVoice[data-phase="error"] .liveVoiceDot { background: #ffc5b2; box-shadow: none; }
+  #liveVoice[data-phase="paused"] #liveBars { opacity: .3; }
+  #liveVoiceNote { font-size: .88rem; margin: 8px 0 0; overflow-wrap: anywhere; }
+  #liveVoiceSettings { position: absolute; bottom: calc(100% + 8px); left: 0; right: 0; max-height: min(320px, 50dvh); overflow: auto; box-sizing: border-box; padding: 16px; border-radius: 18px; background: rgba(3,20,28,.97); border: 1px solid rgba(255,214,196,.55); }
+  #liveVoiceSettings label { display: block; margin: 4px 0 8px; }
+  #liveVoiceSettings select { box-sizing: border-box; width: 100%; min-height: 44px; color: white; background: #18323a; border: 1px solid #769096; border-radius: 8px; padding: 6px; }
+  #liveVoiceSettings input { width: 100%; min-height: 44px; }
+  @media (min-width: 900px) { #liveVoice { left: calc(50% + 140px); bottom: 27%; } }
   @keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 120, 100, 0.55); } 50% { box-shadow: 0 0 0 0.55rem rgba(255, 120, 100, 0); } }
   #micHint { display: inline-block; max-width: min(46rem, 100%); margin: 0 0 0.4rem; padding: 0.3rem 0.8rem; border-radius: 999px; font-size: 0.95rem; color: #fff; background: rgba(3, 20, 28, 0.62); backdrop-filter: blur(10px); }
   #micHint[hidden] { display: none; }
@@ -1171,12 +1147,37 @@
 </style>
 </head>
 <body>
-<video id="bgVideo" aria-hidden="true" muted autoplay loop playsinline poster="/assets/sea-turtle-poster.jpg"><source src="/assets/sea-turtle-loop.mp4" type="video/mp4"></video>
+<video id="bgVideo" aria-hidden="true" muted autoplay loop playsinline poster="/assets/sea-turtle-poster.jpg"><source src="/assets/reef-live-portrait-loop-web.mp4" media="(max-width: 768px), (pointer: coarse) and (max-width: 1100px)" type="video/mp4"><source src="/assets/sea-turtle-loop.mp4" type="video/mp4"></video>
+<script>
+(() => {
+ const video = document.getElementById('bgVideo');
+ const mobile = window.matchMedia('(max-width: 768px), (pointer: coarse) and (max-width: 1100px)');
+ function selectBackground() {
+   const src = mobile.matches ? '/assets/reef-live-portrait-loop-web.mp4' : '/assets/sea-turtle-loop.mp4';
+   video.poster = mobile.matches ? '/assets/reef-live-portrait-loop-web-poster.jpg' : '/assets/sea-turtle-poster.jpg';
+   if (video.getAttribute('src') !== src) {
+     video.src = src; video.muted = true; video.load(); video.play().catch(() => {});
+   }
+ }
+ if (mobile.addEventListener) mobile.addEventListener('change', selectBackground);
+ else mobile.addListener(selectBackground);
+ selectBackground();
+})();
+</script>
 <div id="bgShade" aria-hidden="true"></div>
-<div id="liveVoice" hidden role="status" aria-live="polite">
-  <div id="liveBars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-  <p id="liveVoiceState">Listening</p>
-  <button id="liveVoiceClose" type="button" aria-label="Close voice">×</button>
+<div id="liveVoice" hidden role="region" aria-label="Voice conversation">
+  <div class="liveVoiceTop"><span class="liveVoiceDot" aria-hidden="true"></span><p id="liveVoiceState" role="status" aria-live="polite">Listening…</p><div id="liveBars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+  <div class="liveVoiceControls">
+    <button id="liveVoiceGear" type="button" aria-label="Voice settings" title="Voice settings" aria-expanded="false" aria-controls="liveVoiceSettings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3 3-1 3 1 1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3-3 1z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button id="liveVoiceMic" type="button" aria-label="Pause microphone" title="Pause microphone" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-3 0h6"/></svg></button>
+    <button id="liveVoiceMute" type="button" aria-label="Mute speaker" title="Mute speaker" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9zM17 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg></button>
+    <button id="liveVoiceClose" type="button" aria-label="Close voice" title="Close voice"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+  </div>
+  <p id="liveVoiceNote" hidden role="status" aria-live="polite"></p>
+  <section id="liveVoiceSettings" hidden aria-label="Voice settings">
+    <label for="liveVoiceSelect">Voice</label><select id="liveVoiceSelect"></select>
+    <label for="liveVoiceSpeed">Speed · <output id="liveVoiceSpeedOut" for="liveVoiceSpeed">1×</output></label><input id="liveVoiceSpeed" type="range" min="0.7" max="1.5" step="0.05" value="1">
+  </section>
 </div>
 <div id="accountBar">
   <button id="accountSignIn" type="button">Sign in</button>
@@ -1518,7 +1519,7 @@
   <button id="browseOpen" type="button" hidden>Read page</button>
   <button id="storeOpen" type="button" hidden>Store</button>
   <button id="detectHardware" type="button">Detect</button>
-  <a id="downloadNow" href="https://github.com/citygangsix/simko-si/releases/download/v0.2.0/SimkoSI_0.2.0_x64-setup.exe">Download</a>
+  <a id="downloadNow" href="https://github.com/citygangsix/simko-si/releases/download/v0.2.2/SimkoSI_0.2.2_x64-setup.exe">Download</a>
   <button id="computeCloud" type="button" aria-pressed="true">Cloud</button>
   <button id="computeLocal" type="button" aria-pressed="false">Local</button>
   <button id="rentComputer" type="button">Rent</button>
@@ -1620,8 +1621,8 @@
 })();
 </script>
 <script src="/assets/theme-host.js?v=971b21ff3edd"></script>
-<script src="/assets/simco-voice.js?v=971b21ff3edd"></script>
-<script src="/assets/simco-app.js?v=971b21ff3edd"></script>
+<script src="/assets/simco-voice.js?v=voice-bots-20261108-v6"></script>
+<script src="/assets/simco-app.js?v=voice-bots-20261108-v5"></script>
 
 </body>
 </html>

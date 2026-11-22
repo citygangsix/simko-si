@@ -11,7 +11,7 @@
     voices: [], ready: false, voice: "coral", speed: 1.0, min: 0.7, max: 1.5,
     recorder: null, stream: null, chunks: [], session: false, pendingTurn: false,
     player: null, previewing: "", silenceTimer: null, audioCtx: null,
-    live: false, liveGen: 0, livePhase: "off"
+    live: false, liveGen: 0, livePhase: "off", micPaused: false, muted: false, playbackGen: 0
   };
   var lastSpoken = "";
   var fallbackUsed = false;
@@ -46,27 +46,35 @@
     {id:"whale",name:"Whale",tone:"Grounded and luminous"}
   ];
   function fallbackSpeak(text) {
-    if (!text || !window.speechSynthesis) { setMic("idle"); markPreview(""); resumeLiveAfterSpeech(); return; }
+    if (state.muted) { resumeLiveAfterSpeech(); return; }
+    if (!text || !window.speechSynthesis) { voiceNote("Speech playback is unavailable. You can read the reply below."); setMic("idle"); markPreview(""); resumeLiveAfterSpeech(); return; }
+    var playbackGen = state.playbackGen;
     var u = new SpeechSynthesisUtterance(text);
     u.rate = Math.min(1.5, Math.max(0.7, state.speed || 1));
     var voices = window.speechSynthesis.getVoices() || [];
     if (voices.length) {
+      voiceNote("The selected Grok voice is unavailable. Using a device voice instead.");
       var idx = 0;
       for (var i = 0; i < state.voices.length; i++) if (state.voices[i].id === state.voice) idx = i;
       u.voice = voices[idx % voices.length];
     }
-    u.onend = function () { setMic(state.recorder ? "listening" : "idle"); markPreview(""); resumeLiveAfterSpeech(); };
+    u.onend = function () { if (playbackGen !== state.playbackGen) return; setMic(state.recorder ? "listening" : "idle"); markPreview(""); resumeLiveAfterSpeech(); };
+    u.onerror = function () { if (playbackGen !== state.playbackGen) return; voiceNote("Speech playback failed. You can read the reply below; the mic is ready again."); setMic("idle"); markPreview(""); resumeLiveAfterSpeech(); };
     window.speechSynthesis.cancel();
     setMic("speaking");
-    window.speechSynthesis.speak(u);
+    try { window.speechSynthesis.speak(u); } catch (e) { u.onerror(); }
   }
-  function useFallback() {
-    if (fallbackUsed) return;
+  function useFallback(message) {
+    if (fallbackUsed || state.muted || (!state.live && !state.session && !state.previewing)) return;
+    traceVoice("tts_fallback", "unknown");
+    state.playbackActive = false;
+    if (state.player) state.player.pause();
+    voiceNote((message || "Voice audio could not play.") + " Trying the browser voice.");
     fallbackUsed = true;
     if (lastSpoken) fallbackSpeak(lastSpoken);
     else { setMic("idle"); markPreview(""); }
   }
-  var SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+  var SILENT = "data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YSADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
 
   function $(id) { return document.getElementById(id); }
   function apiUrl(path) {
@@ -81,33 +89,124 @@
       state.player = new Audio();
       state.player.preload = "auto";
       state.player.setAttribute("playsinline", "");
-      state.player.addEventListener("ended", function () { setMic(state.recorder ? "listening" : "idle"); markPreview(""); resumeLiveAfterSpeech(); });
-      state.player.addEventListener("error", function () { useFallback(); });
+      state.player.addEventListener("ended", function () {
+        if (!state.playbackActive) return;
+        state.playbackActive = false; releaseSpeechUrl();
+        setMic(state.recorder ? "listening" : "idle"); markPreview(""); resumeLiveAfterSpeech();
+      });
+      state.player.addEventListener("error", function () { if (state.playbackActive) useFallback(); });
     }
     return state.player;
   }
+  function traceVoice(stage, error, status) {
+    // Temporary diagnostic proposal: enums only. No transcript, audio, text,
+    // cookies, session tokens, email, URL, or arbitrary exception message.
+    if ((state.traceCount || 0) >= 60) return;
+    state.traceCount = (state.traceCount || 0) + 1;
+    var errors = ["NotAllowedError", "SecurityError", "NotFoundError", "NotReadableError", "AbortError", "TypeError", "InvalidStateError", "NotSupportedError", "no-speech", "network", "empty", "unknown"];
+    var code = !error ? "" : errors.indexOf(error) >= 0 ? error : "unknown";
+    fetch(apiUrl("/api/voice/clientlog"), voiceRequest({
+      method: "POST", headers: { "Content-Type": "application/json" }, keepalive: true,
+      body: JSON.stringify({ stage: stage, error: code, status: Number(status) || 0, version: "voice-v4" })
+    })).catch(function () {});
+  }
+  function voiceRequest(options) {
+    options = options || {};
+    var headers = Object.assign({}, options.headers || {});
+    // Same application session used by typed chat; never put this token in a URL.
+    try { var token = sessionStorage.getItem("podcoderToken"); if (token) headers.Authorization = "Bearer " + token; } catch (e) {}
+    return Object.assign({}, options, { credentials: "same-origin", headers: headers });
+  }
+  function releaseSpeechUrl() {
+    if (state.speechUrl) { URL.revokeObjectURL(state.speechUrl); state.speechUrl = null; }
+  }
   function unlock() {
-    // iOS and Android only allow sound that starts from a tap, so prime the player now.
+    // Both creation/resume and the first play MUST happen synchronously in the tap.
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) {
+        state.audioCtx = state.audioCtx || new Ctx();
+        if (state.audioCtx.state === "suspended") state.audioCtx.resume().catch(function () {});
+      }
+    } catch (e) {}
     var p = player();
-    if (p.src) return;
-    p.src = SILENT;
-    p.play().catch(function () {});
+    if (state.audioPrimed) return;
+    p.src = SILENT; // A real 50 ms PCM recording, not the old zero-frame WAV.
+    var gen = state.playbackGen;
+    p.play().then(function () { if (gen === state.playbackGen) state.audioPrimed = true; }).catch(function () { if (gen === state.playbackGen) state.audioPrimed = false; });
   }
   function speakUrl(params) {
     var q = Object.keys(params).map(function (k) { return k + "=" + encodeURIComponent(params[k]); }).join("&");
     return apiUrl("/api/voice/speak?" + q);
   }
-  function play(url) {
+  async function play(url) {
+    if (state.muted) { resumeLiveAfterSpeech(); return; }
     var p = player();
+    var previewing = state.previewing;
+    stopSpeaking();
+    if (previewing) markPreview(previewing);
+    var gen = state.playbackGen;
     fallbackUsed = false;
-    p.pause();
-    p.src = url;            // PHP proxies xAI TTS and returns audio bytes
-    p.playbackRate = 1.0;   // speed is applied by xAI, not by stretching audio here
-    return p.play().catch(function () { useFallback(); });
+    var controller = new AbortController();
+    state.ttsAbort = controller;
+    var timeout = setTimeout(function () { controller.abort(); }, 50000);
+    try {
+      traceVoice("tts_fetch");
+      var response = await fetch(url, voiceRequest({ signal: controller.signal }));
+      if (!response.ok) {
+        traceVoice("tts_http_error", "", response.status);
+        var error = await response.json().catch(function () { return {}; });
+        throw new Error((error.everyday || error.error || "Voice request failed") + " (HTTP " + response.status + ").");
+      }
+      if (!/^audio\//i.test(response.headers.get("Content-Type") || "")) throw new Error("The voice service did not return audio.");
+      var blob = await response.blob();
+      traceVoice("tts_audio_ready", blob.size ? "" : "empty", response.status);
+      if (!blob.size) throw new Error("The voice service returned empty audio.");
+      if (gen !== state.playbackGen || state.muted) return;
+      state.speechUrl = URL.createObjectURL(blob);
+      p.src = state.speechUrl;
+      p.playbackRate = 1;
+      state.playbackActive = true;
+      try { await p.play(); traceVoice("tts_element_started"); }
+      catch (error) {
+        if (gen !== state.playbackGen || state.muted) return;
+        // Mobile autoplay policies can still block the media element. Reuse the
+        // AudioContext created in the mic tap, NOT one created after this await.
+        if (error.name !== "NotAllowedError" || !state.audioCtx || state.audioCtx.state !== "running") throw error;
+        state.playbackActive = false;
+        var decoded = await state.audioCtx.decodeAudioData(await blob.arrayBuffer());
+        if (gen !== state.playbackGen || state.muted) return;
+        var source = state.audioCtx.createBufferSource();
+        source.buffer = decoded; source.connect(state.audioCtx.destination);
+        state.speechSource = source;
+        source.onended = function () {
+          if (gen !== state.playbackGen) return;
+          state.speechSource = null; releaseSpeechUrl();
+          setMic(state.recorder ? "listening" : "idle"); markPreview(""); resumeLiveAfterSpeech();
+        };
+        source.start();
+        traceVoice("tts_webaudio_started");
+      }
+    } catch (error) {
+      if (gen === state.playbackGen && !state.muted) useFallback(error.message || "Voice playback failed.");
+    } finally {
+      clearTimeout(timeout);
+      if (state.ttsAbort === controller) state.ttsAbort = null;
+    }
   }
-  function stopSpeaking() {
+  function stopSpeaking(reset) {
+    state.playbackGen += 1;
+    state.playbackActive = false;
+    if (state.ttsAbort) { state.ttsAbort.abort(); state.ttsAbort = null; }
+    if (state.speechSource) { state.speechSource.onended = null; try { state.speechSource.stop(); } catch (e) {} state.speechSource = null; }
+    if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (e) {} }
     var p = state.player;
-    if (p && !p.paused) { p.pause(); }
+    if (p) {
+      p.pause();
+      // Do not reset/reload the unlocked media element between voice turns.
+      if (reset) { p.removeAttribute("src"); p.load(); state.audioPrimed = false; }
+    }
+    releaseSpeechUrl();
     markPreview("");
   }
   function trimForSpeech(text) {
@@ -194,7 +293,8 @@
     try {
       state.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
     } catch (e) {
-      listenWithWebSpeech();
+      showMicNote("Microphone permission was denied or the microphone is unavailable. Allow microphone access, then retry.");
+      setMic("idle");
       return;
     }
     var types = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus", "audio/webm"];
@@ -260,11 +360,11 @@
     });
     var data = null;
     try {
-      var res = await fetch("/api/voice/transcribe", {
+      var res = await fetch(apiUrl("/api/voice/transcribe"), voiceRequest({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ audio: audio, mime: type.split(";")[0] })
-      });
+      }));
       data = await res.json();
     } catch (e) { data = null; }
     if (!data || !data.ok || !data.text) {
@@ -286,6 +386,7 @@
     return document.documentElement.getAttribute("data-simko-signed") === "1";
   }
   function showMicNote(text) {
+    voiceNote(text);
     var hint = $("micHint");
     if (!hint) return;
     hint.hidden = false;
@@ -300,6 +401,12 @@
       return;
     }
     lastSpoken = line;
+    voiceNote("");
+    if (state.muted) {
+      if (state.live) { setLivePhase("speaking"); resumeLiveAfterSpeech(); }
+      else setMic("idle");
+      return;
+    }
     if (state.live) {
       setLivePhase("speaking");
       enableMic(false);
@@ -353,19 +460,61 @@
     play(speakUrl({ voice: id, speed: state.speed.toFixed(2), preview: 1 }));
   }
 
-  function choose(id) {
+  function validVoice(id) { return (state.voices.length ? state.voices : SEA).some(function (v) { return v.id === id; }); }
+  function contextKey(id) { return VOICE_KEY + ":chat:" + id; }
+  function setContext(session) {
+    var id = session && session.id && String(session.id).indexOf("demo-") !== 0 ? String(session.id) : "";
+    if (state.contextId && state.contextId !== id && state.live) stopLive();
+    state.contextId = id;
+    var pending = id ? load(contextKey(id) + ":pending", "") : "";
+    var assigned = session && session.voice_id;
+    var local = id ? load(contextKey(id), "") : "";
+    var voice = validVoice(pending) ? pending : validVoice(assigned) ? assigned : validVoice(local) ? local : load(VOICE_KEY, "coral");
+    choose(validVoice(voice) ? voice : "coral", { persist: false });
+    if (id && validVoice(pending)) choose(pending); // Retry a device-only override.
+  }
+  function choose(id, options) {
+    if (!validVoice(id)) return false;
+    options = options || {};
     state.voice = id;
-    save(VOICE_KEY, id);
+    var contextId = state.contextId || "";
+    if (options.persist !== false) {
+      save(VOICE_KEY, id);
+      if (contextId) {
+        save(contextKey(contextId), id); save(contextKey(contextId) + ":pending", id);
+        state.voiceSaveSeq = (state.voiceSaveSeq || 0) + 1;
+        var saveSeq = state.voiceSaveSeq;
+        state.contextSaveSeq = state.contextSaveSeq || {};
+        state.contextSaveSeq[contextId] = saveSeq;
+        var body = { op: "set-voice", session_id: contextId, voice_id: id, child_id: window.simcoChildId || undefined };
+        // Serialize saves per page so rapid selection cannot persist out of order.
+        state.voiceSave = (state.voiceSave || Promise.resolve()).catch(function () {}).then(async function () {
+          try {
+            var response = await fetch(apiUrl("/api/sessions"), voiceRequest({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+            var data = await response.json();
+            if (!response.ok || !data.ok || data.voice_id !== id) throw new Error("save-failed");
+            if (state.contextSaveSeq[contextId] === saveSeq) save(contextKey(contextId) + ":pending", "");
+            document.dispatchEvent(new CustomEvent("simco:voice-saved", { detail: { id: contextId, voice_id: id } }));
+          } catch (e) {
+            if (state.contextId === contextId && state.voice === id) voiceNote("Voice selected on this device; server saving failed. It will retry when this chat is opened.");
+          }
+        });
+      }
+    }
     var list = $("voiceList");
-    if (list) list.querySelectorAll("button.voicePick").forEach(function (b) {
-      b.setAttribute("aria-pressed", b.dataset.voice === id ? "true" : "false");
-    });
-    var now = $("voiceNow");
-    if (now) now.textContent = currentName();
+    if (list) list.querySelectorAll("button.voicePick").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.voice === id ? "true" : "false"); });
+    var now = $("voiceNow"); if (now) now.textContent = currentName();
+    var quick = $("liveVoiceSelect"); if (quick) quick.value = id;
     revealPicked();
+    return true;
   }
 
   function paint() {
+    var quick = $("liveVoiceSelect");
+    if (quick) {
+      quick.textContent = "";
+      state.voices.forEach(function (v) { var option = document.createElement("option"); option.value = v.id; option.textContent = v.name + " — " + v.tone; quick.appendChild(option); });
+    }
     var list = $("voiceList");
     if (!list) return;
     list.innerHTML = "";
@@ -392,11 +541,14 @@
       row.appendChild(pick); row.appendChild(playB);
       list.appendChild(row);
     });
-    choose(state.voice);
+    choose(state.voice, { persist: false });
     paintSpeed();
   }
 
   function paintSpeed() {
+    var quick = $("liveVoiceSpeed"), quickOut = $("liveVoiceSpeedOut");
+    if (quick) { quick.min = state.min; quick.max = state.max; quick.value = state.speed; }
+    if (quickOut) quickOut.textContent = state.speed.toFixed(2).replace(/0$/, "") + "×";
     var s = $("voiceSpeed"), out = $("voiceSpeedOut");
     if (!s) return;
     s.min = state.min; s.max = state.max; s.step = 0.05; s.value = state.speed;
@@ -428,6 +580,45 @@
       event.preventDefault();
       event.stopPropagation();
       stopLive();
+    });
+    var gear = $("liveVoiceGear");
+    if (gear) gear.addEventListener("click", function () {
+      var panel = $("liveVoiceSettings");
+      panel.hidden = !panel.hidden;
+      gear.setAttribute("aria-expanded", String(!panel.hidden));
+      if (!panel.hidden) $("liveVoiceSelect").focus();
+    });
+    var micToggle = $("liveVoiceMic");
+    if (micToggle) micToggle.addEventListener("click", function () {
+      if (!state.live) return;
+      unlock();
+      if (state.livePhase === "error") { state.micPaused = false; listenTurn(state.liveGen); return; }
+      state.micPaused = !state.micPaused;
+      if (state.micPaused) {
+        stopRecognition(); stopServerRec(); enableMic(false);
+        if (state.livePhase === "listening") setLivePhase("paused");
+      } else if (state.livePhase === "paused") listenTurn(state.liveGen);
+      paintVoiceControls();
+    });
+    var mute = $("liveVoiceMute");
+    if (mute) mute.addEventListener("click", function () {
+      state.muted = !state.muted;
+      if (!state.muted) unlock();
+      if (state.muted) { stopSpeaking(); resumeLiveAfterSpeech(); }
+      paintVoiceControls();
+    });
+    var quick = $("liveVoiceSelect");
+    if (quick) quick.addEventListener("change", function () { choose(quick.value); });
+    var quickSpeed = $("liveVoiceSpeed");
+    if (quickSpeed) quickSpeed.addEventListener("input", function () {
+      state.speed = Math.min(state.max, Math.max(state.min, parseFloat(quickSpeed.value) || 1));
+      save(SPEED_KEY, state.speed); paintSpeed();
+    });
+    if (live) live.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape") return;
+      var settings = $("liveVoiceSettings");
+      if (settings && !settings.hidden) { settings.hidden = true; gear.setAttribute("aria-expanded", "false"); gear.focus(); }
+      else stopLive();
     });
     paintGo();
     var s = $("voiceSpeed");
@@ -469,6 +660,29 @@
     go.title = label;
   }
 
+  function voiceNote(text) {
+    var note = $("liveVoiceNote");
+    if (note) { note.textContent = text || ""; note.hidden = !text; }
+  }
+
+  function paintVoiceControls() {
+    var mic = $("liveVoiceMic"), mute = $("liveVoiceMute");
+    var retry = state.livePhase === "error";
+    if (mic) {
+      mic.setAttribute("aria-pressed", String(!state.micPaused && !retry));
+      mic.setAttribute("aria-label", retry ? "Retry microphone" : state.micPaused ? "Resume microphone" : "Pause microphone");
+      mic.title = mic.getAttribute("aria-label");
+    }
+    if (mute) { mute.setAttribute("aria-pressed", String(state.muted)); mute.setAttribute("aria-label", state.muted ? "Unmute speaker" : "Mute speaker"); mute.title = mute.getAttribute("aria-label"); }
+  }
+
+  function liveError(message) {
+    if (!state.live) return;
+    stopRecognition(); stopServerRec(); enableMic(false);
+    setLivePhase("error");
+    voiceNote(message + " Tap the microphone to retry, or type below.");
+  }
+
   function setLivePhase(phase) {
     state.livePhase = phase;
     var box = $("liveVoice");
@@ -478,14 +692,15 @@
       box.dataset.phase = phase;
     }
     if (label) {
-      label.textContent = phase === "listening" ? "Listening" : phase === "thinking" ? "Thinking" : phase === "speaking" ? "Speaking" : "";
+      label.textContent = phase === "listening" ? "Listening…" : phase === "thinking" ? "Thinking…" : phase === "speaking" ? "Speaking…" : phase === "paused" ? "Microphone paused" : phase === "error" ? "Please retry" : "";
     }
+    paintVoiceControls();
     paintGo();
   }
 
   function enableMic(on) {
     if (!state.vizStream) return;
-    state.vizStream.getTracks().forEach(function (track) { track.enabled = !!on; });
+    state.vizStream.getTracks().forEach(function (track) { track.enabled = !!on && !state.micPaused; });
   }
 
   function stopRecognition() {
@@ -499,6 +714,9 @@
   }
 
   function stopServerRec() {
+    clearTimeout(state.serverMaxTimer);
+    clearTimeout(state.serverQuietTimer);
+    if (state.transcribeAbort) { state.transcribeAbort.abort(); state.transcribeAbort = null; }
     var rec = state.serverRec;
     state.serverRec = null;
     if (state.serverSilence) cancelAnimationFrame(state.serverSilence);
@@ -506,6 +724,7 @@
     if (!rec) return;
     rec.onstop = null;
     rec.ondataavailable = null;
+    rec.onerror = null;
     try { if (rec.state === "recording") rec.stop(); } catch (e) {}
   }
 
@@ -520,6 +739,7 @@
   }
 
   function stopLive() {
+    if (state.live) traceVoice("closed");
     state.live = false;
     state.liveGen = (state.liveGen || 0) + 1;
     state.livePhase = "off";
@@ -528,10 +748,15 @@
     stopRecognition();
     stopServerRec();
     stopViz();
-    stopSpeaking();
+    stopSpeaking(true);
     if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (e) {} }
     var box = $("liveVoice");
     if (box) box.hidden = true;
+    var settings = $("liveVoiceSettings"), gear = $("liveVoiceGear");
+    if (settings) settings.hidden = true;
+    if (gear) gear.setAttribute("aria-expanded", "false");
+    voiceNote("");
+    if (state.returnFocus && state.returnFocus.focus) state.returnFocus.focus();
     paintGo();
     setMic("idle");
   }
@@ -549,6 +774,9 @@
       return;
     }
     unlock();
+    state.returnFocus = document.activeElement;
+    state.micPaused = false;
+    voiceNote("");
     state.live = true;
     state.liveGen = (state.liveGen || 0) + 1;
     var gen = state.liveGen;
@@ -558,7 +786,7 @@
   }
 
   function onLiveBoxClick(event) {
-    if (event.target && event.target.closest && event.target.closest("#liveVoiceClose")) return;
+    if (event.target && event.target.closest && event.target.closest("button, select, input, #liveVoiceSettings")) return;
     if (!state.live || state.livePhase !== "speaking") return;
     stopSpeaking();
     if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (e) {} }
@@ -568,6 +796,7 @@
   function submitTranscript(said, gen) {
     if (!state.live || gen !== state.liveGen) return;
     said = String(said || "").trim();
+    traceVoice("transcript_submit", said ? "" : "empty");
     if (!said) { listenTurn(gen); return; }
     setLivePhase("thinking");
     enableMic(false);
@@ -615,6 +844,7 @@
   }
 
   function openViz() {
+    var gen = state.liveGen;
     if (state.vizStream && state.vizStream.getTracks().some(function (track) { return track.readyState === "live"; })) {
       enableMic(true);
       startBars();
@@ -622,15 +852,20 @@
     }
     var devices = navigator.mediaDevices;
     if (!devices || !devices.getUserMedia) {
-      startBars();
+      liveError("This browser cannot access a microphone. Use a supported browser over HTTPS.");
       return Promise.resolve();
     }
-    return devices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
+    if (state.vizOpening) return state.vizOpening;
+    traceVoice("mic_request");
+    var opening = devices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
+      if (!state.live || gen !== state.liveGen) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
       state.vizStream = stream;
+      traceVoice("mic_ready");
+      enableMic(!state.micPaused);
       try {
         var Ctx = window.AudioContext || window.webkitAudioContext;
         if (Ctx) {
-          state.vizCtx = state.vizCtx || new Ctx();
+          state.vizCtx = state.vizCtx || state.audioCtx || new Ctx();
           if (state.vizCtx.state === "suspended" && state.vizCtx.resume) state.vizCtx.resume();
           var src = state.vizCtx.createMediaStreamSource(stream);
           var an = state.vizCtx.createAnalyser();
@@ -640,15 +875,21 @@
         }
       } catch (e) {}
       startBars();
-    }).catch(function () {
-      startBars();
-    });
+    }).catch(function (error) {
+      if (!state.live || gen !== state.liveGen) return;
+      traceVoice("mic_error", error && error.name);
+      liveError(error && (error.name === "NotAllowedError" || error.name === "SecurityError")
+        ? "Microphone permission was denied. Allow microphone access in your browser."
+        : "The microphone is unavailable. Check that it is connected and not in use.");
+    }).finally(function () { if (state.vizOpening === opening) state.vizOpening = null; });
+    state.vizOpening = opening;
+    return opening;
   }
 
   function startWebRec(gen) {
     if (!state.live || gen !== state.liveGen || state.livePhase !== "listening") return;
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { startServerRec(gen); return; }
+    if (!SR) { liveError("This browser cannot record or recognize speech."); return; }
     stopRecognition();
     var rec = new SR();
     state.liveRec = rec;
@@ -666,9 +907,12 @@
     rec.onerror = function (ev) {
       if (!state.live || gen !== state.liveGen || state.livePhase !== "listening") return;
       var code = ev && ev.error;
-      if (code === "aborted" || code === "no-speech") return;
+      traceVoice("webspeech_error", code);
+      if (code === "aborted") return;
+      if (code === "not-allowed" || code === "service-not-allowed") { liveError("Microphone permission was denied. Allow microphone access in your browser."); return; }
+      if (code === "no-speech") { liveError("No speech was detected."); return; }
       stopRecognition();
-      startServerRec(gen);
+      liveError("Speech recognition failed. Try again or type below.");
     };
     rec.onend = function () {
       if (state.liveRec === rec) state.liveRec = null;
@@ -678,7 +922,7 @@
         }, 300);
       }
     };
-    try { rec.start(); } catch (e) { stopRecognition(); startServerRec(gen); }
+    try { rec.start(); traceVoice("webspeech_start"); } catch (e) { traceVoice("webspeech_error", e.name); stopRecognition(); liveError("Speech recognition could not start. Try another browser or type below."); }
   }
 
   function watchServerSilence(rec, gen) {
@@ -692,7 +936,7 @@
         var peak = 0;
         for (var i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i] - 128));
         var now = Date.now();
-        if (peak > 14) { heard = true; quietSince = 0; }
+        if (peak > 6) { heard = true; quietSince = 0; clearTimeout(state.serverQuietTimer); }
         else if (heard) {
           quietSince = quietSince || now;
           if (now - quietSince > 1200) { try { rec.stop(); } catch (e) {} return; }
@@ -706,55 +950,77 @@
   function startServerRec(gen) {
     if (!state.live || gen !== state.liveGen || state.livePhase !== "listening") return;
     if (!state.vizStream || typeof MediaRecorder === "undefined") {
-      showMicNote("This browser has no microphone. Type in the box instead.");
+      liveError("This browser cannot record microphone audio.");
       return;
     }
     stopServerRec();
     var chunks = [];
     var rec;
-    try { rec = new MediaRecorder(state.vizStream); }
+    var types = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus", "audio/webm"];
+    var mime = "";
+    for (var i = 0; i < types.length; i++) if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(types[i])) { mime = types[i]; break; }
+    try { rec = mime ? new MediaRecorder(state.vizStream, { mimeType: mime }) : new MediaRecorder(state.vizStream); }
     catch (e) {
-      showMicNote("This browser has no microphone. Type in the box instead.");
+      traceVoice("mic_error", e.name);
+      startWebRec(gen);
       return;
     }
     state.serverRec = rec;
     rec.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    rec.onerror = function () { liveError("Microphone recording failed."); };
     rec.onstop = function () {
+      traceVoice("recorder_stop");
+      clearTimeout(state.serverMaxTimer); clearTimeout(state.serverQuietTimer);
+      if (state.serverSilence) cancelAnimationFrame(state.serverSilence);
       if (state.serverRec === rec) state.serverRec = null;
       if (!state.live || gen !== state.liveGen || state.livePhase !== "listening") return;
       var blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-      if (!blob.size) { listenTurn(gen); return; }
+      if (!blob.size) { liveError("No audio was recorded."); return; }
       setLivePhase("thinking");
       enableMic(false);
       var reader = new FileReader();
       reader.onload = async function () {
+        if (!state.live || gen !== state.liveGen) return;
         var audio = String(reader.result || "").split(",")[1] || "";
         var data = null;
+        var controller = new AbortController();
+        state.transcribeAbort = controller;
+        var timeout = setTimeout(function () { controller.abort(); }, 50000);
+        traceVoice("transcribe_sent");
         try {
-          var res = await fetch(apiUrl("/api/voice/transcribe"), {
+          var res = await fetch(apiUrl("/api/voice/transcribe"), voiceRequest({
+            signal: controller.signal,
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ audio: audio, mime: (rec.mimeType || "audio/webm").split(";")[0] })
-          });
+          }));
           data = await res.json();
-        } catch (err) { data = null; }
+          traceVoice(data && data.ok ? "transcribe_reply" : "transcribe_error", "", res.status);
+        } catch (err) { traceVoice("transcribe_error", err.name); data = null; }
+        finally { clearTimeout(timeout); if (state.transcribeAbort === controller) state.transcribeAbort = null; }
         if (!state.live || gen !== state.liveGen) return;
         var text = data && data.ok && data.text ? String(data.text).trim() : "";
-        if (!text) { listenTurn(gen); return; }
+        if (!text) { liveError((data && (data.everyday || data.error)) || "Transcription failed or no speech was detected."); return; }
         submitTranscript(text, gen);
       };
-      reader.onerror = function () { if (state.live && gen === state.liveGen) listenTurn(gen); };
+      reader.onerror = function () { if (state.live && gen === state.liveGen) liveError("The recording could not be read."); };
       reader.readAsDataURL(blob);
     };
-    try { rec.start(); } catch (e) {
-      showMicNote("This browser has no microphone. Type in the box instead.");
+    try { rec.start(250); traceVoice("recorder_start"); } catch (e) {
+      liveError("The microphone could not start recording.");
       return;
     }
+    state.serverMaxTimer = setTimeout(function () { if (state.serverRec === rec && rec.state === "recording") rec.stop(); }, 45000);
+    // Do not discard a quiet but valid recording merely because VAD did not
+    // cross its threshold. Let server STT decide whether it contains speech.
+    state.serverQuietTimer = setTimeout(function () { if (state.serverRec === rec && rec.state === "recording") rec.stop(); }, 10000);
     watchServerSilence(rec, gen);
   }
 
   function listenTurn(gen) {
     if (!state.live || gen !== state.liveGen) return;
+    if (state.micPaused) { setLivePhase("paused"); return; }
+    if (state.livePhase === "error" || state.livePhase === "paused") voiceNote("");
     if (state.livePhase === "listening" && (state.liveRec || (state.serverRec && state.serverRec.state === "recording"))) return;
     stopRecognition();
     stopServerRec();
@@ -763,9 +1029,8 @@
     startBars();
     openViz().then(function () {
       if (!state.live || gen !== state.liveGen || state.livePhase !== "listening") return;
-      var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SR) startWebRec(gen);
-      else startServerRec(gen);
+      if (typeof MediaRecorder !== "undefined") startServerRec(gen);
+      else startWebRec(gen);
     });
   }
 
@@ -789,14 +1054,19 @@
     },
     reply: function (text) {
       if (state.live || state.session) { say(text, !!state.live); return; }
+      // v6: typed turns are spoken too while the voice picker is on screen and the speaker is not muted.
+      var picker = $("voicePicker");
+      if (picker && !picker.hidden && picker.offsetParent !== null && !state.muted) { say(text, true); return; }
       var b = $("micButton");
       if (b && b.dataset.state === "thinking") setMic("idle");
     },
     toggleLive: toggleLive,
     stopLive: stopLive,
+    trace: traceVoice,
     say: say,
     stop: stopSpeaking,
     choose: choose,
+    setContext: setContext,
     state: state,
     boot: boot
   };

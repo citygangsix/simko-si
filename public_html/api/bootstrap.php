@@ -724,7 +724,7 @@ function simko_chat_owned(int $userId, string $chatId): ?array
         return null;
     }
     $stmt = simko_db()->prepare(
-        'SELECT id, user_id, title, created_at, updated_at, child_profile_id FROM chats WHERE id = ? AND user_id = ?'
+        'SELECT id, user_id, title, created_at, updated_at, child_profile_id, voice_id FROM chats WHERE id = ? AND user_id = ?'
     );
     $stmt->execute([$chatId, $userId]);
     $row = $stmt->fetch();
@@ -747,6 +747,7 @@ function simko_public_session(array $chat, bool $withMessages): array
         'id' => $chat['id'],
         'title' => $chat['title'],
         'updated_at' => (int) $chat['updated_at'],
+        'voice_id' => $chat['voice_id'] ?? null,
     ];
     if ($withMessages) {
         $session['messages'] = simko_chat_messages($chat['id']);

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/voice-assignments.php';
 
 function simko_agent_create(int $userId, string $name, string $persona): array
 {
@@ -10,30 +11,22 @@ function simko_agent_create(int $userId, string $name, string $persona): array
     if ($name === '' || $persona === '') {
         simko_fail(400, 'An agent needs a name and a short persona.');
     }
-    $count = simko_db()->prepare('SELECT COUNT(*) FROM agents WHERE user_id = ?');
-    $count->execute([$userId]);
-    if ((int) $count->fetchColumn() >= 4) {
-        simko_fail(400, 'Four agents is the most that can sit side by side.');
-    }
-    $chatId = 'c' . bin2hex(random_bytes(8));
-    $now = time();
-    simko_db()->prepare(
-        'INSERT INTO chats (id, user_id, title, created_at, updated_at, child_profile_id) VALUES (?, ?, ?, ?, ?, NULL)'
-    )->execute([$chatId, $userId, simko_clip($name, 80), $now, $now]);
-    simko_db()->prepare(
-        'INSERT INTO agents (user_id, name, persona, chat_id, created_at) VALUES (?, ?, ?, ?, ?)'
-    )->execute([$userId, simko_clip($name, 40), simko_clip($persona, 240), $chatId, $now]);
-    return [
-        'id' => (int) simko_db()->lastInsertId(),
-        'name' => simko_clip($name, 40),
-        'persona' => simko_clip($persona, 240),
-        'chat_id' => $chatId,
-    ];
+    $db = simko_db();
+    return simko_voice_atomic($db, function () use ($db,$userId,$name,$persona): array {
+        $count = $db->prepare('SELECT COUNT(*) FROM agents WHERE user_id = ?');
+        $count->execute([$userId]);
+        if ((int)$count->fetchColumn() >= 4) simko_fail(400, 'Four agents is the most that can sit side by side.');
+        $voice=simko_voice_next($db,$userId);
+        $chatId='c'.bin2hex(random_bytes(8)); $now=time();
+        $db->prepare('INSERT INTO chats (id,user_id,title,created_at,updated_at,child_profile_id,voice_id) VALUES (?,?,?,?,?,NULL,?)')->execute([$chatId,$userId,simko_clip($name,80),$now,$now,$voice]);
+        $db->prepare('INSERT INTO agents (user_id,name,persona,chat_id,created_at,voice_id) VALUES (?,?,?,?,?,?)')->execute([$userId,simko_clip($name,40),simko_clip($persona,240),$chatId,$now,$voice]);
+        return ['id'=>(int)$db->lastInsertId(),'name'=>simko_clip($name,40),'persona'=>simko_clip($persona,240),'chat_id'=>$chatId,'voice_id'=>$voice];
+    });
 }
 
 function simko_agent_rows(int $userId): array
 {
-    $stmt = simko_db()->prepare('SELECT id, name, persona, chat_id FROM agents WHERE user_id = ? ORDER BY id ASC');
+    $stmt = simko_db()->prepare('SELECT id, name, persona, chat_id, voice_id FROM agents WHERE user_id = ? ORDER BY id ASC');
     $stmt->execute([$userId]);
     $rows = [];
     foreach ($stmt->fetchAll() as $row) {
@@ -42,6 +35,7 @@ function simko_agent_rows(int $userId): array
             'name' => $row['name'],
             'persona' => $row['persona'],
             'chat_id' => $row['chat_id'],
+            'voice_id' => $row['voice_id'],
         ];
     }
     return $rows;
@@ -49,7 +43,7 @@ function simko_agent_rows(int $userId): array
 
 function simko_agent_owned(int $userId, int $agentId): ?array
 {
-    $stmt = simko_db()->prepare('SELECT id, name, persona, chat_id FROM agents WHERE id = ? AND user_id = ?');
+    $stmt = simko_db()->prepare('SELECT id, name, persona, chat_id, voice_id FROM agents WHERE id = ? AND user_id = ?');
     $stmt->execute([$agentId, $userId]);
     $row = $stmt->fetch();
     return $row ?: null;

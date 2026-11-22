@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/voice-assignments.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -23,6 +24,12 @@ switch ($op) {
             simko_fail(404, 'That chat is not on this account.');
         }
         simko_ok(['session' => simko_public_session($chat, true)]);
+        break;
+    case 'set-voice':
+        $voice = (string)($body['voice_id'] ?? '');
+        if (!simko_voice_by_id($voice)) simko_fail(400, 'Choose a voice from the voice picker.');
+        if (!simko_voice_override(simko_db(),$userId,(string)($body['session_id'] ?? ''),$voice,$childId)) simko_fail(404, 'That chat is not on this account.');
+        simko_ok(['voice_id'=>$voice]);
         break;
     case 'append':
         simko_append_message($userId, $body, $childId);
@@ -59,14 +66,14 @@ function simko_list_chats(int $userId, ?int $childId = null): array
 {
     if ($childId === null) {
         $stmt = simko_db()->prepare(
-            'SELECT id, title, updated_at FROM chats
+            'SELECT id, title, updated_at, voice_id FROM chats
              WHERE user_id = ? AND child_profile_id IS NULL
              ORDER BY updated_at DESC'
         );
         $stmt->execute([$userId]);
     } else {
         $stmt = simko_db()->prepare(
-            'SELECT id, title, updated_at FROM chats
+            'SELECT id, title, updated_at, voice_id FROM chats
              WHERE user_id = ? AND child_profile_id = ?
              ORDER BY updated_at DESC'
         );
@@ -78,6 +85,7 @@ function simko_list_chats(int $userId, ?int $childId = null): array
             'id' => $row['id'],
             'title' => $row['title'],
             'updated_at' => (int) $row['updated_at'],
+            'voice_id' => $row['voice_id'],
         ];
     }
     return $rows;
@@ -92,16 +100,12 @@ function simko_create_chat(int $userId, string $title, ?int $childId = null): ar
     $title = simko_clip($title, 80);
     $id = 'c' . bin2hex(random_bytes(8));
     $now = time();
-    $stmt = simko_db()->prepare(
-        'INSERT INTO chats (id, user_id, title, created_at, updated_at, child_profile_id) VALUES (?, ?, ?, ?, ?, ?)'
-    );
-    $stmt->execute([$id, $userId, $title, $now, $now, $childId]);
-    return [
-        'id' => $id,
-        'title' => $title,
-        'updated_at' => $now,
-        'messages' => [],
-    ];
+    $db=simko_db();
+    return simko_voice_atomic($db,function () use ($db,$id,$userId,$title,$now,$childId): array {
+        $voice=simko_voice_next($db,$userId);
+        $db->prepare('INSERT INTO chats (id,user_id,title,created_at,updated_at,child_profile_id,voice_id) VALUES (?,?,?,?,?,?,?)')->execute([$id,$userId,$title,$now,$now,$childId,$voice]);
+        return ['id'=>$id,'title'=>$title,'updated_at'=>$now,'voice_id'=>$voice,'messages'=>[]];
+    });
 }
 
 function simko_append_message(int $userId, array $body, ?int $childId = null): void
@@ -155,7 +159,7 @@ function simko_search_chats(int $userId, string $query): array
     }
     $like = '%' . str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $query) . '%';
     $stmt = simko_db()->prepare(
-        "SELECT DISTINCT c.id, c.title, c.updated_at
+        "SELECT DISTINCT c.id, c.title, c.updated_at, c.voice_id
          FROM chats c
          LEFT JOIN messages m ON m.chat_id = c.id
          WHERE c.user_id = ? AND c.child_profile_id IS NULL
@@ -169,6 +173,7 @@ function simko_search_chats(int $userId, string $query): array
             'id' => $row['id'],
             'title' => $row['title'],
             'updated_at' => (int) $row['updated_at'],
+            'voice_id' => $row['voice_id'],
         ];
     }
     return $rows;
