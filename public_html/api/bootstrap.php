@@ -82,8 +82,66 @@ function simko_config(): array
     return $cfg;
 }
 
+/**
+ * Owner-only access to the shared xAI key.
+ *
+ * simkosi-private/config.php:
+ *   'owner_access' => [
+ *       'emails' => ['owner@example.com'],   // account emails allowed to use Grok
+ *       'user_ids' => [],                    // or account ids
+ *   ],
+ * Default deny: when neither list has an entry, nobody can use Grok.
+ */
+function simko_owner_settings(): array
+{
+    $raw = simko_config_or_empty()['owner_access'] ?? [];
+    $raw = is_array($raw) ? $raw : [];
+    $emails = [];
+    foreach ((array) ($raw['emails'] ?? []) as $email) {
+        if (is_string($email) && trim($email) !== '') {
+            $emails[] = strtolower(trim($email));
+        }
+    }
+    $ids = [];
+    foreach ((array) ($raw['user_ids'] ?? []) as $id) {
+        if ((is_int($id) || ctype_digit((string) $id)) && (int) $id > 0) {
+            $ids[] = (int) $id;
+        }
+    }
+    return ['emails' => $emails, 'user_ids' => $ids];
+}
+
+function simko_is_grok_owner(?array $user): bool
+{
+    if (!$user) {
+        return false;
+    }
+    $cfg = simko_owner_settings();
+    if ($cfg['emails'] === [] && $cfg['user_ids'] === []) {
+        return false;
+    }
+    $email = strtolower(trim((string) ($user['email'] ?? '')));
+    return ($email !== '' && in_array($email, $cfg['emails'], true))
+        || in_array((int) ($user['id'] ?? 0), $cfg['user_ids'], true);
+}
+
+/** Stops the request before any xAI call unless the signed-in person is an owner. */
+function simko_require_grok_owner(?array $user = null): array
+{
+    $user = $user ?? simko_current_user();
+    if (!$user) {
+        simko_fail(401, 'Sign in to talk with Simko SI.');
+    }
+    if (!simko_is_grok_owner($user)) {
+        simko_fail(403, 'Grok is not enabled for this account.', ['owner_only' => true]);
+    }
+    return $user;
+}
+
 function simko_api_key(): string
 {
+    // Last line of defense: no request reaches xAI for anyone but an owner.
+    simko_require_grok_owner();
     $key = trim((string) (simko_config()['xai_api_key'] ?? ''));
     if ($key === '' || str_contains($key, 'REPLACE')) {
         simko_fail(500, 'The Grok key is not set on the server yet.');

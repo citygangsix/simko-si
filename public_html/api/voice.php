@@ -49,6 +49,7 @@ function simko_speak(): void
     if (!simko_current_user()) {
         simko_fail(401, 'Sign in to hear Simko SI.');
     }
+    simko_require_grok_owner();
     $voice = simko_voice_by_id(strtolower(trim((string) ($_GET['voice'] ?? 'coral'))));
     if (!$voice) simko_fail(400, 'Choose a voice from the voice picker.');
     $preview = isset($_GET['preview']) && (string) $_GET['preview'] !== '' && (string) $_GET['preview'] !== '0';
@@ -112,6 +113,7 @@ function simko_transcribe(): void
     if (!simko_current_user()) {
         simko_fail(401, 'Sign in to use the microphone.');
     }
+    simko_require_grok_owner();
     $audio = (string) ($body['audio'] ?? '');
     if ($audio === '') {
         simko_fail(400, 'I did not catch that. Try the mic again.');

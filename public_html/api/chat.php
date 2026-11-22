@@ -8,6 +8,7 @@ require_once __DIR__ . '/recall.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
+simko_require_grok_owner($user);
 $text = trim((string) ($body['text'] ?? ''));
 if ($text === '') {
     simko_fail(400, 'Type a message, then Send.');

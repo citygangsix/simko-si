@@ -235,6 +235,7 @@ switch ($op) {
         if (!simko_flag('images')) {
             simko_fail(404, 'Pictures are turned off.');
         }
+        simko_require_grok_owner($user);
         if (!simko_images_allowed($userId)) {
             simko_fail(402, 'Pictures are on the $9.99/month plan.', ['paywall' => true]);
         }

@@ -17,6 +17,8 @@ function platform_private(string $name, array $flags, array $extra = []): string
         'family_ui' => false,
         'max_input_chars' => 8000,
         'platform' => $flags,
+        // Owner-only Grok access: test databases are fresh, so these ids are the test sign-ups.
+        'owner_access' => ['emails' => [], 'user_ids' => range(1, 500)],
         'square' => [
             'environment' => 'sandbox',
             'application_id' => '',
