@@ -10,6 +10,17 @@ declare(strict_types=1);
 return [
     'xai_api_key' => 'xai-REPLACE_ME',
     'xai_base_url' => 'https://api.x.ai/v1',
+    // Owner-only Grok access. Only these accounts may use the xAI key above.
+    // Default deny: with both lists empty, every Grok request is refused (403).
+    // Put the owner's simkosi.com account email (or account id) here, not a key.
+    'owner_access' => [
+        'emails' => [],
+        'user_ids' => [],
+    ],
+    // Picture model (docs.x.ai, Nov 2026). grok-2-image is retired.
+    'image_model' => 'grok-imagine-image-2.0',
+    // Adds "follow plain instructions exactly" plus the safety lines after system_prompt.
+    'answer_rules' => true,
     // Current Grok chat model. Change this when you want a different one.
     'model' => 'grok-4.7',
     'stt_model' => 'grok-voice-transcribe-2.0',

@@ -8,6 +8,7 @@ require_once __DIR__ . '/recall.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
+simko_require_grok_owner($user);
 $text = trim((string) ($body['text'] ?? ''));
 if ($text === '') {
     simko_fail(400, 'Type a message, then Send.');
@@ -40,6 +41,10 @@ if ($model === '') {
 $system = trim((string) ($cfg['system_prompt'] ?? ''));
 if ($system === '') {
     $system = 'You are Simko SI, Joseph Simko\'s assistant. Reply in clear everyday English. Be warm and brief.';
+}
+$rules = simko_answer_rules();
+if ($rules !== '') {
+    $system .= "\n\n" . $rules;
 }
 
 $memoryChild = null;

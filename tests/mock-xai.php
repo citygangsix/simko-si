@@ -2,6 +2,10 @@
 declare(strict_types=1);
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$callLog = getenv('MOCK_XAI_LOG');
+if (is_string($callLog) && $callLog !== '') {
+    file_put_contents($callLog, $path . "\n", FILE_APPEND);
+}
 
 if ($path === '/v1/chat/completions') {
     $body = json_decode(file_get_contents('php://input') ?: '', true);
