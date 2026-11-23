@@ -1,17 +1,19 @@
-# Store policy check — Simko SI (Nov 23, 2026)
-| Rule | Status | What's needed |
-|---|---|---|
-| Apple 5.1.1(v) / Play account deletion | Built on branch (commit e583f32), **not live** | Joseph OKs mockup → deploy. Web deletion route = support.html#delete-account |
-| Privacy policy URL (both stores) | Draft page on branch, **not live** | Joseph approves wording + support email |
-| Terms URL / Support URL (Apple) | Draft pages on branch, **not live** | Same |
-| Play AI-generated content policy (in-app reporting) | "Report this reply" flag built on branch, **not live** | Mockup OK → deploy. Reports land in simkosi-private/data/ai-reports.jsonl; someone must review them |
-| Apple 4.8 Sign in with Apple | Google sign-in is ON live; iOS app hides it (live helper), leaving email+password, so 4.8 doesn't apply | Optional later: configure Apple sign-in (needs Apple account: Services ID + key) |
-| Google OAuth in embedded webview | Blocked by Google in WKWebView → hidden in iOS app; works in Android TWA (real Chrome) | none |
-| Apple 3.1.1 / Play Payments (Stripe $9.99/mo + paid pictures) | Paywall flag is OFF live today. If turned on: US storefront may link to web checkout (Apple 3.1.1(a) since May 1 2025; Play US external-links / alternative-billing programs need enrollment and fees from Oct 1 2026). Outside the US both stores require their own billing | **Decision:** release US-only with web checkout, or add Apple IAP / Play Billing, or hide buying in the apps |
-| Apple 4.2 minimum functionality | iOS shell has native offline screen, splash/icons, haptics, share sheet, push-ready | Real risk remains for a thin wrapper; review notes should stress voice, memory, routines |
-| Admin-looking buttons in Tools (Rent, Computer, Detect, Download) | Visible to everyone live | Recommend hiding them in the app builds (needs mockup OK) |
-| Family/child profiles vs 18+ rating | Conflict | Decide: hide child profiles in store builds, or rate lower with stronger moderation (Apple Kids/COPPA rules then apply) |
-| Play target API | targetSdk 36 ✔ | none |
-| Play closed test (personal accounts made after Nov 13 2023) | Confirmed current: ≥12 testers opted in continuously for 14 days before production access | Joseph's ToDo: recruit ~14 testers' Gmail addresses |
-| Package ID | New `com.simkosi.app`. The older native Simko SI app kit uses `com.simkosi.simcosi` | Confirm; IDs can't be changed after first upload |
-| Supabase sign-in hook | Sends email on signup/signin events when enabled (disabled live). Deletion doesn't purge those rows | Fix before enabling it |
+# Store blockers and policy check: Simko SI (updated Nov 23 2026, live build flagship5)
+
+| # | Blocker | Severity | Evidence | Fix (needs Joseph's OK) |
+|---|---|---|---|---|
+| 1 | **Owner lock: every non-owner gets "Grok is not enabled for this account."** | Rejection on both stores (Apple 2.1/4.2, Play broken functionality) | Emulator test: fresh sign-up, sent "Hello from the Android app test", reply was that error (test-results sheet, 08) | Reviewer demo account on the allowlist + either open Grok with a small free quota or a real waitlist screen (store-metadata/reviewer-demo-account.md) |
+| 2 | **simkosi.com has no MX record and no DKIM** (SPF `include:_spf.mail.hostinger.com ~all`, DMARC `p=none` only) | High: support@simkosi.com is the contact email in both listings, the privacy policy and the deletion-by-email path, and it can't receive mail. Password-reset and confirm emails will land in spam or bounce | DNS-over-HTTPS lookups, Nov 23 5:25 PM ET | Create the Hostinger mailbox (if included in the plan, free) and add MX + DKIM records in Hostinger DNS; or use a Gmail address as the store contact email |
+| 3 | **Play: 12 testers x 14 days** closed test for personal accounts made after Nov 13 2023 | Blocks production on Play | /workspace/play-testers/REPORT.md: only 3 strong + 4 possible Gmail contacts; ~12 reachable with family/techs | Recruit 14 opted-in testers, or open an **organization** Play account (needs D-U-N-S; the 12-tester rule does not apply to org accounts) |
+| 4 | Payments: $9.99/month Stripe plan + paid pictures | Rejection outside the US if buying is shown in the apps | Paywall flag OFF live | Keep buying hidden in the apps for 1.0 (simco-mobile.js already knows when it runs in the app), or US-only web link-out, or add IAP / Play Billing |
+| 5 | Child profiles vs 18+ rating | Policy conflict (Apple Kids / Play Families) | privacy.html "Children" section | Hide child profiles in the store apps for 1.0 |
+| 6 | Apple 4.2 minimum functionality (web wrapper) | Medium risk | iOS shell adds offline screen, splash, haptics, share sheet, push-ready, universal links/password AutoFill drafts | Turn on push for routine reminders before submitting; review notes stress voice, files, routines |
+| 7 | Privacy policy doesn't list uploaded files/photos | Data safety mismatch | privacy.html "What we collect" | Add one line |
+| 8 | Stray "Raw" label bottom-left of the chat screen; faint duplicate card outline behind the welcome card on Android | Cosmetic, reviewers may notice | Emulator screenshots 01, 06 to 08 | Website fix (another worker's branch), mockup first |
+| 9 | Apple 4.8: Google sign-in visible on the web | OK: hidden in the iOS app (UA `SimkoSIApp-iOS`), shown in the Android TWA (real Chrome, allowed) | simco-mobile.js | none |
+| 10 | Account deletion (Apple 5.1.1(v), Play) | **Pass** | Emulator: Delete account > DELETE > account row gone from simko.sqlite (read-only check) | none |
+| 11 | AI content reporting (Play AI-generated content policy, Apple 1.2) | **Pass**: flag on every reply | screenshot 08 | Someone must read simkosi-private/data/ai-reports.jsonl |
+| 12 | Play target API / permissions | **Pass**: targetSdk 36, no dangerous permissions, no AD_ID | aapt2 dump | none |
+| 13 | Package / bundle id `com.simkosi.app` | Free on both stores today (Play details page 404, iTunes lookup 0 results). Older native kit uses `com.simkosi.simcosi` (also unused) | | Confirm `com.simkosi.app`; it can't change after the first upload |
+| 14 | **"Download for desktop" button shows inside the apps** (new on the live site; seen in the iOS simulator) | Apple 2.3.10 (no references to other platforms) / confusing in a phone app | test-results/ios-simulator-launch-sheet.jpg | Hide it when `SimkoSIApp-iOS` UA or the TWA referrer is present (website change, other worker's branch) |
+| 15 | iPad layout: welcome card floats over the chat list; "Type everyday English" placeholder cut to "Type" | Cosmetic; Apple tests on iPad | same sheet, right | Website fix with mockup, or ship iPhone-only for 1.0 (TARGETED_DEVICE_FAMILY=1) |
