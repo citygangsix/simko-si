@@ -1390,7 +1390,43 @@
   wireThink();
   wireDeep();
   wireAttach();
-  bootAuth();
+  bootAuth().then(handleEmailLinks, handleEmailLinks);
+
+  async function handleEmailLinks() {
+    let params;
+    try { params = new URLSearchParams(location.search); } catch (e) { return; }
+    const reset = (params.get("reset") || "").trim();
+    const confirm = (params.get("confirm") || "").trim();
+    if (!reset && !confirm) return;
+    try {
+      params.delete("reset");
+      params.delete("confirm");
+      const rest = params.toString();
+      history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
+    } catch (e) {}
+    if (/^[a-f0-9]{16,128}$/i.test(reset)) {
+      openReset();
+      $("modalResetToken").value = reset;
+      setResetError("Code filled in from your email. Type a new password, then update.");
+      $("modalResetPassword").focus();
+      return;
+    }
+    if (/^[a-f0-9]{16,128}$/i.test(confirm)) {
+      const data = await authPost({ op: "confirm-email", confirm_token: confirm });
+      if (data.ok && $("confirmEmail")) $("confirmEmail").hidden = true;
+      showLinkNote(data.ok ? "Email confirmed. Thanks!" : (data.error || "That confirm link did not work. Request a new one."));
+    }
+  }
+
+  function showLinkNote(text) {
+    const note = document.createElement("div");
+    note.setAttribute("role", "status");
+    note.className = "simko-link-note";
+    note.textContent = text;
+    note.style.cssText = "position:fixed;left:50%;top:1rem;transform:translateX(-50%);z-index:9999;background:#0b2430;color:#fff;border:1px solid rgba(255,214,196,0.45);border-radius:1rem;padding:0.7rem 1rem;font:inherit;max-width:90vw;";
+    document.body.appendChild(note);
+    setTimeout(() => note.remove(), 6000);
+  }
   loadFamilyScript();
   document.addEventListener("simco:voice-saved", function (event) {
     const saved = event.detail;

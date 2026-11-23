@@ -128,6 +128,18 @@ function captured(string $capture): array
     foreach (file($capture, FILE_IGNORE_NEW_LINES) ?: [] as $line) {
         $decoded = json_decode($line, true);
         if (is_array($decoded)) {
+            if (isset($decoded['message']) && is_string($decoded['message'])) {
+                // Bodies are base64; append decoded text so assertions can read them.
+                $msg = $decoded['message'];
+                preg_match_all('/(?:^[A-Za-z0-9+\/=]{8,76}\r?\n)+/m', $msg . "\n", $blocks);
+                foreach ($blocks[0] as $block) {
+                    $plain = base64_decode(preg_replace('/\s+/', '', $block) ?? '', true);
+                    if (is_string($plain)) {
+                        $msg .= "\n" . $plain;
+                    }
+                }
+                $decoded['message'] = $msg;
+            }
             $rows[] = $decoded;
         }
     }

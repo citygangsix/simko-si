@@ -9,11 +9,36 @@ declare(strict_types=1);
 
 function simko_mail_is_smtp(): bool
 {
-    return (string) (simko_config_or_empty()['mail_mode'] ?? 'dev') === 'smtp';
+    // True when real email goes out: an smtp mailbox, or the host's own sendmail.
+    return in_array(simko_mail_mode(), ['smtp', 'sendmail'], true);
+}
+
+function simko_mail_mode(): string
+{
+    return (string) (simko_config_or_empty()['mail_mode'] ?? 'dev');
+}
+
+function simko_sendmail_settings(): array
+{
+    $cfg = simko_config();
+    $from = strtolower(trim((string) ($cfg['mail_from'] ?? 'noreply@simkosi.com')));
+    if (!filter_var($from, FILTER_VALIDATE_EMAIL)) {
+        simko_fail(500, 'Email is set to sendmail, but mail_from is not an email address.');
+    }
+    $fromName = trim((string) ($cfg['mail_from_name'] ?? 'Simko SI'));
+    return [
+        'mode' => 'sendmail',
+        'from' => $from,
+        'from_name' => $fromName === '' ? 'Simko SI' : $fromName,
+        'site_url' => rtrim((string) ($cfg['site_url'] ?? 'https://simkosi.com'), '/'),
+    ];
 }
 
 function simko_smtp_settings(): array
 {
+    if (simko_mail_mode() === 'sendmail') {
+        return simko_sendmail_settings();
+    }
     $cfg = simko_config();
     $smtp = $cfg['smtp'] ?? null;
     if (!is_array($smtp)) {
@@ -146,6 +171,10 @@ function simko_mail_html(string $heading, string $lead, string $code, string $li
 
 function simko_smtp_send(array $settings, string $to, string $subject, string $text, string $html): void
 {
+    if (($settings['mode'] ?? '') === 'sendmail') {
+        simko_sendmail_send($settings, $to, $subject, $text, $html);
+        return;
+    }
     $context = stream_context_create([
         'ssl' => [
             'verify_peer' => $settings['verify_peer'],
@@ -226,12 +255,12 @@ function simko_smtp_message(array $settings, string $to, string $subject, string
     ];
     $body = "--" . $boundary . "\r\n"
         . "Content-Type: text/plain; charset=UTF-8\r\n"
-        . "Content-Transfer-Encoding: 8bit\r\n\r\n"
-        . $text . "\r\n"
+        . "Content-Transfer-Encoding: base64\r\n\r\n"
+        . rtrim(chunk_split(base64_encode($text), 76, "\r\n")) . "\r\n"
         . "--" . $boundary . "\r\n"
         . "Content-Type: text/html; charset=UTF-8\r\n"
-        . "Content-Transfer-Encoding: 8bit\r\n\r\n"
-        . $html . "\r\n"
+        . "Content-Transfer-Encoding: base64\r\n\r\n"
+        . rtrim(chunk_split(base64_encode($html), 76, "\r\n")) . "\r\n"
         . "--" . $boundary . "--";
     $raw = implode("\r\n", $headers) . "\r\n\r\n" . $body;
     $lines = preg_split("/\r\n|\n|\r/", $raw) ?: [];
@@ -268,4 +297,27 @@ function simko_smtp_expect($fp, array $ok): string
         throw new RuntimeException('smtp rejected the message');
     }
     return $buffer;
+}
+
+function simko_sendmail_send(array $settings, string $to, string $subject, string $text, string $html): void
+{
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL) || preg_match('/[\r\n]/', $to)) {
+        throw new RuntimeException('mail bad recipient');
+    }
+    $raw = simko_smtp_message($settings, $to, $subject, $text, $html);
+    [$head, $body] = explode("\r\n\r\n", $raw, 2);
+    $keep = [];
+    foreach (explode("\r\n", $head) as $line) {
+        // mail() adds To and Subject itself.
+        if (stripos($line, 'To:') === 0 || stripos($line, 'Subject:') === 0) {
+            continue;
+        }
+        $keep[] = $line;
+    }
+    $subjectEnc = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+    $body = preg_replace('/^\.\./m', '.', $body) ?? $body;
+    $ok = mail($to, $subjectEnc, $body, implode("\r\n", $keep), '-f' . $settings['from']);
+    if (!$ok) {
+        throw new RuntimeException('sendmail failed');
+    }
 }
