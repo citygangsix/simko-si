@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /deploy-staging/
+
+Sitemap: https://simkosi.com/sitemap.xml

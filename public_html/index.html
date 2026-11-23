@@ -3,10 +3,25 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
-<title>Simko SI</title>
+<title>Simko SI: a calm Grok-powered assistant for chat, search and voice</title>
 <meta name="simko-build" content="flagship1-20261123"/>
 <link rel="icon" href="/assets/favicon.svg?v=971b21ff3edd" type="image/svg+xml"/>
-<meta name="description" content="Simko SI: chat, think, search and create with a Grok-powered assistant."/>
+<meta name="description" content="Simko SI is a calm, Grok-powered assistant. Chat in everyday English, search the web with sources, think through hard problems, and talk out loud."/>
+<link rel="canonical" href="https://simkosi.com/"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="Simko SI"/>
+<meta property="og:url" content="https://simkosi.com/"/>
+<meta property="og:title" content="Simko SI: a calm assistant for everyday life"/>
+<meta property="og:description" content="Chat, search, think and talk, powered by Grok."/>
+<meta property="og:image" content="https://simkosi.com/assets/og-card.jpg"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="A sea turtle swimming over a reef, with the words: Simko SI, a calm assistant for everyday life."/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Simko SI: a calm assistant for everyday life"/>
+<meta name="twitter:description" content="Chat, search, think and talk, powered by Grok."/>
+<meta name="twitter:image" content="https://simkosi.com/assets/og-card.jpg"/>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebApplication","name":"Simko SI","url":"https://simkosi.com/","applicationCategory":"ProductivityApplication","operatingSystem":"Web, Android, iOS","description":"A calm, Grok-powered assistant for chat, web search with sources, step-by-step thinking and voice.","image":"https://simkosi.com/assets/og-card.jpg"},{"@type":"Organization","name":"Simko SI","url":"https://simkosi.com/","logo":"https://simkosi.com/assets/icons/icon-512.png"}]}</script>
 <link rel="manifest" href="/manifest.webmanifest"/>
 <meta name="theme-color" content="#03141c"/>
 <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png"/>
@@ -22,6 +37,7 @@
     if (saved) id = saved;
   } catch (e) {}
   document.documentElement.setAttribute("data-theme", id);
+  try { if (localStorage.getItem("simkoSignedHint") === "1") document.documentElement.setAttribute("data-simko-signhint", "1"); } catch (e) {}
   var build = "";
   var meta = document.querySelector('meta[name="simko-build"]');
   if (meta) build = meta.getAttribute("content") || "";
@@ -52,7 +68,7 @@
   html, body { height: 100%; margin: 0; }
   body {
     background-color: #03141c;
-    background-image: url("/assets/sea-turtle-poster.jpg");
+    background-image: url("/assets/sea-turtle-poster-clean.jpg");
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -577,7 +593,7 @@
   }
   /* Cover / narrow phone, including a short landscape cover (Fold 7 closed is 960×412). */
   @media (max-width: 640px), (max-height: 560px) {
-    body { background-image: url("/assets/sea-turtle-poster.jpg"); }
+    body { background-image: url("/assets/sea-turtle-poster-clean.jpg"); }
     #chats {
       background: rgba(3, 20, 28, 0.34);
       backdrop-filter: blur(3px);
@@ -805,7 +821,7 @@
     object-fit: cover;
     z-index: 0;
     pointer-events: none;
-    background: #03141c url("/assets/sea-turtle-poster.jpg") center/cover no-repeat;
+    background: #03141c url("/assets/sea-turtle-poster-clean.jpg") center/cover no-repeat;
   }
   #bgShade {
     position: fixed;
@@ -1199,6 +1215,24 @@
   }
   #relayError { margin: 0.45rem 0 0; color: #ffd6c4; }
   #relayError[hidden] { display: none !important; }
+
+  .skipLink { position: absolute; left: 0.5rem; top: -4rem; z-index: 10000; background: #03141c; color: #fff; padding: 0.6rem 1rem; border-radius: 999px; border: 1px solid rgba(255,214,196,.6); }
+  .skipLink:focus { top: 0.5rem; }
+  #welcome { position: fixed; z-index: 60; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(36rem, calc(100vw - 1.5rem)); max-height: calc(100dvh - 5rem); overflow: auto; box-sizing: border-box; padding: 1.4rem 1.5rem 1.2rem; border-radius: 1.6rem; background: rgba(3, 20, 28, 0.82); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid rgba(255, 214, 196, 0.35); color: #fff; box-shadow: 0 1.2rem 3rem rgba(0,0,0,.35); }
+  @media (min-width: 900px) { #welcome { left: calc(50% + 140px); width: min(36rem, calc(100vw - 320px)); } }
+  html[data-simko-signed="1"] #welcome, html[data-simko-signhint="1"]:not([data-simko-signed="0"]) #welcome { display: none; }
+  #welcome[hidden] { display: none; }
+  #welcome .welcomeKicker { margin: 0; color: #ffd6c4; letter-spacing: .04em; }
+  #welcome h2 { margin: .3rem 0 .6rem; font-weight: 500; font-size: clamp(1.5rem, 4.6vw, 2.1rem); line-height: 1.15; }
+  #welcome .welcomeLead { margin: 0 0 .7rem; line-height: 1.45; color: #f3e6d8; }
+  #welcome .welcomeList { margin: 0 0 .8rem; padding-left: 1.1rem; line-height: 1.45; }
+  #welcome .welcomeList li { margin: .2rem 0; }
+  #welcome .welcomeNote { margin: 0 0 .9rem; font-size: .92rem; color: #cfe3df; }
+  #welcome .welcomeActions { display: flex; flex-wrap: wrap; gap: .5rem; }
+  #welcome .welcomeActions button { min-height: 44px; padding: .55rem 1.1rem; border-radius: 999px; border: 1px solid rgba(255,214,196,.55); background: rgba(255,255,255,.08); color: #fff; font: inherit; cursor: pointer; }
+  #welcome #welcomeSignUp { background: rgba(255,127,106,.85); border-color: transparent; }
+  #welcome .welcomeLinks { display: flex; flex-wrap: wrap; gap: .9rem; margin: .9rem 0 0; font-size: .9rem; }
+  #welcome .welcomeLinks a { color: #ffd6c4; }
 </style>
 <style id="storeReadyCss">
   /* Store readiness (awaiting sign-off): 44px minimum tap targets, report flag, delete account, legal links. */
@@ -1231,14 +1265,42 @@
 </style>
 </head>
 <body>
-<video id="bgVideo" aria-hidden="true" muted autoplay loop playsinline poster="/assets/sea-turtle-poster.jpg"><source src="/assets/reef-live-portrait-loop-web.mp4" media="(max-width: 768px), (pointer: coarse) and (max-width: 1100px)" type="video/mp4"><source src="/assets/sea-turtle-loop.mp4" type="video/mp4"></video>
+<script>
+/* Privacy-friendly page count and browser error reports: no cookies, no ids. */
+(function () {
+  var sent = 0;
+  function send(body) {
+    try {
+      fetch("/api/telemetry", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), keepalive: true, credentials: "omit" }).catch(function () {});
+    } catch (e) {}
+  }
+  var build = (document.querySelector('meta[name="simko-build"]') || {}).content || "";
+  window.addEventListener("error", function (e) {
+    if (sent++ >= 5 || !e || !e.message) return;
+    send({ op: "err", path: location.pathname, msg: String(e.message), src: String(e.filename || ""), line: e.lineno || 0, build: build });
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    if (sent++ >= 5) return;
+    var r = e && e.reason; send({ op: "err", path: location.pathname, msg: "unhandled: " + String((r && r.message) || r || ""), src: "", line: 0, build: build });
+  });
+  if (navigator.webdriver) return;
+  window.addEventListener("load", function () { send({ op: "pv", path: location.pathname }); });
+})();
+</script>
+<a class="skipLink" href="#composer">Skip to the message box</a>
+<video id="bgVideo" aria-hidden="true" muted autoplay loop playsinline poster="/assets/sea-turtle-poster-clean.jpg"><source src="/assets/reef-live-portrait-loop-540.mp4" media="(max-width: 768px), (pointer: coarse) and (max-width: 1100px)" type="video/mp4"><source src="/assets/sea-turtle-loop.mp4" type="video/mp4"></video>
 <script>
 (() => {
  const video = document.getElementById('bgVideo');
  const mobile = window.matchMedia('(max-width: 768px), (pointer: coarse) and (max-width: 1100px)');
  function selectBackground() {
-   const src = mobile.matches ? '/assets/reef-live-portrait-loop-web.mp4' : '/assets/sea-turtle-loop.mp4';
-   video.poster = mobile.matches ? '/assets/reef-live-portrait-loop-web-poster.jpg' : '/assets/sea-turtle-poster.jpg';
+   const src = mobile.matches ? '/assets/reef-live-portrait-loop-540.mp4' : '/assets/sea-turtle-loop.mp4';
+   video.poster = mobile.matches ? '/assets/reef-live-portrait-loop-web-poster.jpg' : '/assets/sea-turtle-poster-clean.jpg';
+   let still = false;
+   try {
+     still = window.matchMedia('(prefers-reduced-motion: reduce)').matches || !!(navigator.connection && navigator.connection.saveData);
+   } catch (e) {}
+   if (still) { video.removeAttribute('autoplay'); video.pause(); return; }
    if (video.getAttribute('src') !== src) {
      video.src = src; video.muted = true; video.load(); video.play().catch(() => {});
    }
@@ -1271,12 +1333,47 @@
     <button id="accountSignOut" type="button">Sign out</button>
   </div>
 </div>
+<section id="welcome" aria-labelledby="welcomeTitle">
+  <p class="welcomeKicker">Simko SI</p>
+  <h2 id="welcomeTitle">A calm assistant for everyday life</h2>
+  <p class="welcomeLead">Ask in plain English and get a clear answer. Simko SI runs on Grok, so it can search the live web with sources, think a hard problem through step by step, read your photos and PDFs, and talk with you out loud.</p>
+  <ul class="welcomeList">
+    <li><strong>Chat</strong> about money, health questions, school, work or a quiet evening plan.</li>
+    <li><strong>DeepSearch</strong> the web and see where every fact came from.</li>
+    <li><strong>Think</strong> mode for careful, step-by-step answers.</li>
+    <li><strong>Voice</strong>: talk and listen, hands free.</li>
+    <li><strong>Lifebook and routines</strong> for gentle daily check-ins.</li>
+  </ul>
+  <p class="welcomeNote">Simko SI is in early access. Make a free account to save your place; Grok chat opens to new members in waves.</p>
+  <div class="welcomeActions">
+    <button id="welcomeSignUp" type="button">Create a free account</button>
+    <button id="welcomeSignIn" type="button">Sign in</button>
+    <button id="welcomeLook" type="button">Look around</button>
+  </div>
+  <p class="welcomeLinks"><a href="/help.html">Help and FAQ</a><a href="/pricing.html">Pricing</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a></p>
+</section>
+<script>
+(function () {
+  var card = document.getElementById("welcome");
+  try { if (sessionStorage.getItem("simkoWelcomeSeen") === "1") card.hidden = true; } catch (e) {}
+  function close() { card.hidden = true; try { sessionStorage.setItem("simkoWelcomeSeen", "1"); } catch (e) {} }
+  document.getElementById("welcomeLook").addEventListener("click", close);
+  document.getElementById("welcomeSignIn").addEventListener("click", function () { close(); var b = document.getElementById("accountSignIn"); if (b) b.click(); });
+  document.getElementById("welcomeSignUp").addEventListener("click", function () {
+    close();
+    var b = document.getElementById("accountSignIn"); if (b) b.click();
+    setTimeout(function () { var t = document.getElementById("authTabUp"); if (t) t.click(); }, 0);
+  });
+})();
+</script>
 <div id="storeStage" hidden>
   <section id="accountCard" class="platformCard" hidden role="dialog" aria-modal="true" aria-labelledby="accountCardTitle">
     <button class="platformClose" type="button" aria-label="Close">×</button>
     <h2 id="accountCardTitle">Account</h2>
     <p id="accountCardEmail"></p>
+    <button id="accountExport" type="button">Download my data</button>
     <button id="accountDelete" type="button">Delete account</button>
+    <p id="accountExportMsg" role="status" aria-live="polite" hidden></p>
     <p class="legalLinks"><a href="/privacy.html" target="_blank" rel="noopener">Privacy</a><a href="/terms.html" target="_blank" rel="noopener">Terms</a><a href="/support.html" target="_blank" rel="noopener">Support</a></p>
   </section>
   <section id="deleteAccountCard" class="platformCard" hidden role="dialog" aria-modal="true" aria-labelledby="deleteAccountTitle">
@@ -1734,13 +1831,13 @@
 <section id="gallery" hidden aria-label="Gallery">
   <div id="galleryGrid">
     <figure>
-      <video muted loop playsinline preload="metadata" poster="/assets/sea-turtle-poster.jpg">
+      <video muted loop playsinline preload="metadata" poster="/assets/sea-turtle-poster-clean.jpg">
         <source src="/assets/sea-turtle-loop.mp4" type="video/mp4">
       </video>
       <figcaption>Sea turtle</figcaption>
     </figure>
     <figure>
-      <img src="/assets/sea-turtle-poster.jpg" alt="Sea turtle, still">
+      <img src="/assets/sea-turtle-poster-clean.jpg" alt="Sea turtle, still">
       <figcaption>Sea turtle, still</figcaption>
     </figure>
   </div>
@@ -1748,7 +1845,7 @@
 <main id="thread">
   <div id="historyBubbles"></div>
   <div id="replyWrap">
-    <div id="reply-bubble" aria-label="Reply" data-placeholder="Reply"></div>
+    <div id="reply-bubble" role="log" aria-live="polite" aria-label="Reply" data-placeholder="Reply"></div>
     <button id="replyReport" type="button" aria-label="Report this reply" title="Report this reply"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button id="replySpeak" type="button" class="speakReply" aria-label="Play reply"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16.5 8.5a4.5 4.5 0 010 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
   </div>

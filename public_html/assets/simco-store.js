@@ -41,6 +41,21 @@
       chip.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openAccount(); } });
     }
     /* Delete account */
+    var exp = $("accountExport"), expMsg = $("accountExportMsg");
+    if (exp) exp.addEventListener("click", function () {
+      exp.disabled = true;
+      post("/api/auth", { op: "export-data" }).then(function (d) {
+        exp.disabled = false;
+        if (!d.ok || !d.export) { expMsg.textContent = d.error || "Could not export right now."; expMsg.hidden = false; return; }
+        var blob = new Blob([JSON.stringify(d.export, null, 2)], { type: "application/json" });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "simko-si-data-" + new Date().toISOString().slice(0, 10) + ".json";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+        expMsg.textContent = "Your data file is downloading."; expMsg.hidden = false;
+      });
+    });
     var del = $("accountDelete"), input = $("deleteConfirm"), go = $("deleteAccountGo"), msg = $("deleteAccountMsg");
     if (del) del.addEventListener("click", function () { input.value = ""; go.disabled = true; msg.hidden = true; open("deleteAccountCard"); });
     if (input) input.addEventListener("input", function () { go.disabled = input.value.trim() !== "DELETE"; });

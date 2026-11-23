@@ -28,6 +28,12 @@ Options -Indexes
   RewriteRule ^api/agent-stream/?$ api/agent-stream.php [L]
   RewriteRule ^api/stripe-webhook/?$ api/stripe-webhook.php [L]
   RewriteRule ^api/report/?$ api/report.php [L]
+  RewriteRule ^api/telemetry/?$ api/telemetry.php [L]
+  RewriteRule ^help/?$ help.html [L]
+  RewriteRule ^pricing/?$ pricing.html [L]
+  RewriteRule ^privacy/?$ privacy.html [L]
+  RewriteRule ^terms/?$ terms.html [L]
+  RewriteRule ^support/?$ support.html [L]
   RewriteRule ^api/health/?$ api/machine.php?op=health [L,QSA]
   RewriteRule ^api/installers/?$ api/machine.php?op=installers [L,QSA]
   RewriteRule ^api/voice/clientlog/?$ api/voice-clientlog.php [L]
@@ -55,9 +61,20 @@ Options -Indexes
   <FilesMatch "\.(html)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
-  <FilesMatch "\.(jpg|jpeg|css|js|svg)$">
+  <FilesMatch "\.(jpg|jpeg|png|css|js|svg)$">
     Header set Cache-Control "public, max-age=86400"
   </FilesMatch>
+  # Files loaded with a ?v= version string change name on every release: cache them 30 days.
+  <If "%{QUERY_STRING} =~ /(^|&)v=/">
+    Header set Cache-Control "public, max-age=2592000"
+  </If>
+  # Security headers for every response.
+  Header always set Strict-Transport-Security "max-age=31536000"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()"
+  Header always set Content-Security-Policy "frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
 </IfModule>
 
 <FilesMatch "(^config\.php$|\.sqlite$|\.sqlite-wal$|\.sqlite-shm$)">

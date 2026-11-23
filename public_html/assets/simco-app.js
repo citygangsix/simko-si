@@ -645,6 +645,7 @@
       label.title = email || "";
     }
     document.documentElement.setAttribute("data-simko-signed", email ? "1" : "0");
+    try { localStorage.setItem("simkoSignedHint", email ? "1" : "0"); } catch (e) {}
   }
 
   function hasSession() {
@@ -1397,13 +1398,20 @@
     try { params = new URLSearchParams(location.search); } catch (e) { return; }
     const reset = (params.get("reset") || "").trim();
     const confirm = (params.get("confirm") || "").trim();
-    if (!reset && !confirm) return;
+    const shared = [params.get("share_title"), params.get("share_text"), params.get("share_url")]
+      .map((v) => (v || "").trim()).filter(Boolean).join("\n").slice(0, 4000);
+    if (!reset && !confirm && !shared) return;
     try {
-      params.delete("reset");
-      params.delete("confirm");
+      ["reset", "confirm", "share_title", "share_text", "share_url"].forEach((k) => params.delete(k));
       const rest = params.toString();
       history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
     } catch (e) {}
+    if (shared && $("everyday")) {
+      $("everyday").value = shared;
+      $("everyday").dispatchEvent(new Event("input", { bubbles: true }));
+      $("everyday").focus();
+      return;
+    }
     if (/^[a-f0-9]{16,128}$/i.test(reset)) {
       openReset();
       $("modalResetToken").value = reset;
@@ -1418,14 +1426,45 @@
     }
   }
 
-  function showLinkNote(text) {
+  // Update prompt: a tab left open across a deploy offers a reload instead of running stale code.
+  (function watchBuild() {
+    const meta = document.querySelector('meta[name="simko-build"]');
+    const mine = meta ? meta.content : "";
+    if (!mine) return;
+    let shown = false;
+    let last = Date.now();
+    async function check() {
+      if (shown || document.hidden || Date.now() - last < 10 * 60 * 1000) return;
+      last = Date.now();
+      try {
+        const r = await fetch("/", { cache: "no-store", credentials: "omit" });
+        const html = await r.text();
+        const m = html.match(/<meta name="simko-build" content="([^"]+)"/);
+        if (m && m[1] && m[1] !== mine) {
+          shown = true;
+          const note = showLinkNote("A new version of Simko SI is ready.", 0);
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = "Reload";
+          btn.style.cssText = "margin-left:.7rem;min-height:44px;padding:.3rem 1rem;border-radius:999px;border:1px solid rgba(255,214,196,.6);background:rgba(255,127,106,.85);color:#fff;font:inherit;cursor:pointer;";
+          btn.addEventListener("click", () => location.reload());
+          note.appendChild(btn);
+        }
+      } catch (e) {}
+    }
+    setInterval(check, 20 * 60 * 1000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) setTimeout(check, 2000); });
+  })();
+
+  function showLinkNote(text, ms) {
     const note = document.createElement("div");
     note.setAttribute("role", "status");
     note.className = "simko-link-note";
     note.textContent = text;
     note.style.cssText = "position:fixed;left:50%;top:1rem;transform:translateX(-50%);z-index:9999;background:#0b2430;color:#fff;border:1px solid rgba(255,214,196,0.45);border-radius:1rem;padding:0.7rem 1rem;font:inherit;max-width:90vw;";
     document.body.appendChild(note);
-    setTimeout(() => note.remove(), 6000);
+    if (ms !== 0) setTimeout(() => note.remove(), ms || 6000);
+    return note;
   }
   loadFamilyScript();
   document.addEventListener("simco:voice-saved", function (event) {

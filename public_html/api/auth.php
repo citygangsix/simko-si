@@ -29,6 +29,9 @@ switch ($op) {
     case 'reset-password':
         simko_reset_password($body);
         break;
+    case 'export-data':
+        simko_export_data();
+        break;
     case 'delete-account':
         simko_delete_account($body);
         break;
@@ -330,3 +333,41 @@ function simko_delete_account(array $body): void
     simko_ok(['deleted' => true]);
 }
 
+
+/** Download my data: the signed-in account's own records as one JSON file. Never secrets or tokens. */
+function simko_export_data(): void
+{
+    $user = simko_require_user();
+    $uid = (int) $user['id'];
+    $db = simko_db();
+    $q = static function (string $sql, array $args) use ($db): array {
+        try {
+            $st = $db->prepare($sql);
+            $st->execute($args);
+            return $st->fetchAll();
+        } catch (Throwable $e) {
+            return [];
+        }
+    };
+    $chats = $q('SELECT id, title, created_at, updated_at, child_profile_id FROM chats WHERE user_id = ? ORDER BY created_at', [$uid]);
+    foreach ($chats as &$chat) {
+        $chat['messages'] = $q('SELECT role, body, created_at FROM messages WHERE chat_id = ? ORDER BY id', [(string) $chat['id']]);
+    }
+    unset($chat);
+    $out = [
+        'exported_at' => gmdate('c'),
+        'site' => 'https://simkosi.com',
+        'account' => [
+            'email' => (string) $user['email'],
+            'created_at' => (int) ($user['created_at'] ?? 0),
+            'confirmed' => (int) ($user['confirmed'] ?? 0) === 1,
+        ],
+        'chats' => $chats,
+        'memories' => $q('SELECT fact, child_profile_id, created_at FROM memories WHERE user_id = ? ORDER BY id', [$uid]),
+        'lifebook' => $q('SELECT category, label, tone, created_at FROM life_events WHERE user_id = ? ORDER BY id', [$uid]),
+        'child_profiles' => $q('SELECT id, display_name, age_band, created_at FROM child_profiles WHERE parent_user_id = ? ORDER BY id', [$uid]),
+        'routines' => $q('SELECT kind, hour, minute, tz, enabled, child_profile_id, created_at FROM routines WHERE user_id = ? ORDER BY id', [$uid]),
+        'routine_deliveries' => $q('SELECT body, created_at FROM routine_deliveries WHERE user_id = ? ORDER BY id', [$uid]),
+    ];
+    simko_ok(['export' => $out]);
+}
