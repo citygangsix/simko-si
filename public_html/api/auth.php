@@ -29,6 +29,9 @@ switch ($op) {
     case 'reset-password':
         simko_reset_password($body);
         break;
+    case 'delete-account':
+        simko_delete_account($body);
+        break;
     default:
         simko_fail(400, 'That sign-in step is not recognized.');
 }
@@ -252,3 +255,78 @@ function simko_dev_codes_in_reply(): bool
     $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
     return $ip === '127.0.0.1' || $ip === '::1';
 }
+
+/**
+ * In-app account deletion (Apple App Review 5.1.1(v), Google Play account deletion policy).
+ * The signed-in user types DELETE to confirm. Removes the account and everything tied to it.
+ * Kept on purpose: per-picture billing ledger rows (image_charges, image_billing), which are
+ * financial records, with the user id only. A paid Stripe plan must be cancelled first so we never
+ * delete an account that keeps getting billed.
+ */
+function simko_delete_account(array $body): void
+{
+    $user = simko_require_user();
+    if (trim((string) ($body['confirm'] ?? '')) !== 'DELETE') {
+        simko_fail(400, 'Type DELETE to confirm.');
+    }
+    $uid = (int) $user['id'];
+    $db = simko_db();
+    $tables = [];
+    foreach ($db->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")->fetchAll() as $row) {
+        $cols = [];
+        foreach ($db->query('PRAGMA table_info(' . $row['name'] . ')')->fetchAll() as $col) {
+            $cols[] = (string) $col['name'];
+        }
+        $tables[(string) $row['name']] = $cols;
+    }
+    if (isset($tables['subscriptions'])) {
+        $sub = $db->prepare('SELECT status, stripe_subscription_id FROM subscriptions WHERE user_id = ?');
+        $sub->execute([$uid]);
+        $row = $sub->fetch();
+        if (is_array($row) && in_array((string) $row['status'], ['paid', 'active', 'trialing', 'past_due'], true)
+            && (string) ($row['stripe_subscription_id'] ?? '') !== '') {
+            simko_fail(409, 'Cancel your $9.99/month plan first (Usage, then Manage billing). Then delete the account.', ['needs_cancel' => true]);
+        }
+    }
+    $keep = ['users', 'image_charges', 'image_billing', 'stripe_events', 'oauth_states', 'mail_log'];
+    $imageIds = [];
+    if (isset($tables['generated_images'])) {
+        $st = $db->prepare('SELECT id FROM generated_images WHERE user_id = ?');
+        $st->execute([$uid]);
+        $imageIds = array_map(static fn ($r) => (string) $r['id'], $st->fetchAll());
+    }
+    $db->beginTransaction();
+    try {
+        if (isset($tables['messages'], $tables['chats'])) {
+            $db->prepare('DELETE FROM messages WHERE chat_id IN (SELECT id FROM chats WHERE user_id = ?)')->execute([$uid]);
+        }
+        foreach ($tables as $name => $cols) {
+            if (in_array($name, $keep, true)) {
+                continue;
+            }
+            foreach (['user_id', 'parent_user_id', 'owner_id', 'member_id'] as $col) {
+                if (in_array($col, $cols, true)) {
+                    $db->prepare('DELETE FROM "' . $name . '" WHERE "' . $col . '" = ?')->execute([$uid]);
+                }
+            }
+        }
+        if (isset($tables['team_invites']) && in_array('email', $tables['team_invites'], true)) {
+            $db->prepare('DELETE FROM team_invites WHERE email = ?')->execute([strtolower((string) $user['email'])]);
+        }
+        $db->prepare('DELETE FROM users WHERE id = ?')->execute([$uid]);
+        $db->commit();
+    } catch (Throwable $e) {
+        $db->rollBack();
+        simko_fail(500, 'The account could not be deleted. Nothing was removed. Try again or email support.');
+    }
+    $dir = simko_private_dir() . '/data/images/';
+    foreach ($imageIds as $id) {
+        if (preg_match('/^[A-Za-z0-9_-]+$/', $id) && is_file($dir . $id . '.png')) {
+            @unlink($dir . $id . '.png');
+        }
+    }
+    @file_put_contents(simko_private_dir() . '/data/account-deletions.log', gmdate('c') . " user_id={$uid}\n", FILE_APPEND | LOCK_EX);
+    simko_clear_cookie();
+    simko_ok(['deleted' => true]);
+}
+

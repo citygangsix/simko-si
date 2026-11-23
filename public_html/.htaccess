@@ -27,6 +27,7 @@ Options -Indexes
   RewriteRule ^api/connector/callback/?$ api/connector-callback.php [L,QSA]
   RewriteRule ^api/agent-stream/?$ api/agent-stream.php [L]
   RewriteRule ^api/stripe-webhook/?$ api/stripe-webhook.php [L]
+  RewriteRule ^api/report/?$ api/report.php [L]
   RewriteRule ^api/health/?$ api/machine.php?op=health [L,QSA]
   RewriteRule ^api/installers/?$ api/machine.php?op=installers [L,QSA]
   RewriteRule ^api/voice/clientlog/?$ api/voice-clientlog.php [L]
