@@ -1,19 +1,19 @@
-# Simko SI for Android (Trusted Web Activity, generated with Bubblewrap core 1.27)
+# Simko SI for Android: Trusted Web Activity (Bubblewrap 1.27 project in `project/`)
 
-Package: `com.simkosi.app` · versionName 1.0.0 · versionCode 1 · minSdk 24 · targetSdk 36 (meets Play's current target-API rule)
+Package `com.simkosi.app` · versionName 1.0.0 · versionCode 1 · minSdk 24 · targetSdk 36 · permissions: none beyond the TWA receiver (no INTERNET, no AD_ID: Chrome does the networking).
 
-## Files
-- `release/simkosi-1.0.0-vc1-release.aab` — **upload this to Play Console** (signed with the upload key below).
-- `release/simkosi-1.0.0-vc1-release.apk` — same build as an APK for side-loading on a test phone (`adb install`).
-- `twa/` — the Gradle project (open in Android Studio or rebuild with `../build-aab.sh`). `twa/twa-manifest.json` is the Bubblewrap config.
-- Upload keystore + passwords: `/workspace/simkosi-store/secrets/` (0600, never printed). **Back these up off the box today** (password manager / private Dropbox / USB). Without them, the app can't be updated until Google resets the upload key.
+## Why TWA and not Capacitor on Android
+- Google's own recommended way to ship a PWA on Play; the app runs in the user's real Chrome, so Google sign-in, passkeys/password autofill, web push and updates work the same as the website, and every deploy of simkosi.com updates the app with no new upload.
+- Play policy is fine with it as long as the site behaves like an app (full screen once Digital Asset Links verify, no browser UI, offline handling). Verified on the emulator: full screen with the upload key.
+- Apple has no TWA equivalent, so iOS uses the Capacitor shell in `../ios-capacitor`.
 
-## Upload key fingerprint (public, already in https://simkosi.com/.well-known/assetlinks.json)
-SHA-256 `73:C5:43:AE:60:C1:E8:50:86:EF:69:69:86:FA:EF:6A:9A:E3:4F:84:7D:9C:7A:D8:A9:13:08:CA:A0:E1:4E:39`
-Google's Digital Asset Links API already returns this statement for simkosi.com → com.simkosi.app.
+## Build (box, free)
+`/workspace/simkosi-store-apps/build-android.sh` → `/workspace/simkosi-store-apps/out/`:
+- `simkosi-1.0.0-vc1-debug.apk` (debug key: shows a Chrome URL bar because the debug key isn't in assetlinks.json; for quick installs)
+- `simkosi-1.0.0-vc1-release-unsigned.aab` + `-release-unsigned.apk` (sign with the upload key in `/workspace/simkosi-store/secrets`, or upload the signed one at `/workspace/simkosi-store/android/release/`)
 
-## One thing to do after the first upload
-Play Console re-signs the app with **Play App Signing**. Copy the *App signing key* SHA-256 from Play Console → Test and release → Setup → App signing, and add it as a second fingerprint in `/.well-known/assetlinks.json`. Until then, the Play-installed app would show a browser address bar instead of full screen.
+## After the first Play upload
+Add the Play App Signing SHA-256 to `../well-known/assetlinks.json` and deploy it, or the store-installed app shows a URL bar.
 
-## Rebuild
-Bump `appVersionCode` / `appVersionName` in `twa/twa-manifest.json` and `versionCode`/`versionName` in `twa/app/build.gradle`, then run `./build-aab.sh` (uses the JDK 17 + Android SDK under `/workspace/simkosi-store/toolchain`).
+## Icons / splash
+Adaptive icon (mipmap-anydpi-v26, maskable art inset 8.5dp), legacy mipmaps mdpi to xxxhdpi, splash drawables for all densities, Play icon 512 and feature graphic 1024x500 in `/workspace/simkosi-store/assets/graphics`.

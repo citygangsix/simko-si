@@ -1,0 +1,95 @@
+# Simko SI (simkosi.com) iOS shell: unsigned build + iOS Simulator smoke test on a free
+# GitHub-hosted macOS runner (public repo = no cost). No Apple account, no signing,
+# no secrets, nothing uploaded to Apple, nothing submitted.
+name: simkosi iOS unsigned build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [cursor/simkosi-store-apps]
+    paths:
+      - "mobile/ios-capacitor/**"
+      - ".github/workflows/simkosi-ios-unsigned.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: simkosi-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: mobile/ios-capacitor
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Select newest Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)" && xcodebuild -version
+
+      - name: npm ci + cap sync ios
+        run: |
+          npm ci --no-audit --no-fund
+          npx cap sync ios
+
+      - name: Build for iOS Simulator (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild build -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd-sim" CODE_SIGNING_ALLOWED=NO \
+            | tee "$RUNNER_TEMP/sim.log" | grep -E "error:|warning: .*deprecated|BUILD (SUCCEEDED|FAILED)" || true
+          test -d "$RUNNER_TEMP/dd-sim/Build/Products/Debug-iphonesimulator/App.app" || { tail -200 "$RUNNER_TEMP/sim.log"; exit 1; }
+
+      - name: Archive for device (unsigned, compile check only)
+        run: |
+          set -o pipefail
+          xcodebuild archive -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/SimkoSI.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tee "$RUNNER_TEMP/archive.log" | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          test -d "$RUNNER_TEMP/SimkoSI.xcarchive/Products/Applications/App.app" || { tail -200 "$RUNNER_TEMP/archive.log"; exit 1; }
+
+      - name: Run in iPhone + iPad simulators and screenshot
+        run: |
+          APP="$RUNNER_TEMP/dd-sim/Build/Products/Debug-iphonesimulator/App.app"
+          mkdir -p "$RUNNER_TEMP/out"
+          xcrun simctl list devicetypes | grep -E "iPhone|iPad" | tail -20
+          pick() { xcrun simctl list devices available | grep -E "$1" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/'; }
+          for kind in "iPhone 1[5-9] Pro Max|iPhone 1[5-9] Plus|iPhone" "iPad Pro 13|iPad Pro \(12.9|iPad"; do
+            UDID=$(pick "$kind"); [ -n "$UDID" ] || continue
+            NAME=$(xcrun simctl list devices | grep "$UDID" | sed -E 's/^ *//; s/ \(.*//; s/ /_/g')
+            xcrun simctl boot "$UDID" || true
+            xcrun simctl bootstatus "$UDID" -b
+            xcrun simctl install "$UDID" "$APP"
+            xcrun simctl launch "$UDID" com.simkosi.app
+            sleep 35
+            xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/out/${NAME}-launch.png"
+            xcrun simctl spawn "$UDID" log show --last 2m --predicate 'process == "App"' --style compact > "$RUNNER_TEMP/out/${NAME}-app.log" 2>/dev/null || true
+            xcrun simctl shutdown "$UDID" || true
+          done
+          ls -la "$RUNNER_TEMP/out"
+
+      - name: Package
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          APP="$RUNNER_TEMP/dd-sim/Build/Products/Debug-iphonesimulator/App.app"
+          [ -d "$APP" ] && ditto -c -k --sequesterRsrc --keepParent "$APP" "$RUNNER_TEMP/out/SimkoSI-simulator.app.zip"
+          [ -d "$RUNNER_TEMP/SimkoSI.xcarchive" ] && ditto -c -k --keepParent "$RUNNER_TEMP/SimkoSI.xcarchive" "$RUNNER_TEMP/out/SimkoSI-unsigned.xcarchive.zip"
+          cp "$RUNNER_TEMP"/*.log "$RUNNER_TEMP/out/" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simkosi-ios-unsigned
+          path: ${{ runner.temp }}/out
+          retention-days: 14

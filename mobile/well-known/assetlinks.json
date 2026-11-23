@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls", "delegate_permission/common.get_login_creds"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.simkosi.app",
+      "sha256_cert_fingerprints": [
+        "73:C5:43:AE:60:C1:E8:50:86:EF:69:69:86:FA:EF:6A:9A:E3:4F:84:7D:9C:7A:D8:A9:13:08:CA:A0:E1:4E:39",
+        "PLAY_APP_SIGNING_KEY_SHA256_FROM_PLAY_CONSOLE"
+      ]
+    }
+  }
+]

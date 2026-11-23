@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["APPLE_TEAM_ID.com.simkosi.app"],
+        "components": [
+          { "/": "/api/*", "exclude": true, "comment": "API calls stay in the web view, never open the app" },
+          { "/": "/*", "comment": "Every simkosi.com page opens in the app when it is installed" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["APPLE_TEAM_ID.com.simkosi.app"]
+  }
+}
