@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#03141c"/>
+<link rel="manifest" href="/manifest.webmanifest"/>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"/>
+<title>Download Simko SI for desktop · Simko SI</title>
+<meta name="description" content="Install Simko SI on Windows, Mac or Linux: one click in Chrome or Edge, Add to Dock in Safari, or a small launcher download."/>
+<link rel="canonical" href="https://simkosi.com/download"/>
+<meta property="og:title" content="Download Simko SI for desktop · Simko SI"/>
+<meta property="og:description" content="Install Simko SI on Windows, Mac or Linux: one click in Chrome or Edge, Add to Dock in Safari, or a small launcher download."/>
+<meta property="og:image" content="https://simkosi.com/assets/og-card.jpg"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<style>
+  body { margin: 0; background: #03141c; color: #e8f4f2; font: 17px/1.6 Georgia, "Times New Roman", serif; }
+  main { max-width: 44rem; margin: 0 auto; padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem max(2rem, env(safe-area-inset-bottom)); }
+  h1 { font-weight: 500; font-size: 1.8rem; margin: .5rem 0 .2rem; } h2 { font-weight: 500; font-size: 1.25rem; margin: 1.6rem 0 .3rem; }
+  a { color: #ffd6c4; } .muted { color: #9fbcb8; font-size: .95rem; } li { margin: .25rem 0; }
+  header a { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; text-decoration: none; }
+  header img { width: 32px; height: 32px; border-radius: 8px; }
+  nav { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 2rem; } nav a { min-height: 44px; display: inline-flex; align-items: center; }
+  details { border-top: 1px solid rgba(255,214,196,.25); padding: .7rem 0; } summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: 1.05rem; }
+  .plans { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); margin-top: 1rem; } .plan { border: 1px solid rgba(255,214,196,.35); border-radius: 1.2rem; padding: 1rem 1.2rem; } .plan h2 { margin-top: 0; } .price { font-size: 1.6rem; margin: .2rem 0 .6rem; } .tag { display: inline-block; border: 1px solid #ffd6c4; color: #ffd6c4; border-radius: 999px; padding: .1rem .6rem; font-size: .85rem; }
+</style>
+<style>
+  .card { border: 1px solid rgba(255,214,196,.35); border-radius: 1.2rem; padding: 1rem 1.2rem; margin: 1rem 0; }
+  .big { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: .6rem 1.3rem; border-radius: 999px; border: 0; background: #ff7f6a; color: #03141c; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; }
+  .dl { display: inline-flex; align-items: center; min-height: 44px; padding: .45rem 1rem; border-radius: 999px; border: 1px solid rgba(255,214,196,.55); color: #fff; text-decoration: none; margin: .25rem .4rem .25rem 0; }
+  .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+  code { font-size: .85rem; word-break: break-all; color: #cfe6e2; }
+  #installNote { color: #b9f3c9; }
+  .warn { color: #ffd6c4; }
+</style>
+
+</head>
+<body><main>
+<header><a href="/"><img src="/assets/icons/icon-192.png" alt=""/>Simko SI</a></header>
+<h1>Simko SI for your computer</h1>
+<p>Use Simko SI in its own window, with its own icon in your Start menu, Dock or app list. It is the same Simko SI as the website, so your chats and settings are the same everywhere.</p>
+<section class="card" id="oneClick">
+<h2>Install in one click (recommended)</h2>
+<p>Works in <b>Chrome</b> and <b>Edge</b> on Windows, Mac, Linux and ChromeOS. Nothing to download or unzip.</p>
+<p><button class="big" id="installNow" type="button" data-simko-install>Install Simko SI</button></p>
+<p id="installNote" role="status" aria-live="polite" hidden></p>
+<p class="muted" id="installHint">If the button does nothing, look for the install icon (a screen with a down arrow) at the right end of the address bar, or open the browser menu and choose <i>Cast, save and share &gt; Install page as app</i> (Chrome) or <i>Apps &gt; Install this site as an app</i> (Edge).</p>
+</section>
+<section class="card">
+<h2>Safari and Firefox</h2>
+<div class="grid">
+<div><h3>Safari on Mac</h3><p>macOS Sonoma or later: open simkosi.com in Safari, then choose <b>File &gt; Add to Dock</b>.</p></div>
+<div><h3>Safari on iPhone or iPad</h3><p>Tap <b>Share</b>, then <b>Add to Home Screen</b>.</p></div>
+<div><h3>Firefox</h3><p>Firefox on computers does not install websites as apps. Use the launcher below, or open simkosi.com in Chrome or Edge and install it there.</p></div>
+</div>
+</section>
+<section class="card" id="launchers">
+<h2>Or download a small launcher</h2>
+<p>These open simkosi.com in its own app window using a browser you already have (Edge on Windows; Chrome, Edge or Brave on Mac and Linux, else your default browser). They do not include a browser and do not run anything else on your computer.</p>
+<p class="warn"><b>Heads-up:</b> the launchers are not code-signed yet, so Windows and macOS warn you the first time. On Windows choose <i>More info &gt; Run anyway</i>; on a Mac right-click the app and choose <i>Open</i>. The one-click install above has no warning.</p>
+<div class="grid">
+<div><h3>Windows 10 and 11</h3><p><a class="dl" href="/downloads/SimkoSI-Windows.zip" download>Download for Windows</a> <span class="muted">106 KB</span></p><p class="muted">Unzip, then double-click <i>Install Simko SI.cmd</i>.</p></div>
+<div><h3>macOS</h3><p><a class="dl" href="/downloads/SimkoSI-macOS.zip" download>Download for Mac</a> <span class="muted">991 KB</span></p><p class="muted">Unzip, drag <i>Simko SI</i> to Applications, right-click &gt; Open.</p></div>
+<div><h3>Linux</h3><p><a class="dl" href="/downloads/simkosi-linux.tar.gz" download>Download for Linux</a> <span class="muted">205 KB</span></p><p class="muted"><code>tar xzf simkosi-linux.tar.gz &amp;&amp; ./simkosi-linux/install.sh</code></p></div>
+</div>
+<p class="muted">Version 1.0.0 · <a href="/downloads/SHA256SUMS.txt">SHA-256 checksums</a></p>
+</section>
+<script src="/assets/simco-install.js?v=flagship6-20261123"></script>
+<script>
+(function () {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
+  var ua = navigator.userAgent;
+  var chromium = /Chrome|Chromium|Edg\//.test(ua) && !/OPR\//.test(ua);
+  if (window.simkoInstall && window.simkoInstall.standalone()) {
+    var n = document.getElementById('installNote'); n.hidden = false; n.textContent = 'You are already using the installed Simko SI app.';
+  } else if (!chromium) {
+    document.getElementById('installNow').hidden = true;
+    var n2 = document.getElementById('installNote'); n2.hidden = false;
+    n2.textContent = 'This browser cannot install websites as apps. Use the Safari steps or a launcher below, or open this page in Chrome or Edge.';
+  }
+  var btn = document.getElementById('installNow');
+  btn.addEventListener('click', function () {
+    if (window.simkoInstall && !window.simkoInstall.canPrompt()) {
+      var n3 = document.getElementById('installNote'); n3.hidden = false;
+      n3.textContent = 'Your browser has not offered an install yet. Use the install icon in the address bar or the browser menu (see below), or a launcher.';
+    }
+  }, true);
+})();
+</script>
+<nav><a href="/">Open Simko SI</a><a href="/help">Help</a><a href="/pricing">Pricing</a><a href="/status">Status</a><a href="/changelog">What's new</a><a href="/privacy">Privacy</a></nav>
+</main></body></html>

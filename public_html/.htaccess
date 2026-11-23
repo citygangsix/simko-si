@@ -35,6 +35,7 @@ Options -Indexes
   RewriteRule ^api/telemetry/?$ api/telemetry.php [L]
   RewriteRule ^help/?$ help.html [L]
   RewriteRule ^status/?$ status.html [L]
+  RewriteRule ^download/?$ download.html [L]
   RewriteRule ^changelog/?$ changelog.html [L]
   RewriteRule ^pricing/?$ pricing.html [L]
   RewriteRule ^privacy/?$ privacy.html [L]
@@ -104,3 +105,16 @@ AddType application/manifest+json .webmanifest
     Header set Access-Control-Allow-Origin "*"
   </FilesMatch>
 </IfModule>
+
+# Desktop launcher downloads: right type, always a download, short cache so new versions show up.
+<IfModule mod_mime.c>
+  AddType application/zip .zip
+  AddType application/gzip .gz
+  RemoveEncoding .gz
+</IfModule>
+<FilesMatch "^(SimkoSI-Windows\.zip|SimkoSI-macOS\.zip|simkosi-linux\.tar\.gz)$">
+  <IfModule mod_headers.c>
+    Header set Content-Disposition "attachment"
+    Header set Cache-Control "public, max-age=3600"
+  </IfModule>
+</FilesMatch>

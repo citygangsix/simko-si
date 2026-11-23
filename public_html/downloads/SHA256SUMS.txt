@@ -1,0 +1,3 @@
+8ae4fe58a3251d5069169eda9b810c131cdb5825b0ef3e3e7fe3370b98b53a75  SimkoSI-Windows.zip
+18fa2b4bba9bd4bc8fa6880a4af443c3976f08eb9fff81c04e2c53bd813e7b08  SimkoSI-macOS.zip
+8d55e8d3caa5ede1eaf2c203490a318686a94542a55e828bc14c7b974dbda8cb  simkosi-linux.tar.gz

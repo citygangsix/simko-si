@@ -34,6 +34,13 @@ if (isset($routes[$uri])) {
     return true;
 }
 
+// Pretty page addresses, as in .htaccess.
+if (preg_match('#^/(help|pricing|privacy|terms|support|status|changelog|download)/?$#', $uri, $page)) {
+    header('Content-Type: text/html; charset=utf-8');
+    readfile(__DIR__ . '/' . $page[1] . '.html');
+    return true;
+}
+
 if ($uri === '/api/voice/clientlog') {
     require __DIR__ . '/api/voice-clientlog.php';
     return true;
