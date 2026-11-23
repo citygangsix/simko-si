@@ -13,10 +13,12 @@ $body = simko_require_post_json();
 $user = simko_require_user();
 simko_require_grok_owner($user);
 $text = trim((string) ($body['text'] ?? ''));
-// Paperclip: one picture (Grok vision) or one PDF/text file (read here for Q&A).
-$file = isset($body['file']) && $body['file'] !== null ? simko_attachment_read($body['file']) : null;
+// Paperclip: up to 4 pictures (Grok vision) or PDF, Word, Excel and text files (read here for Q&A).
+$files = simko_attachments_read($body);
+$file = $files[0] ?? null;
 if ($text === '' && $file !== null) {
-    $text = $file['kind'] === 'image' ? 'What is in this picture?' : 'Summarize this file in a few lines.';
+    $text = count($files) > 1 ? 'Look at these files and summarize each in a few lines.'
+        : ($file['kind'] === 'image' ? 'What is in this picture?' : 'Summarize this file in a few lines.');
 }
 if ($text === '') {
     simko_fail(400, 'Type a message, then Send.');
@@ -56,6 +58,15 @@ $system = trim((string) ($cfg['system_prompt'] ?? ''));
 if ($system === '') {
     $system = 'You are Simko SI, Joseph Simko\'s assistant. Reply in clear everyday English. Be warm and brief.';
 }
+
+// Reply language: a picked language, or the language the person writes in.
+$langs = ['en' => 'English', 'es' => 'Spanish', 'fr' => 'French', 'de' => 'German', 'pt' => 'Portuguese', 'it' => 'Italian',
+    'nl' => 'Dutch', 'pl' => 'Polish', 'uk' => 'Ukrainian', 'ru' => 'Russian', 'tr' => 'Turkish', 'ar' => 'Arabic', 'hi' => 'Hindi',
+    'zh' => 'Chinese (Simplified)', 'ja' => 'Japanese', 'ko' => 'Korean', 'vi' => 'Vietnamese', 'tl' => 'Filipino', 'sk' => 'Slovak'];
+$lang = strtolower(trim((string) ($body['lang'] ?? '')));
+$system .= isset($langs[$lang])
+    ? "\n\nAlways reply in " . $langs[$lang] . ', in plain everyday words.'
+    : "\n\nIf the person writes in a language other than English, reply in their language.";
 
 $memoryChild = null;
 if (simko_flag('memory') && !empty($body['child_id'])) {
@@ -112,21 +123,27 @@ if (simko_flag('browse') && empty($body['child_id'])) {
     }
 }
 $effort = simko_reasoning_effort($body['reasoning_effort'] ?? null);
-if ($file !== null) {
-    $spoken .= simko_attach_prompt($file);
+foreach ($files as $one) {
+    $spoken .= simko_attach_prompt($one);
 }
 // DeepSearch: several web and X searches, cross-checked, with a sources list.
 $deep = !empty($body['deep_search']) && simko_flag('search') && !$strictSearch;
 if ($deep) {
     $messages[0]['content'] .= "\n\n" . simko_deep_search_instructions();
-    if ($effort === null) {
+    // Multi-agent research model (Responses API only). 4 agents normally, 16 with Think on.
+    // Docs: https://docs.x.ai/developers/model-capabilities/text/multi-agent. Config 'deep_model' => '' turns it off.
+    $deepModel = trim((string) ($cfg['deep_model'] ?? 'grok-4.20-multi-agent-0309'));
+    if ($deepModel !== '' && $picked === '') {
+        $model = $deepModel;
+        $effort = $effort === null ? 'medium' : 'high';
+    } elseif ($effort === null) {
         $effort = 'high';
     }
 }
 
 $messages[] = ['role' => 'user', 'content' => simko_flag('search')
-    ? simko_attach_responses_content($spoken, $file)
-    : simko_attach_chat_content($spoken, $file)];
+    ? simko_attach_responses_multi($spoken, $files)
+    : simko_attach_chat_multi($spoken, $files)];
 if (count($messages) > 41) {
     $messages = array_merge([$messages[0]], array_slice($messages, -40));
 }
@@ -223,6 +240,7 @@ if ($pages !== []) {
 }
 if ($file !== null) {
     $payload['attachment'] = simko_attach_summary($file);
+    $payload['attachments'] = array_map('simko_attach_summary', $files);
 }
 if ($deep) {
     $payload['deep_search'] = true;

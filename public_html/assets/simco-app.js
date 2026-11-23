@@ -330,8 +330,8 @@
     button.addEventListener("click", function () { paint(!deepOn()); });
     if (flags.search === false) button.hidden = true;
   }
-  // Paperclip: one picture, PDF or text file per message, sent with the next Send.
-  let attached = null;
+  // Paperclip: up to 4 pictures, PDFs, Word, Excel or text files per message, sent with the next Send.
+  let attached = null; // null or a list of {name, type, size, data}
   const ATTACH_MAX = 8 * 1024 * 1024;
   function paintAttach() {
     const chip = $("attachChip");
@@ -339,7 +339,7 @@
     if (btn) btn.classList.toggle("has-file", !!attached);
     if (!chip) return;
     chip.hidden = !attached;
-    $("attachName").textContent = attached ? "Attached: " + attached.name + " (" + Math.max(1, Math.round(attached.size / 1024)) + " KB)" : "";
+    $("attachName").textContent = attached ? "Attached: " + attached.map(function (f) { return f.name + " (" + Math.max(1, Math.round(f.size / 1024)) + " KB)"; }).join(", ") : "";
   }
   function wireAttach() {
     const btn = $("attachButton");
@@ -348,20 +348,34 @@
     btn.dataset.wired = "1";
     btn.addEventListener("click", function () { input.click(); });
     input.addEventListener("change", function () {
-      const file = input.files && input.files[0];
+      const picked = Array.prototype.slice.call(input.files || []);
       input.value = "";
-      if (!file) return;
-      if (file.size > ATTACH_MAX) {
-        setReply("That file is too big. Attach a file under 8 MB.");
+      if (!picked.length) return;
+      const list = (attached || []).concat(picked);
+      if (list.length > 4) {
+        setReply("Attach up to 4 files at a time.");
         return;
       }
-      const reader = new FileReader();
-      reader.onload = function () {
-        const url = String(reader.result || "");
-        attached = { name: file.name, type: file.type, size: file.size, data: url.slice(url.indexOf(",") + 1) };
+      const total = list.reduce(function (n, f) { return n + (f.size || 0); }, 0);
+      if (total > ATTACH_MAX) {
+        setReply("Those files are too big together. Keep them under 8 MB in total.");
+        return;
+      }
+      Promise.all(picked.map(function (file) {
+        return new Promise(function (resolve) {
+          const reader = new FileReader();
+          reader.onload = function () {
+            const url = String(reader.result || "");
+            resolve({ name: file.name, type: file.type, size: file.size, data: url.slice(url.indexOf(",") + 1) });
+          };
+          reader.onerror = function () { resolve(null); };
+          reader.readAsDataURL(file);
+        });
+      })).then(function (read) {
+        attached = (attached || []).concat(read.filter(Boolean));
+        if (!attached.length) attached = null;
         paintAttach();
-      };
-      reader.readAsDataURL(file);
+      });
     });
     $("attachRemove").addEventListener("click", function () { attached = null; paintAttach(); });
   }
@@ -389,12 +403,11 @@
       body.append(head, code, outHead, out);
     });
     const extra = [];
-    if (data && data.attachment) {
-      const a = data.attachment;
+    ((data && (data.attachments || (data.attachment ? [data.attachment] : []))) || []).forEach(function (a) {
       extra.push(a.kind === "image"
         ? "Grok looked at the picture " + a.name
         : "Read the file " + a.name + (a.pages ? " (" + a.pages + (a.pages === 1 ? " page)" : " pages)") : "") + ", " + a.chars + " characters" + (a.truncated ? " (cut short)" : ""));
-    }
+    });
     if (data && data.deep_search) {
       const c = data.search_calls || {};
       extra.push("DeepSearch: " + (c.web || 0) + " web searches, " + (c.x || 0) + " X searches, " + ((data.sources || []).length) + " sources");
@@ -418,7 +431,7 @@
       const bits = [];
       if (runs.length) bits.push(runs.length === 1 ? "1 code run" : runs.length + " code runs");
       if (pages.length) bits.push(pages.length === 1 ? "1 page read" : pages.length + " pages read");
-      if (data && data.attachment) bits.push("1 file");
+      if (data && data.attachment) { const n = (data.attachments || [1]).length; bits.push(n === 1 ? "1 file" : n + " files"); }
       if (data && data.deep_search) bits.push("DeepSearch");
       if (data && data.cost_ticks) bits.push("$" + (data.cost_ticks / 1e10).toFixed(4));
       summary.textContent = bits.join(", ");
@@ -429,6 +442,7 @@
   function setReply(text) {
     const reply = $("reply-bubble");
     reply.textContent = text || "";
+    if (window.simkoCodeRun) { try { window.simkoCodeRun.attach(text || ""); } catch (e) {} }
     const button = $("replySpeak");
     if (!button) return;
     const show = !!(text && text !== "Working on it…");
@@ -943,6 +957,18 @@
     await showSession(activeSessionId, false);
   }
 
+  function replyLang() {
+    try { return localStorage.getItem("simkoLang") || ""; } catch (e) { return ""; }
+  }
+  (function wireLang() {
+    const pick = $("langPick");
+    if (!pick) return;
+    pick.value = replyLang();
+    pick.addEventListener("change", function () {
+      try { localStorage.setItem("simkoLang", pick.value); } catch (e) {}
+    });
+  })();
+
   async function onSend(event) {
     if (event) event.preventDefault();
     const text = $("everyday").value.trim();
@@ -976,7 +1002,7 @@
     const sendFile = attached;
     attached = null;
     paintAttach();
-    showMyMessage(text || (sendFile ? "(" + sendFile.name + ")" : ""));
+    showMyMessage(text || (sendFile ? "(" + sendFile.map(function (f) { return f.name; }).join(", ") + ")" : ""));
     $("everyday").value = "";
     $("everyday").dispatchEvent(new Event("input", { bubbles: true }));
     setReply("Working on it…");
@@ -987,7 +1013,8 @@
       let live = "";
       const data = await postStream("/api/simco/turn", {
         stream: !voiceTurn,
-        model: pickedModel(),
+        model: deepOn() ? undefined : pickedModel(),
+        lang: replyLang() || undefined,
         text: text,
         token: authToken,
         session_id: activeSessionId || "",
@@ -996,7 +1023,7 @@
         child_id: window.simcoChildId || undefined,
         reasoning_effort: thinkOn() ? "xhigh" : undefined,
         deep_search: deepOn() || undefined,
-        file: sendFile ? { name: sendFile.name, type: sendFile.type, data: sendFile.data } : undefined
+        files: sendFile ? sendFile.map(function (f) { return { name: f.name, type: f.type, data: f.data }; }) : undefined
       }, (piece) => {
         live += piece;
         $("reply-bubble").textContent = live;
@@ -1021,7 +1048,7 @@
     const line = everyday || "No reply came back from Simko SI. Try again in a moment.";
     setReply(line);
     voiceReply(line);
-    await rememberTurn(text || (sendFile ? "(attached " + sendFile.name + ")" : ""), line);
+    await rememberTurn(text || (sendFile ? "(attached " + sendFile.map(function (f) { return f.name; }).join(", ") + ")" : ""), line);
     await tagTurn(text);
   }
 
@@ -1556,5 +1583,5 @@
     if (row) row.voice_id = saved.voice_id;
     cacheSave();
   });
-  window.simcoApp = { needAccount: needAccount };
+  window.simcoApp = { needAccount: needAccount, activeChatId: function () { return activeSessionId && !String(activeSessionId).startsWith("demo-") ? String(activeSessionId) : ""; } };
 })();

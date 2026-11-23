@@ -17,6 +17,53 @@ function simko_browse_allow(): array
     return $hosts;
 }
 
+/** Sites the reader may open by default. '*' would allow any public page. */
+function simko_browse_default_sites(): array
+{
+    return [
+        'wikipedia.org', 'wikimedia.org', 'britannica.com', 'bbc.com', 'bbc.co.uk', 'reuters.com',
+        'apnews.com', 'npr.org', 'nasa.gov', 'nih.gov', 'cdc.gov', 'who.int', 'weather.gov',
+        'gov.uk', 'usa.gov', 'github.com', 'python.org', 'mozilla.org', 'x.ai', 'simkosi.com',
+    ];
+}
+
+/** The owner-edited allowed-sites list (database), or the default list. */
+function simko_browse_sites(): array
+{
+    $saved = simko_setting_get('browse_sites');
+    return is_array($saved) ? array_values(array_filter($saved, 'is_string')) : simko_browse_default_sites();
+}
+
+/** Cleans what the owner typed: one site per line, no scheme or path, max 200. */
+function simko_browse_clean_sites(mixed $raw): array
+{
+    $lines = is_array($raw) ? $raw : preg_split('/[\s,]+/', (string) $raw);
+    $out = [];
+    foreach ((array) $lines as $line) {
+        $h = strtolower(trim((string) $line));
+        $h = preg_replace('#^[a-z]+://#', '', $h) ?? '';
+        $h = preg_replace('#[/?\#].*$#', '', $h) ?? '';
+        $h = preg_replace('/^\*\./', '', $h) ?? '';
+        $h = trim($h, '.');
+        if ($h === '*' || preg_match('/^([a-z0-9-]+\.)+[a-z]{2,}$/', $h)) {
+            $out[$h] = true;
+        }
+    }
+    return array_slice(array_keys($out), 0, 200);
+}
+
+/** True when $host is a listed site or a subdomain of one ('*' allows any). */
+function simko_browse_site_allowed(string $host, array $sites): bool
+{
+    $host = strtolower(trim($host, '.'));
+    foreach ($sites as $site) {
+        if ($site === '*' || $host === $site || str_ends_with($host, '.' . $site)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /**
  * Public IPv4/IPv6 addresses for a host, or [] when it resolves to anything private.
  * Stops a pasted link from reaching the server itself or the hosting network.
@@ -67,7 +114,7 @@ function simko_browse_public_ips(string $host): array
 /**
  * Read one page the owner gave us. Returns ['ok' => true, 'url', 'text'] or ['ok' => false, 'error'].
  * Never follows links on the page. Follows at most 3 redirects, re-checking each hop.
- * With an empty browse_allow list, any public page the owner pastes is allowed.
+ * With an empty browse_allow config list, the owner-edited allowed-sites list applies (public pages only).
  */
 function simko_browse_read(string $url, int $maxChars = 6000): array
 {
@@ -88,6 +135,9 @@ function simko_browse_read(string $url, int $maxChars = 6000): array
         }
         if ($allow !== [] && !in_array($host, $allow, true)) {
             return ['ok' => false, 'url' => $url, 'code' => 403, 'error' => 'That site is not on the allow list.'];
+        }
+        if ($allow === [] && !simko_browse_site_allowed($host, simko_browse_sites())) {
+            return ['ok' => false, 'url' => $url, 'code' => 403, 'error' => 'That site is not on the allowed-sites list.'];
         }
         $path = strtolower((string) ($parts['path'] ?? ''));
         if (preg_match('/login|signin|password|oauth|account/', $path)) {

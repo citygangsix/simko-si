@@ -45,11 +45,42 @@ function simko_share_public(string $token): ?array
     if (!preg_match('/^[a-f0-9]{48}$/', $token)) {
         return null;
     }
-    $stmt = simko_db()->prepare('SELECT body, created_at, revoked FROM shares WHERE token = ?');
+    $stmt = simko_db()->prepare('SELECT kind, body, created_at, revoked FROM shares WHERE token = ?');
     $stmt->execute([$token]);
     $row = $stmt->fetch();
     if (!$row || (int) $row['revoked'] === 1) {
         return null;
     }
-    return ['body' => (string) $row['body'], 'created_at' => (int) $row['created_at']];
+    return ['kind' => (string) $row['kind'], 'body' => (string) $row['body'], 'created_at' => (int) $row['created_at']];
 }
+
+/**
+ * A read-only copy of one chat at this moment, behind a long unguessable link (like Grok's share).
+ * Later messages are not added. Revoke with revoke-share.
+ */
+function simko_share_chat(int $userId, string $chatId): array
+{
+    $stmt = simko_db()->prepare('SELECT id, title FROM chats WHERE id = ? AND user_id = ?');
+    $stmt->execute([$chatId, $userId]);
+    $chat = $stmt->fetch();
+    if (!$chat) {
+        simko_fail(404, 'That chat is not on this account.');
+    }
+    $stmt = simko_db()->prepare('SELECT role, body FROM messages WHERE chat_id = ? ORDER BY id ASC LIMIT 400');
+    $stmt->execute([$chatId]);
+    $messages = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $role = (string) $row['role'] === 'user' ? 'user' : 'assistant';
+        $messages[] = ['role' => $role, 'text' => simko_clip((string) $row['body'], 20000)];
+    }
+    if ($messages === []) {
+        simko_fail(400, 'This chat has no messages to share yet.');
+    }
+    $token = bin2hex(random_bytes(24));
+    $body = json_encode(['title' => (string) $chat['title'], 'messages' => $messages], JSON_UNESCAPED_UNICODE);
+    simko_db()->prepare('INSERT INTO shares (token, user_id, kind, body, revoked, created_at) VALUES (?, ?, ?, ?, 0, ?)')
+        ->execute([$token, $userId, 'chat', (string) $body, time()]);
+    $site = rtrim((string) (simko_config_or_empty()['site_url'] ?? 'https://simkosi.com'), '/');
+    return ['token' => $token, 'url' => $site . '/api/share?token=' . $token, 'messages' => count($messages)];
+}
+

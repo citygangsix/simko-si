@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
 <title>Simko SI: a calm Grok-powered assistant for chat, search and voice</title>
-<meta name="simko-build" content="flagship2-20261123"/>
+<meta name="simko-build" content="flagship3-20261123"/>
 <link rel="icon" href="/assets/favicon.svg?v=971b21ff3edd" type="image/svg+xml"/>
 <meta name="description" content="Simko SI is a calm, Grok-powered assistant. Chat in everyday English, search the web with sources, think through hard problems, and talk out loud."/>
 <link rel="canonical" href="https://simkosi.com/"/>
@@ -946,6 +946,15 @@
   #authModalError, #authResetError { margin: 0.15rem 0; color: #ffd6c4; }
   #authModalError[hidden], #authResetError[hidden] { display: none !important; }
   #authForgot, #authResetBack { background: transparent; }
+  #codeRunBox { margin: 0.4rem 0 0.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
+  #codeRunBox[hidden] { display: none; }
+  .codeRunBtn { align-self: flex-start; min-height: 44px; padding: 0.45rem 0.9rem; border-radius: 999px; border: 1px solid rgba(255, 214, 196, 0.55); background: rgba(255, 127, 106, 0.8); color: #fff; font: inherit; cursor: pointer; }
+  .codeRunBtn:disabled { opacity: 0.6; cursor: wait; }
+  .codeRunOut { margin: 0.35rem 0 0; max-height: 16rem; overflow: auto; white-space: pre-wrap; background: rgba(0, 0, 0, 0.45); color: #e8fff4; padding: 0.6rem 0.8rem; border-radius: 0.6rem; font: 0.85rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .codeRunOut[hidden] { display: none; }
+  #langPick { min-height: 44px; border-radius: 0.8rem; padding: 0.4rem 0.7rem; background: rgba(0,0,0,.35); color: #fff; border: 1px solid rgba(255,214,196,.45); font: inherit; margin: 0.2rem 0 0.6rem; }
+  .authOauthRow { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.6rem; }
+  .authOauthRow:empty { display: none; }
   #parentConsentRow {
     display: flex;
     gap: 0.6rem;
@@ -1375,6 +1384,29 @@
     <button class="platformClose" type="button" aria-label="Close">×</button>
     <h2 id="accountCardTitle">Account</h2>
     <p id="accountCardEmail"></p>
+    <label for="langPick">Reply language</label>
+    <select id="langPick">
+      <option value="">Same as I write</option>
+      <option value="en">English</option>
+      <option value="es">Español</option>
+      <option value="fr">Français</option>
+      <option value="de">Deutsch</option>
+      <option value="pt">Português</option>
+      <option value="it">Italiano</option>
+      <option value="nl">Nederlands</option>
+      <option value="pl">Polski</option>
+      <option value="uk">Українська</option>
+      <option value="ru">Русский</option>
+      <option value="tr">Türkçe</option>
+      <option value="ar">العربية</option>
+      <option value="hi">हिन्दी</option>
+      <option value="zh">中文</option>
+      <option value="ja">日本語</option>
+      <option value="ko">한국어</option>
+      <option value="vi">Tiếng Việt</option>
+      <option value="tl">Filipino</option>
+      <option value="sk">Slovenčina</option>
+    </select>
     <button id="accountExport" type="button">Download my data</button>
     <button id="accountDelete" type="button">Delete account</button>
     <p id="accountExportMsg" role="status" aria-live="polite" hidden></p>
@@ -1462,13 +1494,22 @@
   <section id="browseCard" class="platformCard" hidden aria-labelledby="browseTitle">
     <button id="browseClose" class="platformClose" type="button" aria-label="Close">×</button>
     <h2 id="browseTitle">Read a page</h2>
-    <p class="platformLead">Simko SI can fetch one allow-listed page and read the words. It does not log in, and it does not drive a browser. That needs a computer, not shared hosting.</p>
+    <p class="platformLead">Simko SI can fetch one page from an allowed site and read the words. Links you paste into chat are read the same way. It does not log in, and it does not drive a browser. That needs a computer, not shared hosting.</p>
     <form id="browseForm">
       <label for="browseUrl">Address</label>
       <input id="browseUrl" type="url" placeholder="https://example.com/notes">
       <button type="submit">Read the page</button>
     </form>
     <p id="browseText" class="platformLead"></p>
+    <details id="browseSitesBox" hidden>
+      <summary>Allowed sites (owner)</summary>
+      <p class="platformLead">One site per line. Subdomains are included. Pasted links to other sites are not opened. Put * on its own line to allow any public page.</p>
+      <label for="browseSites">Sites</label>
+      <textarea id="browseSites" rows="8" spellcheck="false"></textarea>
+      <button id="browseSitesSave" type="button">Save list</button>
+      <button id="browseSitesReset" type="button">Use the default list</button>
+      <p id="browseSitesMsg" role="status" aria-live="polite"></p>
+    </details>
   </section>
   <section id="callCard" class="platformCard" hidden aria-labelledby="callTitle">
     <button id="callClose" class="platformClose" type="button" aria-label="Close">×</button>
@@ -1525,15 +1566,16 @@
   <section id="oauthCard" class="platformCard" hidden aria-labelledby="oauthTitle">
     <button id="oauthClose" class="platformClose" type="button" aria-label="Close">×</button>
     <h2 id="oauthTitle">Sign in another way</h2>
-    <p class="platformLead">Google and Apple stay hidden until those apps are registered. Nothing here creates an Apple Developer account.</p>
+    <p class="platformLead">Use your Google or Apple account to sign in.</p>
     <button id="googleSignIn" type="button" hidden>Continue with Google</button>
     <button id="appleSignIn" type="button" hidden>Continue with Apple</button>
   </section>
   <section id="shareCard" class="platformCard" hidden aria-labelledby="shareTitle">
     <button id="shareClose" class="platformClose" type="button" aria-label="Close">×</button>
-    <h2 id="shareTitle">Share a report</h2>
-    <p class="platformLead">A Lifebook progress page with a long, unguessable link. You can revoke it.</p>
-    <button id="shareCreate" type="button">Create report link</button>
+    <h2 id="shareTitle">Share</h2>
+    <p class="platformLead">Share a read-only copy of this chat, or a Lifebook progress page. Each link is long and unguessable, and you can revoke it.</p>
+    <button id="shareChat" type="button">Share this chat</button>
+    <button id="shareCreate" type="button">Create Lifebook report link</button>
     <p id="shareUrl" class="platformLead"></p>
     <button id="shareRevoke" type="button" hidden>Revoke link</button>
   </section>
@@ -1860,7 +1902,7 @@
   <p id="attachChip" hidden><span id="attachName"></span><button id="attachRemove" type="button" aria-label="Remove the attached file">×</button></p>
   <div id="input-bubble">
     <button id="attachButton" type="button" aria-label="Attach a picture, PDF or text file" title="Attach a picture, PDF or text file">📎</button>
-    <input id="attachInput" type="file" accept="image/jpeg,image/png,application/pdf,text/plain,text/markdown,text/csv,application/json,.txt,.md,.csv,.json" hidden>
+    <input id="attachInput" type="file" multiple accept="image/jpeg,image/png,application/pdf,text/plain,text/markdown,text/csv,application/json,.txt,.md,.csv,.json,.docx,.xlsx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
     <textarea id="everyday" rows="1" placeholder="Type everyday English"></textarea>
     <button id="deepToggle" type="button" aria-pressed="false" aria-label="DeepSearch: research with several web and X searches" title="DeepSearch is off">DeepSearch</button>
     <button id="thinkToggle" type="button" aria-pressed="false" aria-label="Think: reason longer before answering" title="Think is off">Think</button>
@@ -1892,8 +1934,9 @@
 <script src="/assets/theme-host.js?v=971b21ff3edd"></script>
 <script src="/assets/simco-voice.js?v=voice-bots-20261108-v6"></script>
 <script src="/assets/simco-mobile.js?v=mobile-20261123"></script>
-<script src="/assets/simco-store.js?v=flagship2-20261123"></script>
-<script src="/assets/simco-app.js?v=flagship2-20261123"></script>
+<script src="/assets/simco-coderun.js?v=flagship3-20261123"></script>
+<script src="/assets/simco-store.js?v=flagship3-20261123"></script>
+<script src="/assets/simco-app.js?v=flagship3-20261123"></script>
 
 </body>
 </html>

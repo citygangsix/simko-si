@@ -79,7 +79,177 @@ function simko_attachment_read(mixed $raw): array
         $out['truncated'] = simko_len($text) > simko_attach_max_chars();
         return $out;
     }
-    simko_fail(415, 'That file type is not supported. Attach a JPEG or PNG picture, a PDF, or a text file.');
+    if ($mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        || $mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        $isDoc = str_contains($mime, 'wordprocessing');
+        $text = trim($isDoc ? simko_docx_text($bytes) : simko_xlsx_text($bytes));
+        if ($text === '') {
+            simko_fail(422, 'No text could be read from that ' . ($isDoc ? 'Word' : 'Excel') . ' file.');
+        }
+        $out['kind'] = 'text';
+        $out['text'] = simko_clip($text, simko_attach_max_chars());
+        $out['chars'] = simko_len($out['text']);
+        $out['truncated'] = simko_len($text) > simko_attach_max_chars();
+        return $out;
+    }
+    simko_fail(415, 'That file type is not supported. Attach a JPEG or PNG picture, a PDF, a Word or Excel file, or a text file.');
+}
+
+/** Up to 4 attachments: body.files (list) or the older single body.file. */
+function simko_attachments_read(array $body): array
+{
+    $raw = [];
+    if (isset($body['files']) && is_array($body['files'])) {
+        $raw = array_values($body['files']);
+    } elseif (isset($body['file']) && $body['file'] !== null) {
+        $raw = [$body['file']];
+    }
+    if (count($raw) > 4) {
+        simko_fail(400, 'Attach up to 4 files at a time.');
+    }
+    $files = [];
+    $total = 0;
+    foreach ($raw as $one) {
+        $f = simko_attachment_read($one);
+        $total += (int) $f['bytes'];
+        if ($total > simko_attach_max_bytes()) {
+            simko_fail(413, 'Those files are too big together. Keep them under ' . (int) (simko_attach_max_bytes() / 1048576) . ' MB in total.');
+        }
+        $files[] = $f;
+    }
+    return $files;
+}
+
+/**
+ * Files inside a zip (Word and Excel files are zips), read with plain PHP so no extension is needed.
+ * Returns [name => bytes] for the names $want accepts.
+ */
+function simko_zip_entries(string $zip, callable $want, int $maxBytes = 20000000): array
+{
+    $eocd = strrpos($zip, "PK\x05\x06");
+    if ($eocd === false || strlen($zip) < $eocd + 22) {
+        return [];
+    }
+    $e = unpack('vdisk/vcdisk/vthis/ventries/Vsize/Voffset', substr($zip, $eocd + 4, 16));
+    $pos = (int) $e['offset'];
+    $out = [];
+    $total = 0;
+    for ($i = 0; $i < (int) $e['entries'] && $pos + 46 <= strlen($zip); $i++) {
+        if (substr($zip, $pos, 4) !== "PK\x01\x02") {
+            break;
+        }
+        $c = unpack('vmade/vneed/vflags/vmethod/vtime/vdate/Vcrc/Vcsize/Vusize/vnlen/velen/vclen/vdisk/vint/Vext/Vlocal', substr($zip, $pos + 4, 42));
+        $name = substr($zip, $pos + 46, (int) $c['nlen']);
+        $pos += 46 + (int) $c['nlen'] + (int) $c['elen'] + (int) $c['clen'];
+        if (!$want($name)) {
+            continue;
+        }
+        $lh = (int) $c['local'];
+        if (substr($zip, $lh, 4) !== "PK\x03\x04") {
+            continue;
+        }
+        $l = unpack('vnlen/velen', substr($zip, $lh + 26, 4));
+        $data = substr($zip, $lh + 30 + (int) $l['nlen'] + (int) $l['elen'], (int) $c['csize']);
+        if ((int) $c['method'] === 8) {
+            $data = @gzinflate($data, $maxBytes);
+        } elseif ((int) $c['method'] !== 0) {
+            $data = false;
+        }
+        if (is_string($data)) {
+            $total += strlen($data);
+            if ($total > $maxBytes) {
+                break;
+            }
+            $out[$name] = $data;
+        }
+    }
+    return $out;
+}
+
+function simko_xml_load(string $xml): ?SimpleXMLElement
+{
+    if ($xml === '' || stripos($xml, '<!DOCTYPE') !== false) {
+        return null;
+    }
+    $prev = libxml_use_internal_errors(true);
+    $doc = simplexml_load_string($xml, SimpleXMLElement::class, LIBXML_NONET);
+    libxml_use_internal_errors($prev);
+    return $doc === false ? null : $doc;
+}
+
+/** Paragraph text from a .docx (body, then headers/footers are skipped). */
+function simko_docx_text(string $bytes): string
+{
+    $parts = simko_zip_entries($bytes, fn (string $n): bool => $n === 'word/document.xml');
+    $xml = $parts['word/document.xml'] ?? '';
+    if ($xml === '') {
+        return '';
+    }
+    $xml = preg_replace('#<w:tab/>#', "\t", $xml) ?? $xml;
+    $xml = preg_replace('#<w:br[^>]*/>#', "\n", $xml) ?? $xml;
+    $xml = preg_replace('#</w:p>#', "</w:p>\n", $xml) ?? $xml;
+    $text = html_entity_decode(strip_tags($xml), ENT_QUOTES | ENT_XML1, 'UTF-8');
+    return trim(preg_replace("/\n{3,}/", "\n\n", $text) ?? $text);
+}
+
+/** Cell values from a .xlsx, one line per row, tab between cells, a header per sheet. */
+function simko_xlsx_text(string $bytes): string
+{
+    $parts = simko_zip_entries($bytes, fn (string $n): bool => $n === 'xl/sharedStrings.xml' || $n === 'xl/workbook.xml'
+        || (bool) preg_match('#^xl/worksheets/sheet\d+\.xml$#', $n));
+    $shared = [];
+    if (($ss = simko_xml_load($parts['xl/sharedStrings.xml'] ?? '')) !== null) {
+        foreach ($ss->si as $si) {
+            $t = '';
+            if (isset($si->t)) {
+                $t = (string) $si->t;
+            }
+            foreach ($si->r as $r) {
+                $t .= (string) $r->t;
+            }
+            $shared[] = $t;
+        }
+    }
+    $names = [];
+    if (($wb = simko_xml_load($parts['xl/workbook.xml'] ?? '')) !== null && isset($wb->sheets)) {
+        $i = 1;
+        foreach ($wb->sheets->sheet as $sh) {
+            $names[$i++] = (string) $sh['name'];
+        }
+    }
+    $sheets = array_filter(array_keys($parts), fn ($n) => str_starts_with($n, 'xl/worksheets/'));
+    natsort($sheets);
+    $out = [];
+    foreach ($sheets as $n) {
+        $doc = simko_xml_load($parts[$n]);
+        if ($doc === null || !isset($doc->sheetData)) {
+            continue;
+        }
+        preg_match('/(\d+)/', basename($n), $m);
+        $out[] = '[Sheet ' . ($names[(int) ($m[1] ?? 0)] ?? basename($n, '.xml')) . ']';
+        $rows = 0;
+        foreach ($doc->sheetData->row as $row) {
+            $cells = [];
+            foreach ($row->c as $c) {
+                $type = (string) $c['t'];
+                $v = (string) $c->v;
+                if ($type === 's') {
+                    $v = $shared[(int) $v] ?? '';
+                } elseif ($type === 'inlineStr') {
+                    $v = (string) $c->is->t;
+                }
+                $cells[] = $v;
+            }
+            if (implode('', $cells) !== '') {
+                $out[] = implode("\t", $cells);
+            }
+            if (++$rows >= 2000) {
+                $out[] = '(more rows not shown)';
+                break;
+            }
+        }
+    }
+    return implode("\n", $out);
 }
 
 /** Decide the type from the bytes, not from what the browser claimed. */
@@ -100,6 +270,12 @@ function simko_attach_sniff(string $bytes, string $name): string
     $binary = preg_match('/[\x00-\x08\x0E-\x1F]/', $sample) === 1;
     if (in_array($ext, $textExt, true) && !$binary) {
         return 'text/plain';
+    }
+    if (str_starts_with($bytes, "PK\x03\x04") && $ext === 'docx') {
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+    if (str_starts_with($bytes, "PK\x03\x04") && $ext === 'xlsx') {
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
     if ($ext === '' && !$binary && mb_check_encoding($sample, 'UTF-8')) {
         return 'text/plain';
@@ -473,3 +649,37 @@ function simko_attach_summary(array $file): array
         'truncated' => !empty($file['truncated']),
     ];
 }
+
+
+/** Responses API content for several attachments: every picture as input_image, then the text. */
+function simko_attach_responses_multi(string $text, array $files): string|array
+{
+    $parts = [];
+    foreach ($files as $f) {
+        if (($f['kind'] ?? '') === 'image') {
+            $parts[] = ['type' => 'input_image', 'image_url' => $f['data_url'], 'detail' => 'high'];
+        }
+    }
+    if ($parts === []) {
+        return $text;
+    }
+    $parts[] = ['type' => 'input_text', 'text' => $text];
+    return $parts;
+}
+
+/** Chat Completions content for several attachments. */
+function simko_attach_chat_multi(string $text, array $files): string|array
+{
+    $parts = [];
+    foreach ($files as $f) {
+        if (($f['kind'] ?? '') === 'image') {
+            $parts[] = ['type' => 'image_url', 'image_url' => ['url' => $f['data_url'], 'detail' => 'high']];
+        }
+    }
+    if ($parts === []) {
+        return $text;
+    }
+    $parts[] = ['type' => 'text', 'text' => $text];
+    return $parts;
+}
+

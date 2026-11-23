@@ -204,6 +204,19 @@ switch ($op) {
         simko_require_grok_owner($user);
         simko_ok(simko_browse_fetch((string) ($body['url'] ?? '')));
         break;
+    case 'browse-sites':
+        if (!simko_flag('browse')) {
+            simko_fail(404, 'Page reading is turned off.');
+        }
+        simko_require_grok_owner($user);
+        if (array_key_exists('sites', $body)) {
+            simko_setting_set('browse_sites', simko_browse_clean_sites($body['sites']));
+        } elseif (!empty($body['reset'])) {
+            simko_setting_set('browse_sites', simko_browse_default_sites());
+        }
+        simko_ok(['sites' => simko_browse_sites(), 'defaults' => simko_browse_default_sites(),
+            'config_list' => simko_browse_allow() !== []]);
+        break;
     case 'call-status':
         if (!simko_flag('calls')) {
             simko_fail(404, 'Calls are turned off.');
@@ -306,6 +319,12 @@ switch ($op) {
             simko_fail(404, 'Sharing is turned off.');
         }
         simko_ok(['share' => simko_share_create($userId)]);
+        break;
+    case 'share-chat':
+        if (!simko_flag('shares')) {
+            simko_fail(404, 'Sharing is turned off.');
+        }
+        simko_ok(['share' => simko_share_chat($userId, (string) ($body['chat_id'] ?? ''))]);
         break;
     case 'revoke-share':
         if (!simko_flag('shares')) {

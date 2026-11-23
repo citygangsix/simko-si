@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#03141c"/>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"/>
+<title>Status · Simko SI</title>
+<meta name="description" content="Live status of Simko SI: the website, the API and sign-in."/>
+<link rel="canonical" href="https://simkosi.com/status.html"/>
+<meta property="og:title" content="Status · Simko SI"/>
+<meta property="og:description" content="Live status of Simko SI: the website, the API and sign-in."/>
+<meta property="og:image" content="https://simkosi.com/assets/og-card.jpg"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<style>
+  body { margin: 0; background: #03141c; color: #e8f4f2; font: 17px/1.6 Georgia, "Times New Roman", serif; }
+  main { max-width: 44rem; margin: 0 auto; padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem max(2rem, env(safe-area-inset-bottom)); }
+  h1 { font-weight: 500; font-size: 1.8rem; margin: .5rem 0 .2rem; } h2 { font-weight: 500; font-size: 1.25rem; margin: 1.6rem 0 .3rem; }
+  a { color: #ffd6c4; } .muted { color: #9fbcb8; font-size: .95rem; } li { margin: .25rem 0; }
+  header a { display: inline-flex; align-items: center; gap: .5rem; min-height: 44px; text-decoration: none; }
+  header img { width: 32px; height: 32px; border-radius: 8px; }
+  nav { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 2rem; } nav a { min-height: 44px; display: inline-flex; align-items: center; }
+  details { border-top: 1px solid rgba(255,214,196,.25); padding: .7rem 0; } summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: 1.05rem; }
+  .plans { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); margin-top: 1rem; } .plan { border: 1px solid rgba(255,214,196,.35); border-radius: 1.2rem; padding: 1rem 1.2rem; } .plan h2 { margin-top: 0; } .price { font-size: 1.6rem; margin: .2rem 0 .6rem; } .tag { display: inline-block; border: 1px solid #ffd6c4; color: #ffd6c4; border-radius: 999px; padding: .1rem .6rem; font-size: .85rem; }
+</style>
+
+</head>
+<body><main>
+<header><a href="/"><img src="/assets/icons/icon-192.png" alt=""/>Simko SI</a></header>
+<h1>Status</h1>
+<p class="muted">Checked from your browser just now. The server also checks itself every 10 minutes and emails the owner if it stops answering.</p>
+<ul id="checks">
+<li id="c-site">Website: <span>checking…</span></li>
+<li id="c-api">API and database: <span>checking…</span></li>
+<li id="c-build">Current version: <span>checking…</span></li>
+</ul>
+<p class="muted" id="checkedAt"></p>
+<script>
+(function(){
+  function set(id, ok, text){ var s=document.querySelector('#'+id+' span'); s.textContent=(ok?'✅ ':'⚠️ ')+text; }
+  var t0=Date.now();
+  fetch('/api/health',{cache:'no-store'}).then(function(r){ return r.json().then(function(j){ return [r,j]; }); }).then(function(x){
+    var ok=x[0].ok && x[1] && x[1].ok!==false; set('c-api', ok, ok ? 'Working ('+(Date.now()-t0)+' ms)' : 'Having trouble');
+  }).catch(function(){ set('c-api', false, 'Not answering'); });
+  fetch('/',{cache:'no-store'}).then(function(r){ return r.text().then(function(t){ return [r,t]; }); }).then(function(x){
+    set('c-site', x[0].ok, x[0].ok ? 'Working' : 'Error '+x[0].status);
+    var m=x[1].match(/name="simko-build" content="([^"]+)"/); set('c-build', !!m, m ? m[1] : 'unknown');
+  }).catch(function(){ set('c-site', false, 'Not answering'); set('c-build', false, 'unknown'); });
+  document.getElementById('checkedAt').textContent='Checked '+new Date().toLocaleString();
+})();
+</script>
+<nav><a href="/">Open Simko SI</a><a href="/help">Help</a><a href="/status">Status</a><a href="/changelog">What's new</a><a href="/pricing">Pricing</a><a href="/privacy">Privacy</a></nav>
+</main></body></html>

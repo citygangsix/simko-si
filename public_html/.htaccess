@@ -34,6 +34,8 @@ Options -Indexes
   RewriteRule ^api/report/?$ api/report.php [L]
   RewriteRule ^api/telemetry/?$ api/telemetry.php [L]
   RewriteRule ^help/?$ help.html [L]
+  RewriteRule ^status/?$ status.html [L]
+  RewriteRule ^changelog/?$ changelog.html [L]
   RewriteRule ^pricing/?$ pricing.html [L]
   RewriteRule ^privacy/?$ privacy.html [L]
   RewriteRule ^terms/?$ terms.html [L]

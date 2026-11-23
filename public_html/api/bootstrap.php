@@ -698,6 +698,13 @@ function simko_migrate(PDO $db): void
     );
     $db->exec('CREATE INDEX IF NOT EXISTS auth_throttle_bucket ON auth_throttle (bucket, at)');
     $db->exec(
+        'CREATE TABLE IF NOT EXISTS site_settings (
+            name TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )'
+    );
+    $db->exec(
         'CREATE TABLE IF NOT EXISTS xai_spend (
             day TEXT NOT NULL,
             user_id INTEGER NOT NULL,
@@ -1278,3 +1285,25 @@ function simko_models(): array
     }
     return $out;
 }
+
+
+/** Owner-editable site setting stored in the database (JSON). Returns $default when unset. */
+function simko_setting_get(string $name, mixed $default = null): mixed
+{
+    $st = simko_db()->prepare('SELECT value FROM site_settings WHERE name = ?');
+    $st->execute([$name]);
+    $raw = $st->fetchColumn();
+    if (!is_string($raw)) {
+        return $default;
+    }
+    $val = json_decode($raw, true);
+    return $val === null ? $default : $val;
+}
+
+function simko_setting_set(string $name, mixed $value): void
+{
+    $st = simko_db()->prepare('INSERT INTO site_settings (name, value, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(name) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at');
+    $st->execute([$name, json_encode($value, JSON_UNESCAPED_SLASHES), gmdate('c')]);
+}
+

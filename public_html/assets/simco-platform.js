@@ -408,7 +408,23 @@
       if (browseOpen) browseOpen.hidden = false;
       if (browseOpen && !browseOpen.dataset.bound) {
         browseOpen.dataset.bound = "1";
-        browseOpen.addEventListener("click", function () { show("browseCard"); });
+        browseOpen.addEventListener("click", function () {
+          show("browseCard");
+          post({ op: "browse-sites" }).then(function (data) {
+            var box = $("browseSitesBox");
+            if (!box) return;
+            box.hidden = !data.ok;
+            if (data.ok) $("browseSites").value = (data.sites || []).join("\n");
+          });
+        });
+        var saveSites = function (payload) {
+          post(payload).then(function (data) {
+            if (data.ok) $("browseSites").value = (data.sites || []).join("\n");
+            $("browseSitesMsg").textContent = data.ok ? "Saved. " + (data.sites || []).length + " sites." : (data.error || "Could not save.");
+          });
+        };
+        if ($("browseSitesSave")) $("browseSitesSave").addEventListener("click", function () { saveSites({ op: "browse-sites", sites: $("browseSites").value }); });
+        if ($("browseSitesReset")) $("browseSitesReset").addEventListener("click", function () { saveSites({ op: "browse-sites", reset: true }); });
       }
       var browseForm = $("browseForm");
       if (browseForm && !browseForm.dataset.bound) {
@@ -723,9 +739,24 @@
       if (apple) apple.hidden = !oauthButtons.apple;
       if ((oauthButtons.google || oauthButtons.apple) && $("accountSignIn") && !$("accountSignIn").dataset.oauth) {
         $("accountSignIn").dataset.oauth = "1";
-        $("accountSignIn").addEventListener("click", function () {
-          setTimeout(function () { show("oauthCard"); }, 0);
-        });
+        // Offer Google/Apple inside the sign-in window instead of a second card behind it.
+        var modalCard = $("authModalCard");
+        if (modalCard && !$("authOauthRow")) {
+          var row = document.createElement("div");
+          row.id = "authOauthRow";
+          row.className = "authOauthRow";
+          [["google", "Continue with Google"], ["apple", "Continue with Apple"]].forEach(function (pair) {
+            if (!oauthButtons[pair[0]]) return;
+            var b = document.createElement("button");
+            b.type = "button";
+            b.id = "authOauth-" + pair[0];
+            b.textContent = pair[1];
+            b.addEventListener("click", function () { begin(pair[0]); });
+            row.appendChild(b);
+          });
+          var form = $("authModalForm");
+          if (form && form.parentNode === modalCard) modalCard.insertBefore(row, form.nextSibling); else modalCard.appendChild(row);
+        }
       }
       function begin(provider) {
         fetch("/api/platform", {
@@ -757,6 +788,21 @@
       if (shareOpen && !shareOpen.dataset.bound) {
         shareOpen.dataset.bound = "1";
         shareOpen.addEventListener("click", function () { show("shareCard"); });
+      }
+      var shareChat = $("shareChat");
+      if (shareChat && !shareChat.dataset.bound) {
+        shareChat.dataset.bound = "1";
+        shareChat.addEventListener("click", function () {
+          var id = window.simcoApp && window.simcoApp.activeChatId ? window.simcoApp.activeChatId() : "";
+          if (!id) { $("shareUrl").textContent = "Open a chat first, then share it."; return; }
+          post({ op: "share-chat", chat_id: id }).then(function (data) {
+            if (!data.ok) { $("shareUrl").textContent = data.error || "Could not share this chat."; return; }
+            shareToken = data.share.token;
+            $("shareUrl").textContent = data.share.url;
+            $("shareRevoke").hidden = false;
+            if (navigator.clipboard) navigator.clipboard.writeText(data.share.url).catch(function () {});
+          });
+        });
       }
       var shareCreate = $("shareCreate");
       if (shareCreate && !shareCreate.dataset.bound) {
