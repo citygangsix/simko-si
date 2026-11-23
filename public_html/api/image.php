@@ -23,7 +23,9 @@ $path = simko_private_dir() . '/data/images/' . $id . '.png';
 if (!is_file($path)) {
     simko_fail(404, 'That picture is not on this account.');
 }
-header('Content-Type: image/png');
+// Grok returns JPEG for grok-imagine-image-2.0; older pictures are PNG. Send the real type.
+$head = (string) file_get_contents($path, false, null, 0, 4);
+header('Content-Type: ' . (str_starts_with($head, "\xFF\xD8") ? 'image/jpeg' : 'image/png'));
 header('Cache-Control: private, max-age=3600');
 readfile($path);
 exit;

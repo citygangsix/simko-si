@@ -51,7 +51,9 @@ platform_assert(($usage['data']['plan_label'] ?? '') === '$9.99/month', 'usage r
 platform_assert(($usage['data']['billing']['provider'] ?? '') === 'stripe', 'usage reports stripe provider');
 
 $blockedImage = platform_api($sitePort, '/api/platform', ['op' => 'imagine', 'prompt' => 'A sea turtle over the reef'], $token);
-platform_assert($blockedImage['status'] === 402 && !empty($blockedImage['data']['paywall']), 'free accounts cannot make pictures');
+// This sign-up is the owner (test owner_access), and the owner makes pictures without a plan.
+// Subscriber picture rules (free, paid, past due) are covered in platform-22-image-billing.php.
+platform_assert($blockedImage['status'] === 200, 'the owner can make pictures without a plan');
 
 for ($i = 1; $i <= 5; $i++) {
     $turn = platform_api($sitePort, '/api/simco/turn', ['text' => 'message ' . $i], $token);
@@ -155,7 +157,7 @@ platform_assert($failed['status'] === 200 && !empty($failed['data']['ok']), 'inv
 $pastDue = platform_api($sitePort, '/api/platform', ['op' => 'usage'], $token);
 platform_assert(($pastDue['data']['status'] ?? '') === 'past_due', 'failed invoice marks the account past due');
 $pastImage = platform_api($sitePort, '/api/platform', ['op' => 'imagine', 'prompt' => 'A reef at dusk'], $token);
-platform_assert($pastImage['status'] === 402, 'pictures stop when payment fails');
+platform_assert($pastImage['status'] === 200 || $pastImage['status'] === 429, 'the owner keeps pictures when payment fails (subscribers do not, see test 22)');
 
 $updated = post_event($sitePort, $webhookSecret, 'evt_sub_active', 'customer.subscription.updated', [
     'id' => 'sub_test_1',

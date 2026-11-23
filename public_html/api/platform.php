@@ -31,6 +31,7 @@ switch ($op) {
         }
         $snap = simko_usage_snapshot($userId);
         $snap['events'] = simko_usage_events($userId);
+        $snap['image_ledger'] = simko_flag('images') ? simko_image_ledger($userId) : null;
         $snap['plan_label'] = simko_plan_label();
         $snap['plan_amount'] = simko_plan_amount();
         $provider = simko_billing_provider();
@@ -236,13 +237,22 @@ switch ($op) {
         if (!simko_flag('images')) {
             simko_fail(404, 'Pictures are turned off.');
         }
-        simko_require_grok_owner($user);
-        if (!simko_images_allowed($userId)) {
-            simko_fail(402, 'Pictures are on the $9.99/month plan.', ['paywall' => true]);
-        }
+        // Owner (not billed) or an active paid subscriber (charged Grok's cost); everyone else is refused
+        // inside simko_image_generate before any xAI call.
         $childId = simko_requested_child($userId, $body);
-        $image = simko_image_generate($userId, (string) ($body['prompt'] ?? ''), $childId);
-        simko_ok(['image' => $image, 'images' => simko_image_rows($userId)]);
+        $image = simko_image_generate($user, (string) ($body['prompt'] ?? ''), $childId);
+        simko_ok([
+            'image' => $image,
+            'images' => simko_image_rows($userId),
+            'access' => simko_image_access($user),
+            'ledger' => simko_image_ledger($userId),
+        ]);
+        break;
+    case 'image-quote':
+        if (!simko_flag('images')) {
+            simko_fail(404, 'Pictures are turned off.');
+        }
+        simko_ok(['access' => simko_image_access($user), 'ledger' => simko_image_ledger($userId)]);
         break;
     case 'images':
         if (!simko_flag('images')) {
@@ -250,6 +260,8 @@ switch ($op) {
         }
         simko_ok([
             'images' => simko_image_rows($userId),
+            'access' => simko_image_access($user),
+            'ledger' => simko_image_ledger($userId),
             'video' => 'Video is not made here. Video stays on a rented GPU, on the desktop app Wan path.',
         ]);
         break;

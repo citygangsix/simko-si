@@ -32,7 +32,7 @@ $before = $calls();
 $no = platform_api($sitePort, '/api/simco/turn', ['text' => 'Say hi'], $guest['token']);
 platform_assert($no['status'] === 403 && ($no['data']['error'] ?? '') === 'Grok is not enabled for this account.', 'a non-owner chat is refused with a clear message');
 $img = platform_api($sitePort, '/api/platform', ['op' => 'imagine', 'prompt' => 'a blue circle'], $guest['token']);
-platform_assert($img['status'] === 403, 'a non-owner picture is refused');
+platform_assert(in_array($img['status'], [402, 403], true), 'a non-owner (non-subscriber) picture is refused');
 $stt = platform_api($sitePort, '/api/voice/transcribe', ['audio' => base64_encode('RIFF....'), 'mime' => 'audio/wav'], $guest['token']);
 platform_assert($stt['status'] === 403, 'a non-owner transcription is refused');
 $agent = platform_api($sitePort, '/api/platform', ['op' => 'create-agent', 'name' => 'A', 'persona' => 'Brief.'], $guest['token']);

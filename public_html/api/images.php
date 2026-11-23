@@ -28,10 +28,109 @@ function simko_image_blocked(string $prompt, bool $kid): bool
     return false;
 }
 
-function simko_image_generate(int $userId, string $prompt, ?int $childId): array
+/**
+ * Documented price per picture, in xAI ticks (1 USD = 10^10 ticks), used only when the
+ * response carries no usage.cost_in_usd_ticks. grok-imagine-image-2.0 is $0.04 per image
+ * at the default 1K resolution: https://docs.x.ai/developers/model-capabilities/imagine (Nov 17, 2026).
+ */
+function simko_image_price_ticks(): int
 {
-    if (!simko_images_allowed($userId)) {
-        simko_fail(402, 'Pictures are on the $9.99/month plan.', ['paywall' => true]);
+    $ticks = (int) (simko_config_or_empty()['image_price_ticks'] ?? 400000000);
+    return $ticks > 0 ? $ticks : 400000000;
+}
+
+function simko_ticks_usd(int $ticks): string
+{
+    return '$' . number_format($ticks / 10000000000, 2);
+}
+
+/**
+ * Who may make pictures: the owner (not billed) and active paid subscribers (charged Grok's cost).
+ * Returns role owner|subscriber|none, allowed, reason, price and today's count against the daily cap.
+ */
+function simko_image_access(array $user): array
+{
+    $userId = (int) $user['id'];
+    $role = 'none';
+    if (simko_is_grok_owner($user)) {
+        $role = 'owner';
+    } elseif (simko_subscription($userId)['status'] === 'paid') {
+        $role = 'subscriber';
+    }
+    $today = simko_images_today($userId);
+    $cap = simko_images_daily_cap();
+    $price = simko_image_price_ticks();
+    $out = [
+        'role' => $role,
+        'allowed' => false,
+        'reason' => '',
+        'today' => $today,
+        'cap' => $cap,
+        'price_ticks' => $price,
+        'price_label' => simko_ticks_usd($price),
+        'billed' => $role === 'subscriber',
+        'quote' => '',
+    ];
+    if ($role === 'none') {
+        $out['reason'] = 'Pictures are for Simko SI subscribers. Subscribe to make pictures.';
+        $out['quote'] = $out['reason'];
+        return $out;
+    }
+    if ($today >= $cap) {
+        $out['reason'] = 'That is today\'s ' . $cap . ' pictures. Try again tomorrow.';
+        $out['quote'] = $out['reason'];
+        return $out;
+    }
+    $out['allowed'] = true;
+    $out['quote'] = $role === 'owner'
+        ? 'This picture costs about ' . $out['price_label'] . ' on your Grok key. You are not billed.'
+        : 'This picture costs ' . $out['price_label'] . '. It is added to your bill.';
+    return $out;
+}
+
+/** Ledger rows and this month's billed total for one person. */
+function simko_image_ledger(int $userId): array
+{
+    $stmt = simko_db()->prepare(
+        'SELECT image_id, model, cost_ticks, cost_source, status, created_at FROM image_charges
+         WHERE user_id = ? ORDER BY id DESC LIMIT 50'
+    );
+    $stmt->execute([$userId]);
+    $rows = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $rows[] = [
+            'image_id' => (string) $row['image_id'],
+            'model' => (string) $row['model'],
+            'cost_ticks' => (int) $row['cost_ticks'],
+            'cost_label' => simko_ticks_usd((int) $row['cost_ticks']),
+            'cost_source' => (string) $row['cost_source'],
+            'status' => (string) $row['status'],
+            'created_at' => (int) $row['created_at'],
+        ];
+    }
+    $monthStart = (int) strtotime(gmdate('Y-m-01 00:00:00') . ' UTC');
+    $sum = simko_db()->prepare(
+        "SELECT COALESCE(SUM(cost_ticks), 0), COUNT(*) FROM image_charges WHERE user_id = ? AND status = 'pending' AND created_at >= ?"
+    );
+    $sum->execute([$userId, $monthStart]);
+    [$ticks, $count] = $sum->fetch(PDO::FETCH_NUM);
+    return [
+        'rows' => $rows,
+        'month_pending_ticks' => (int) $ticks,
+        'month_pending_label' => simko_ticks_usd((int) $ticks),
+        'month_pending_count' => (int) $count,
+    ];
+}
+
+function simko_image_generate(array $user, string $prompt, ?int $childId): array
+{
+    $userId = (int) $user['id'];
+    $access = simko_image_access($user);
+    if ($access['role'] === 'none') {
+        simko_fail(402, $access['reason'], ['paywall' => true, 'subscribe' => true]);
+    }
+    if (!$access['allowed']) {
+        simko_fail(429, $access['reason']);
     }
     $prompt = trim($prompt);
     if ($prompt === '' || simko_len($prompt) > 500) {
@@ -43,12 +142,21 @@ function simko_image_generate(int $userId, string $prompt, ?int $childId): array
             ? 'Video is not made here. Video stays on a rented GPU, on the desktop app Wan path.'
             : 'That picture is blocked.');
     }
-    $data = simko_curl_json(simko_xai_url('images/generations'), [
-        'model' => simko_image_model(),
-        'prompt' => $prompt,
-        'n' => 1,
-        'response_format' => 'b64_json',
-    ], 60);
+    $model = simko_image_model();
+    // Grok image generation: POST /v1/images/generations (https://docs.x.ai/developers/model-capabilities/images/generation)
+    if ($access['role'] === 'subscriber') {
+        simko_grok_image_grant($userId, true);
+    }
+    try {
+        $data = simko_curl_json(simko_xai_url('images/generations'), [
+            'model' => $model,
+            'prompt' => $prompt,
+            'n' => 1,
+            'response_format' => 'b64_json',
+        ], 60);
+    } finally {
+        simko_grok_image_grant(null, true);
+    }
     $b64 = '';
     $first = $data['data'][0] ?? null;
     if (is_array($first)) {
@@ -58,6 +166,13 @@ function simko_image_generate(int $userId, string $prompt, ?int $childId): array
     if (!is_string($bytes) || $bytes === '') {
         simko_fail(502, 'No picture came back.');
     }
+    // Real cost from xAI (https://docs.x.ai/developers/cost-tracking), else the documented price.
+    $ticks = (int) ($data['usage']['cost_in_usd_ticks'] ?? 0);
+    $source = 'xai_usage';
+    if ($ticks <= 0) {
+        $ticks = simko_image_price_ticks();
+        $source = 'price_list';
+    }
     $dir = simko_private_dir() . '/data/images';
     if (!is_dir($dir) && !@mkdir($dir, 0750, true) && !is_dir($dir)) {
         simko_fail(500, 'Simko SI cannot store the picture.');
@@ -65,11 +180,28 @@ function simko_image_generate(int $userId, string $prompt, ?int $childId): array
     $id = bin2hex(random_bytes(8));
     file_put_contents($dir . '/' . $id . '.png', $bytes);
     $now = time();
-    $stmt = simko_db()->prepare(
+    $status = $access['role'] === 'owner' ? 'owner_not_billed' : 'pending';
+    $db = simko_db();
+    $db->beginTransaction();
+    $stmt = $db->prepare(
         'INSERT INTO generated_images (id, user_id, child_profile_id, prompt, created_at) VALUES (?, ?, ?, ?, ?)'
     );
     $stmt->execute([$id, $userId, $childId, simko_clip($prompt, 240), $now]);
-    return ['id' => $id, 'prompt' => simko_clip($prompt, 240), 'created_at' => $now];
+    $charge = $db->prepare(
+        'INSERT INTO image_charges (user_id, image_id, model, cost_ticks, cost_source, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+    $charge->execute([$userId, $id, $model, $ticks, $source, $status, $now]);
+    $db->commit();
+    return [
+        'id' => $id,
+        'prompt' => simko_clip($prompt, 240),
+        'created_at' => $now,
+        'cost_ticks' => $ticks,
+        'cost_label' => simko_ticks_usd($ticks),
+        'cost_source' => $source,
+        'charge_status' => $status,
+        'model' => $model,
+    ];
 }
 
 function simko_image_rows(int $userId): array

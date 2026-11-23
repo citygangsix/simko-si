@@ -67,6 +67,12 @@
       item.textContent = (event.kind === "voice" ? "Voice turn" : "Message") + " · " + when.toLocaleString();
       list.appendChild(item);
     });
+    var ledger = data.image_ledger;
+    if (ledger && ledger.month_pending_count) {
+      var pics = document.createElement("li");
+      pics.textContent = "Pictures this month: " + ledger.month_pending_count + ", " + ledger.month_pending_label + " (Grok's cost, added to your bill)";
+      list.appendChild(pics);
+    }
     if (!(data.events || []).length) {
       var empty = document.createElement("li");
       empty.textContent = "No messages yet.";
@@ -518,6 +524,27 @@
     if (flags().images) {
       var imageOpen = $("imageOpen");
       if (imageOpen) imageOpen.hidden = false;
+      function paintImageCost(data) {
+        var quote = $("imageQuote");
+        var access = data && data.access;
+        if (quote && access) quote.textContent = access.quote + (access.allowed ? " " + access.today + " of " + access.cap + " pictures today." : "");
+        var btn = $("imageForm") && $("imageForm").querySelector("button[type=submit]");
+        if (btn && access) btn.disabled = !access.allowed;
+        var list = $("imageLedger");
+        var ledger = data && data.ledger;
+        if (!list || !ledger) return;
+        list.replaceChildren();
+        if (access && access.billed) {
+          var total = document.createElement("li");
+          total.textContent = "This month: " + ledger.month_pending_count + " pictures, " + ledger.month_pending_label + " added to your bill.";
+          list.appendChild(total);
+        }
+        (ledger.rows || []).slice(0, 5).forEach(function (row) {
+          var item = document.createElement("li");
+          item.textContent = new Date(row.created_at * 1000).toLocaleString() + " · " + row.cost_label + (row.status === "owner_not_billed" ? " (Grok cost, not billed)" : " (on your bill)");
+          list.appendChild(item);
+        });
+      }
       function paintImages(rows) {
         var grid = $("imageGrid");
         if (!grid) return;
@@ -535,6 +562,9 @@
           post({ op: "images" }).then(function (data) {
             if (!data.ok) return;
             paintImages(data.images || []);
+            paintImageCost(data);
+            var status = $("imageStatus");
+            if (status) status.textContent = "";
             show("imageCard");
           });
         });
@@ -544,13 +574,17 @@
         imageForm.dataset.bound = "1";
         imageForm.addEventListener("submit", function (event) {
           event.preventDefault();
+          var status = $("imageStatus");
+          if (status) status.textContent = "Making the picture…";
           post({ op: "imagine", prompt: $("imagePrompt").value }).then(function (data) {
-            if (data && data.paywall) {
-              showPaywall(data);
+            if (data && !data.ok) {
+              if (status) status.textContent = data.error || "No picture came back.";
+              if (data.paywall && flags().paywall) showPaywall(data);
               return;
             }
-            if (!data.ok) return;
             paintImages(data.images || []);
+            paintImageCost(data);
+            if (status && data.image) status.textContent = "Done. This picture cost " + data.image.cost_label + (data.image.charge_status === "pending" ? ", added to your bill." : " on your Grok key (not billed).");
           });
         });
       }

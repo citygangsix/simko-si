@@ -7,6 +7,8 @@ $mockPort = 20000 + (getmypid() % 20000);
 $sitePort = $mockPort + 1;
 [$mock, $mockPipes] = platform_mock($mockPort);
 $private = platform_private('images', ['images' => true, 'paywall' => false], [
+    // Pictures follow the subscription here, so no test sign-up is the owner.
+    'owner_access' => ['emails' => ['nobody-owner@simkosi.test'], 'user_ids' => []],
     'xai_base_url' => 'http://127.0.0.1:' . $mockPort . '/v1',
     'images_daily_cap' => 2,
 ]);
@@ -35,7 +37,7 @@ platform_assert(is_string($bytes) && str_starts_with($bytes, "\x89PNG"), 'the pi
 $capped = platform_api($sitePort, '/api/platform', ['op' => 'imagine', 'prompt' => 'A second reef'], $token);
 platform_assert($capped['status'] === 200, 'second picture under the cap');
 $capped = platform_api($sitePort, '/api/platform', ['op' => 'imagine', 'prompt' => 'A third reef'], $token);
-platform_assert($capped['status'] === 402, 'the daily picture cap stops the next one');
+platform_assert($capped['status'] === 429, 'the daily picture cap stops the next one');
 
 platform_stop($site, $sitePipes);
 platform_stop($mock, $mockPipes);

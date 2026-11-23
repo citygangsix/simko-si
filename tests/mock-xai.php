@@ -158,7 +158,12 @@ if ($path === '/v1/responses') {
 if ($path === '/v1/images/generations') {
     header('Content-Type: application/json; charset=utf-8');
     $png = base64_encode(base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
-    echo json_encode(['data' => [['b64_json' => $png]]]);
+    $imgBody = json_decode(file_get_contents('php://input') ?: '', true);
+    $out = ['data' => [['b64_json' => $png]]];
+    if (!str_contains((string) ($imgBody['prompt'] ?? ''), 'NOCOST')) {
+        $out['usage'] = ['cost_in_usd_ticks' => 400000000];
+    }
+    echo json_encode($out);
     return;
 }
 

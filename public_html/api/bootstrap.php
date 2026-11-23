@@ -138,10 +138,29 @@ function simko_require_grok_owner(?array $user = null): array
     return $user;
 }
 
+/**
+ * One narrow exception to the owner lock: a paid subscriber's picture request.
+ * images.php sets this to the subscriber's user id right before the image call and clears it after.
+ * Nothing else (chat, search, voice, agents) can use it.
+ */
+function simko_grok_image_grant(?int $userId = null, bool $set = false): ?int
+{
+    static $granted = null;
+    if ($set) {
+        $granted = $userId;
+    }
+    return $granted;
+}
+
 function simko_api_key(): string
 {
-    // Last line of defense: no request reaches xAI for anyone but an owner.
-    simko_require_grok_owner();
+    // Last line of defense: no request reaches xAI for anyone but an owner,
+    // except the picture call of a paid subscriber that images.php has just checked.
+    $user = simko_current_user();
+    $grant = simko_grok_image_grant();
+    if (!($grant !== null && $user && (int) $user['id'] === $grant)) {
+        simko_require_grok_owner($user);
+    }
     $key = trim((string) (simko_config()['xai_api_key'] ?? ''));
     if ($key === '' || str_contains($key, 'REPLACE')) {
         simko_fail(500, 'The Grok key is not set on the server yet.');
@@ -599,6 +618,20 @@ function simko_migrate(PDO $db): void
             created_at INTEGER NOT NULL
         )'
     );
+    // Per-picture cost ledger: what Grok charged for each picture (xAI usage ticks, 1 USD = 10^10 ticks).
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS image_charges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            image_id TEXT NOT NULL,
+            model TEXT NOT NULL,
+            cost_ticks INTEGER NOT NULL,
+            cost_source TEXT NOT NULL,
+            status TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )'
+    );
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_image_charges_user ON image_charges(user_id, created_at)');
     $db->exec(
         'CREATE TABLE IF NOT EXISTS routines (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
