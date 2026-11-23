@@ -38,7 +38,13 @@ switch ($op) {
         $connected = $provider === 'square'
             ? simko_square_settings()['connected']
             : simko_stripe_settings()['connected'];
-        $snap['billing'] = ['provider' => $provider, 'connected' => $connected];
+        $imageBilling = simko_image_billing_settings();
+        $snap['billing'] = [
+            'provider' => $provider,
+            'connected' => $connected,
+            'image_billing_mode' => $imageBilling['mode'],
+            'image_billing_ready' => $imageBilling['ready'],
+        ];
         $snap['square'] = ['connected' => simko_square_settings()['connected'], 'plan_label' => simko_plan_label()];
         simko_ok($snap);
         break;

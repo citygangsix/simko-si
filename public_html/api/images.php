@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/usage.php';
+require_once __DIR__ . '/billing.php';
 
 function simko_image_model(): string
 {
@@ -114,11 +115,20 @@ function simko_image_ledger(int $userId): array
     );
     $sum->execute([$userId, $monthStart]);
     [$ticks, $count] = $sum->fetch(PDO::FETCH_NUM);
+    $all = simko_db()->prepare(
+        "SELECT COALESCE(SUM(cost_ticks), 0), COUNT(*) FROM image_charges WHERE user_id = ? AND status <> 'owner_not_billed' AND created_at >= ?"
+    );
+    $all->execute([$userId, $monthStart]);
+    [$monthTicks, $monthCount] = array_map('intval', $all->fetch(PDO::FETCH_NUM));
     return [
         'rows' => $rows,
+        'billing_mode' => simko_image_billing_mode(),
         'month_pending_ticks' => (int) $ticks,
         'month_pending_label' => simko_ticks_usd((int) $ticks),
         'month_pending_count' => (int) $count,
+        'month_billed_ticks' => $monthTicks,
+        'month_billed_label' => simko_ticks_usd($monthTicks),
+        'month_billed_count' => $monthCount,
     ];
 }
 
@@ -191,7 +201,13 @@ function simko_image_generate(array $user, string $prompt, ?int $childId): array
         'INSERT INTO image_charges (user_id, image_id, model, cost_ticks, cost_source, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
     $charge->execute([$userId, $id, $model, $ticks, $source, $status, $now]);
+    $chargeId = (int) $db->lastInsertId();
     $db->commit();
+    $billing = null;
+    if ($status === 'pending') {
+        $billing = simko_image_billing_after_charge($chargeId);
+        $status = (string) (simko_db()->query('SELECT status FROM image_charges WHERE id = ' . $chargeId)->fetchColumn() ?: $status);
+    }
     return [
         'id' => $id,
         'prompt' => simko_clip($prompt, 240),
@@ -200,6 +216,7 @@ function simko_image_generate(array $user, string $prompt, ?int $childId): array
         'cost_label' => simko_ticks_usd($ticks),
         'cost_source' => $source,
         'charge_status' => $status,
+        'billing' => $billing,
         'model' => $model,
     ];
 }

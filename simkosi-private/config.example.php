@@ -66,14 +66,21 @@ return [
     // Free tier: 5 text messages, no images. Images are only on the paid plan.
     // Put the restricted key and webhook secret in this private config (or env),
     // never in git. Leave the values empty here.
+    // Picture charges for subscribers: 'invoice' (one monthly invoice, default) or 'metered'
+    // (one Stripe meter event per picture, billed on the $9.99 plan invoice). Env IMAGE_BILLING_MODE wins.
     'billing' => [
         'provider' => 'stripe',
+        'image_billing_mode' => 'invoice',
+        'image_invoice_min_cents' => 50,
     ],
     'stripe' => [
         'restricted_key' => '',
         'secret_key' => '',
         'webhook_secret' => '',
         'price_id' => '',
+        // Metered mode only: a $0.01-per-unit recurring price attached to the meter below.
+        'metered_price_id' => '',
+        'meter_event_name' => 'simko_picture_cents',
         'api_base' => 'https://api.stripe.com',
         'api_version' => '2026-09-30.endive',
     ],

@@ -68,9 +68,9 @@
       list.appendChild(item);
     });
     var ledger = data.image_ledger;
-    if (ledger && ledger.month_pending_count) {
+    if (ledger && ledger.month_billed_count) {
       var pics = document.createElement("li");
-      pics.textContent = "Pictures this month: " + ledger.month_pending_count + ", " + ledger.month_pending_label + " (Grok's cost, added to your bill)";
+      pics.textContent = "Pictures this month: " + ledger.month_billed_count + ", " + ledger.month_billed_label + " (Grok's cost, added to your bill)";
       list.appendChild(pics);
     }
     if (!(data.events || []).length) {
@@ -536,7 +536,7 @@
         list.replaceChildren();
         if (access && access.billed) {
           var total = document.createElement("li");
-          total.textContent = "This month: " + ledger.month_pending_count + " pictures, " + ledger.month_pending_label + " added to your bill.";
+          total.textContent = "This month: " + ledger.month_billed_count + " pictures, " + ledger.month_billed_label + " added to your bill.";
           list.appendChild(total);
         }
         (ledger.rows || []).slice(0, 5).forEach(function (row) {
@@ -584,7 +584,7 @@
             }
             paintImages(data.images || []);
             paintImageCost(data);
-            if (status && data.image) status.textContent = "Done. This picture cost " + data.image.cost_label + (data.image.charge_status === "pending" ? ", added to your bill." : " on your Grok key (not billed).");
+            if (status && data.image) status.textContent = "Done. This picture cost " + data.image.cost_label + (data.image.charge_status !== "owner_not_billed" ? ", added to your bill." : " on your Grok key (not billed).");
           });
         });
       }

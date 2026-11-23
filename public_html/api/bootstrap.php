@@ -632,6 +632,20 @@ function simko_migrate(PDO $db): void
         )'
     );
     $db->exec('CREATE INDEX IF NOT EXISTS idx_image_charges_user ON image_charges(user_id, created_at)');
+    // Where each billed picture charge went in Stripe: a meter event (metered) or a monthly invoice (invoice).
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS image_billing (
+            charge_id INTEGER PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            mode TEXT NOT NULL,
+            stripe_ref TEXT NOT NULL DEFAULT \'\',
+            state TEXT NOT NULL,
+            error TEXT NOT NULL DEFAULT \'\',
+            attempts INTEGER NOT NULL DEFAULT 0,
+            updated_at INTEGER NOT NULL
+        )'
+    );
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_image_billing_ref ON image_billing(stripe_ref)');
     $db->exec(
         'CREATE TABLE IF NOT EXISTS routines (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

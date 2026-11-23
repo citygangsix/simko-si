@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/usage.php';
+require_once __DIR__ . '/billing.php';
 
 function simko_config_secret(array $section, string $key, string $envName): string
 {
@@ -85,6 +86,13 @@ function simko_stripe_checkout_params(int $userId, array $user): array
         ],
         'integration_identifier' => 'simkosi-' . simko_stripe_random_letters(8),
     ];
+    // Metered picture billing: add the per-cent metered price so picture usage lands on the plan invoice.
+    if (simko_image_billing_mode() === 'metered') {
+        $metered = simko_image_billing_settings()['metered_price_id'];
+        if ($metered !== '') {
+            $params['line_items'][] = ['price' => $metered];
+        }
+    }
     $customerId = (string) ($sub['stripe_customer_id'] ?? '');
     if ($customerId !== '') {
         $params['customer'] = $customerId;
@@ -334,6 +342,9 @@ function simko_stripe_handle_event(array $event): array
             break;
         case 'customer.subscription.deleted':
             simko_stripe_handle_subscription($object, 'free');
+            break;
+        case 'invoice.paid':
+            simko_image_invoice_paid($object);
             break;
         case 'invoice.payment_failed':
             $userId = simko_stripe_find_user_id(
