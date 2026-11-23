@@ -16,6 +16,7 @@ platform_assert(is_file($p8) && is_file($rsa), 'test keys were created outside t
 
 $applePort = 9073;
 $sitePort = 9072;
+platform_require_free_port($applePort);
 $cmd = 'php -S 127.0.0.1:' . $applePort . ' ' . escapeshellarg(dirname(__DIR__) . '/tests/fake-apple.php');
 $env = getenv();
 if (!is_array($env)) {
@@ -28,6 +29,7 @@ $env['SIMKO_APPLE_MODE_FILE'] = $modeFile;
 $env['SIMKO_APPLE_DB'] = $keyDir . '/data/simko.sqlite';
 $env['SIMKO_APPLE_AUD'] = 'com.simkosi.web';
 $apple = proc_open($cmd, [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $applePipes, dirname(__DIR__), $env);
+platform_wait_port($applePort);
 
 $ready = platform_private('apple-site', ['oauth' => true], [
     'oauth' => [

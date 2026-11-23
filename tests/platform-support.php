@@ -29,6 +29,7 @@ function platform_private(string $name, array $flags, array $extra = []): string
     ], $extra);
     $export = var_export($config, true);
     file_put_contents($dir . '/config.php', "<?php\ndeclare(strict_types=1);\nreturn {$export};\n");
+    platform_match_live_schema($dir);
     return $dir;
 }
 
@@ -250,4 +251,49 @@ function platform_mark_paid(string $private, array $user): void
     platform_assert($id > 0, 'found user to mark paid');
     $db->prepare('INSERT OR REPLACE INTO subscriptions (user_id, status, trial_until, updated_at) VALUES (?, ?, 0, ?)')
         ->execute([$id, 'paid', time()]);
+}
+
+/**
+ * Bring a fresh test database up to the live schema. Live simkosi.com got chats.voice_id and
+ * agents.voice_id from the one-off voice migration (simko_voice_migrate), not from simko_migrate(),
+ * so a fresh test DB lacks them. Run that same migration here, using the site's own code.
+ */
+function platform_match_live_schema(string $private): void
+{
+    $root = $GLOBALS['simko_root'] . '/public_html/api';
+    $code = 'require ' . var_export($root . '/bootstrap.php', true) . '; require_once ' . var_export($root . '/voice-assignments.php', true)
+        . '; simko_voice_migrate(simko_db());';
+    $cmd = 'SIMKOSI_PRIVATE=' . escapeshellarg($private) . ' php -r ' . escapeshellarg($code) . ' 2>&1';
+    exec($cmd, $lines, $rc);
+    if ($rc !== 0) {
+        fwrite(STDERR, "test schema setup failed:\n" . implode("\n", $lines) . "\n");
+        exit(1);
+    }
+}
+
+/** Fail clearly when a fixed test port is still held by a leftover server from an earlier run. */
+function platform_require_free_port(int $port): void
+{
+    $sock = @stream_socket_client('tcp://127.0.0.1:' . $port, $errno, $errstr, 0.3);
+    if (is_resource($sock)) {
+        fclose($sock);
+        fwrite(STDERR, "port {$port} is already in use (leftover test server?). Stop it and rerun.\n");
+        exit(1);
+    }
+}
+
+/** Wait until a helper server answers on its port. */
+function platform_wait_port(int $port, float $seconds = 8.0): void
+{
+    $deadline = microtime(true) + $seconds;
+    while (microtime(true) < $deadline) {
+        $sock = @stream_socket_client('tcp://127.0.0.1:' . $port, $errno, $errstr, 0.3);
+        if (is_resource($sock)) {
+            fclose($sock);
+            return;
+        }
+        usleep(50000);
+    }
+    fwrite(STDERR, "helper server on port {$port} did not start\n");
+    exit(1);
 }

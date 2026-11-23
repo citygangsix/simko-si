@@ -6,6 +6,7 @@ require __DIR__ . '/platform-support.php';
 $tokenPort = 9083;
 $sitePort = 9082;
 $log = sys_get_temp_dir() . '/simko-connector-log-' . getmypid() . '.txt';
+platform_require_free_port($tokenPort);
 $cmd = 'php -S 127.0.0.1:' . $tokenPort . ' ' . escapeshellarg(dirname(__DIR__) . '/tests/fake-connector.php');
 $env = getenv();
 if (!is_array($env)) {
@@ -13,6 +14,7 @@ if (!is_array($env)) {
 }
 $env['SIMKO_CONNECTOR_LOG'] = $log;
 $fake = proc_open($cmd, [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $fakePipes, dirname(__DIR__), $env);
+platform_wait_port($tokenPort);
 $private = platform_private('connector-save', ['connectors' => true], [
     'connectors' => [
         'token_key' => 'test-only-connector-key',
