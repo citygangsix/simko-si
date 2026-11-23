@@ -132,7 +132,7 @@ function simko_image_ledger(int $userId): array
     ];
 }
 
-function simko_image_generate(array $user, string $prompt, ?int $childId): array
+function simko_image_generate(array $user, string $prompt, ?int $childId, ?string $source = null): array
 {
     $userId = (int) $user['id'];
     $access = simko_image_access($user);
@@ -157,13 +157,35 @@ function simko_image_generate(array $user, string $prompt, ?int $childId): array
     if ($access['role'] === 'subscriber') {
         simko_grok_image_grant($userId, true);
     }
+    // Editing: a picture the person uploaded goes to POST /v1/images/edits as a data URI.
+    // Docs: https://docs.x.ai/developers/model-capabilities/images/editing
+    $sourceUrl = null;
+    if ($source !== null && $source !== '') {
+        $raw = str_starts_with($source, 'data:') ? substr($source, (int) strpos($source, ',') + 1) : $source;
+        $bytes = base64_decode($raw, true);
+        if (!is_string($bytes) || $bytes === '' || strlen($bytes) > 8 * 1024 * 1024) {
+            simko_fail(400, 'Attach a JPEG or PNG picture under 8 MB to edit.');
+        }
+        $mime = str_starts_with($bytes, "\xFF\xD8\xFF") ? 'image/jpeg' : (str_starts_with($bytes, "\x89PNG\r\n\x1a\n") ? 'image/png' : '');
+        if ($mime === '') {
+            simko_fail(415, 'Only JPEG and PNG pictures can be edited.');
+        }
+        $sourceUrl = 'data:' . $mime . ';base64,' . base64_encode($bytes);
+    }
     try {
-        $data = simko_curl_json(simko_xai_url('images/generations'), [
-            'model' => $model,
-            'prompt' => $prompt,
-            'n' => 1,
-            'response_format' => 'b64_json',
-        ], 60);
+        $data = $sourceUrl !== null
+            ? simko_curl_json(simko_xai_url('images/edits'), [
+                'model' => $model,
+                'prompt' => $prompt,
+                'image' => ['url' => $sourceUrl, 'type' => 'image_url'],
+                'response_format' => 'b64_json',
+            ], 90)
+            : simko_curl_json(simko_xai_url('images/generations'), [
+                'model' => $model,
+                'prompt' => $prompt,
+                'n' => 1,
+                'response_format' => 'b64_json',
+            ], 60);
     } finally {
         simko_grok_image_grant(null, true);
     }

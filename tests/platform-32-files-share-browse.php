@@ -8,7 +8,7 @@ require __DIR__ . '/platform-support.php';
 $bodies = sys_get_temp_dir() . '/simko-32-bodies-' . getmypid() . '.log';
 putenv('MOCK_XAI_BODIES=' . $bodies);
 [$mock, $mockPipes] = platform_mock(8869);
-$private = platform_private('files-share', ['search' => true, 'browse' => true, 'shares' => true, 'paywall' => false], ['xai_base_url' => 'http://127.0.0.1:8869/v1']);
+$private = platform_private('files-share', ['search' => true, 'browse' => true, 'shares' => true, 'images' => true, 'paywall' => false], ['xai_base_url' => 'http://127.0.0.1:8869/v1']);
 [$site, $sitePipes] = platform_site($private, 8868);
 $u = platform_signup(8868, 'files-' . getmypid() . '@simkosi.test');
 $t = $u['token'];
@@ -76,6 +76,15 @@ platform_assert(str_contains((string) ($blocked['data']['pages'][0]['error'] ?? 
 platform_assert(platform_api(8868, '/api/platform', ['op' => 'browse', 'url' => 'https://news.ycombinator.com/'], $t)['status'] === 403, 'the Read a page card follows the same list');
 $reset = platform_api(8868, '/api/platform', ['op' => 'browse-sites', 'reset' => true], $t);
 platform_assert(in_array('wikipedia.org', $reset['data']['sites'] ?? [], true), 'the default list can be restored');
+
+// Picture editing goes to /v1/images/edits with the uploaded picture.
+@unlink($bodies);
+$edit = platform_api(8868, '/api/platform', ['op' => 'imagine', 'prompt' => 'Make it a pencil sketch', 'source' => 'data:image/png;base64,' . $png], $t);
+$sent = (string) @file_get_contents($bodies);
+platform_assert($edit['status'] === 200 && !empty($edit['data']['image']['id']), 'an edited picture comes back');
+platform_assert(str_contains($sent, '"image":{"url":"data:image\/png;base64,'), 'the uploaded picture is sent for editing');
+$badEdit = platform_api(8868, '/api/platform', ['op' => 'imagine', 'prompt' => 'x', 'source' => base64_encode('GIF89a not a png')], $t);
+platform_assert($badEdit['status'] === 415, 'only JPEG and PNG can be edited');
 
 platform_stop($site, $sitePipes);
 platform_stop($mock, $mockPipes);

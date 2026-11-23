@@ -263,7 +263,7 @@ if ($path === '/v1/responses') {
     return;
 }
 
-if ($path === '/v1/images/generations') {
+if ($path === '/v1/images/generations' || $path === '/v1/images/edits') {
     header('Content-Type: application/json; charset=utf-8');
     $png = base64_encode(base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
     $imgBody = json_decode(file_get_contents('php://input') ?: '', true);

@@ -888,7 +888,18 @@
           event.preventDefault();
           var status = $("imageStatus");
           if (status) status.textContent = "Making the picture…";
-          post({ op: "imagine", prompt: $("imagePrompt").value }).then(function (data) {
+          var srcInput = $("imageSource");
+          var srcFile = srcInput && srcInput.files && srcInput.files[0];
+          var readSource = srcFile ? new Promise(function (resolve) {
+            var reader = new FileReader();
+            reader.onload = function () { resolve(String(reader.result || "")); };
+            reader.onerror = function () { resolve(""); };
+            reader.readAsDataURL(srcFile);
+          }) : Promise.resolve("");
+          readSource.then(function (source) {
+            return post({ op: "imagine", prompt: $("imagePrompt").value, source: source || undefined });
+          }).then(function (data) {
+            if (srcInput) srcInput.value = "";
             if (data && !data.ok) {
               if (status) status.textContent = data.error || "No picture came back.";
               if (data.paywall && flags().paywall) showPaywall(data);

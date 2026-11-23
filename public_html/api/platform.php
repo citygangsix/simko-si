@@ -340,7 +340,8 @@ switch ($op) {
         // Owner (not billed) or an active paid subscriber (charged Grok's cost); everyone else is refused
         // inside simko_image_generate before any xAI call.
         $childId = simko_requested_child($userId, $body);
-        $image = simko_image_generate($user, (string) ($body['prompt'] ?? ''), $childId);
+        $image = simko_image_generate($user, (string) ($body['prompt'] ?? ''), $childId,
+            isset($body['source']) && is_string($body['source']) ? $body['source'] : null);
         simko_ok([
             'image' => $image,
             'images' => simko_image_rows($userId),
