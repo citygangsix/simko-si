@@ -9,7 +9,7 @@ require_once __DIR__ . '/browse.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
-simko_require_grok_owner($user);
+simko_require_grok_user($user);
 if (!simko_flag('agents')) {
     simko_fail(404, 'Side-by-side agents are turned off.');
 }

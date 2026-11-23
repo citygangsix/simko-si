@@ -853,7 +853,7 @@
         }
         (ledger.rows || []).slice(0, 5).forEach(function (row) {
           var item = document.createElement("li");
-          item.textContent = new Date(row.created_at * 1000).toLocaleString() + " · " + row.cost_label + (row.status === "owner_not_billed" ? " (Grok cost, not billed)" : " (on your bill)");
+          item.textContent = new Date(row.created_at * 1000).toLocaleString() + " · " + row.cost_label + (row.status === "owner_not_billed" ? " (Grok cost, not billed)" : (row.status === "demo_not_billed" ? " (demo, free during preview)" : " (on your bill)"));
           list.appendChild(item);
         });
       }
@@ -907,7 +907,7 @@
             }
             paintImages(data.images || []);
             paintImageCost(data);
-            if (status && data.image) status.textContent = "Done. This picture cost " + data.image.cost_label + (data.image.charge_status !== "owner_not_billed" ? ", added to your bill." : " on your Grok key (not billed).");
+            if (status && data.image) status.textContent = "Done. This picture cost " + data.image.cost_label + (data.image.charge_status === "owner_not_billed" ? " on your Grok key (not billed)." : (data.image.charge_status === "demo_not_billed" ? " of your daily limit. Demo account: free during preview." : ", added to your bill."));
           });
         });
       }

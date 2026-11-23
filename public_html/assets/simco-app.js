@@ -193,7 +193,7 @@
         pick.addEventListener("change", () => { try { localStorage.setItem("simkoModel", pick.value); } catch (e) {} });
       }
       const note = $("spendNote");
-      if (note && data.spend) note.textContent = "Today $" + Number(data.spend.spent_usd).toFixed(2) + " of $" + Number(data.spend.cap_usd).toFixed(2);
+      if (note && data.spend) note.textContent = (data.spend.demo ? "Demo account: free during preview. " : "") + "Today $" + Number(data.spend.spent_usd).toFixed(2) + " of $" + Number(data.spend.cap_usd).toFixed(2);
       row.hidden = !data.spend;
     } catch (e) {}
   }

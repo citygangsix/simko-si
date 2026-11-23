@@ -11,7 +11,7 @@ require_once __DIR__ . '/stream.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
-simko_require_grok_owner($user);
+simko_require_grok_user($user);
 $text = trim((string) ($body['text'] ?? ''));
 // Paperclip: up to 4 pictures (Grok vision) or PDF, Word, Excel and text files (read here for Q&A).
 $files = simko_attachments_read($body);
@@ -135,6 +135,8 @@ foreach ($files as $one) {
 // DeepSearch: several web and X searches, cross-checked, with a sources list.
 $deep = !empty($body['deep_search']) && simko_flag('search') && !$strictSearch;
 if ($deep) {
+    // Multi-agent DeepSearch costs about $0.15 a question: the spend guard wants that much room.
+    $GLOBALS['simko_spend_estimate_usd'] = (float) ($cfg['deep_estimate_usd'] ?? 0.15);
     $messages[0]['content'] .= "\n\n" . simko_deep_search_instructions();
     // Multi-agent research model (Responses API only). 4 agents normally, 16 with Think on.
     // Docs: https://docs.x.ai/developers/model-capabilities/text/multi-agent. Config 'deep_model' => '' turns it off.

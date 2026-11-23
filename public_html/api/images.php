@@ -57,6 +57,9 @@ function simko_image_access(array $user): array
         $role = 'owner';
     } elseif (simko_subscription($userId)['status'] === 'paid') {
         $role = 'subscriber';
+    } elseif (simko_can_use_grok($user)) {
+        // Demo account during the preview: not billed, counted against the $1/day Grok limit.
+        $role = 'demo';
     }
     $today = simko_images_today($userId);
     $cap = simko_images_daily_cap();
@@ -85,7 +88,9 @@ function simko_image_access(array $user): array
     $out['allowed'] = true;
     $out['quote'] = $role === 'owner'
         ? 'This picture costs about ' . $out['price_label'] . ' on your Grok key. You are not billed.'
-        : 'This picture costs ' . $out['price_label'] . '. It is added to your bill.';
+        : ($role === 'demo'
+            ? 'Demo account: free during preview. A picture uses about ' . $out['price_label'] . ' of your daily Grok limit.'
+            : 'This picture costs ' . $out['price_label'] . '. It is added to your bill.');
     return $out;
 }
 
@@ -116,7 +121,7 @@ function simko_image_ledger(int $userId): array
     $sum->execute([$userId, $monthStart]);
     [$ticks, $count] = $sum->fetch(PDO::FETCH_NUM);
     $all = simko_db()->prepare(
-        "SELECT COALESCE(SUM(cost_ticks), 0), COUNT(*) FROM image_charges WHERE user_id = ? AND status <> 'owner_not_billed' AND created_at >= ?"
+        "SELECT COALESCE(SUM(cost_ticks), 0), COUNT(*) FROM image_charges WHERE user_id = ? AND status NOT IN ('owner_not_billed', 'demo_not_billed') AND created_at >= ?"
     );
     $all->execute([$userId, $monthStart]);
     [$monthTicks, $monthCount] = array_map('intval', $all->fetch(PDO::FETCH_NUM));
@@ -153,6 +158,7 @@ function simko_image_generate(array $user, string $prompt, ?int $childId, ?strin
             : 'That picture is blocked.');
     }
     $model = simko_image_model();
+    $GLOBALS['simko_spend_estimate_usd'] = simko_image_price_ticks() / 10000000000;
     // Grok image generation: POST /v1/images/generations (https://docs.x.ai/developers/model-capabilities/images/generation)
     if ($access['role'] === 'subscriber') {
         simko_grok_image_grant($userId, true);
@@ -204,6 +210,8 @@ function simko_image_generate(array $user, string $prompt, ?int $childId, ?strin
     if ($ticks <= 0) {
         $ticks = simko_image_price_ticks();
         $source = 'price_list';
+        // No usage on the reply, so the spend cap counts the price-list cost instead.
+        simko_spend_add($ticks);
     }
     $dir = simko_private_dir() . '/data/images';
     if (!is_dir($dir) && !@mkdir($dir, 0750, true) && !is_dir($dir)) {
@@ -212,7 +220,7 @@ function simko_image_generate(array $user, string $prompt, ?int $childId, ?strin
     $id = bin2hex(random_bytes(8));
     file_put_contents($dir . '/' . $id . '.png', $bytes);
     $now = time();
-    $status = $access['role'] === 'owner' ? 'owner_not_billed' : 'pending';
+    $status = $access['role'] === 'owner' ? 'owner_not_billed' : ($access['role'] === 'demo' ? 'demo_not_billed' : 'pending');
     $db = simko_db();
     $db->beginTransaction();
     $stmt = $db->prepare(

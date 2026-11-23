@@ -125,6 +125,45 @@ function simko_is_grok_owner(?array $user): bool
         || in_array((int) ($user['id'] ?? 0), $cfg['user_ids'], true);
 }
 
+/**
+ * Who may use Grok (chat, streaming, model picker, DeepSearch, pictures, page reading, voice, agents).
+ * config 'grok_access' => 'confirmed' (default, Joseph 2026-11-23: every confirmed account, a free demo
+ * during the preview, paid from the owner's xAI budget under spend_caps) or 'owner' (owner lock).
+ * Owner-only admin (allowed-sites editor, Code tab jobs, telemetry summary) keeps simko_require_grok_owner.
+ */
+function simko_grok_open(): bool
+{
+    $mode = strtolower(trim((string) (simko_config_or_empty()['grok_access'] ?? 'confirmed')));
+    return $mode !== 'owner';
+}
+
+function simko_can_use_grok(?array $user): bool
+{
+    if (!$user) {
+        return false;
+    }
+    if (simko_is_grok_owner($user)) {
+        return true;
+    }
+    return simko_grok_open() && (int) ($user['confirmed'] ?? 0) === 1;
+}
+
+/** Stops the request before any xAI call unless the signed-in person may use Grok (see simko_can_use_grok). */
+function simko_require_grok_user(?array $user = null): array
+{
+    $user = $user ?? simko_current_user();
+    if (!$user) {
+        simko_fail(401, 'Sign in to talk with Simko SI.');
+    }
+    if (simko_can_use_grok($user)) {
+        return $user;
+    }
+    if (simko_grok_open() && (int) ($user['confirmed'] ?? 0) !== 1) {
+        simko_fail(403, 'Confirm your email to start chatting. Open the link we sent you (check spam too).', ['confirm_needed' => true]);
+    }
+    simko_fail(403, 'Grok is not enabled for this account.', ['owner_only' => true]);
+}
+
 /** Stops the request before any xAI call unless the signed-in person is an owner. */
 function simko_require_grok_owner(?array $user = null): array
 {
@@ -154,12 +193,12 @@ function simko_grok_image_grant(?int $userId = null, bool $set = false): ?int
 
 function simko_api_key(): string
 {
-    // Last line of defense: no request reaches xAI for anyone but an owner,
+    // Last line of defense: no request reaches xAI for anyone who may not use Grok,
     // except the picture call of a paid subscriber that images.php has just checked.
     $user = simko_current_user();
     $grant = simko_grok_image_grant();
     if (!($grant !== null && $user && (int) $user['id'] === $grant)) {
-        simko_require_grok_owner($user);
+        simko_require_grok_user($user);
     }
     $key = trim((string) (simko_config()['xai_api_key'] ?? ''));
     if ($key === '' || str_contains($key, 'REPLACE')) {
@@ -1242,6 +1281,7 @@ function simko_spend_status(?array $user): array
         'site_cap_usd' => $caps['site'],
         'site_spent_usd' => round(simko_spend_site_today() / SIMKO_TICKS_PER_USD, 4),
         'timezone' => $caps['timezone'],
+        'demo' => !$owner,
     ];
 }
 
@@ -1250,14 +1290,23 @@ function simko_spend_guard(): void
     $user = simko_spend_user();
     $caps = simko_spend_caps();
     if (simko_spend_site_today() >= (int) round($caps['site'] * SIMKO_TICKS_PER_USD)) {
-        simko_fail(429, 'Simko SI has reached its daily Grok budget. It resets at midnight Eastern time.', ['spend_cap' => 'site']);
+        simko_fail(429, 'Daily limit reached: Simko SI has used its Grok budget for today. It resets at midnight Eastern time.', ['spend_cap' => 'site']);
     }
     if (!$user) {
         return;
     }
     $cap = simko_is_grok_owner($user) ? $caps['owner'] : $caps['user'];
-    if (simko_spend_today((int) $user['id']) >= (int) round($cap * SIMKO_TICKS_PER_USD)) {
-        simko_fail(429, 'You have reached today\'s Grok limit ($' . number_format($cap, 2) . '). It resets at midnight Eastern time.', ['spend_cap' => 'user']);
+    // A costly request (DeepSearch multi-agent, a picture) needs room for its usual cost, so one
+    // request cannot run far past the cap. chat.php / images.php set simko_spend_estimate_usd.
+    $estimate = (int) round(max(0.0, (float) ($GLOBALS['simko_spend_estimate_usd'] ?? 0)) * SIMKO_TICKS_PER_USD);
+    $spent = simko_spend_today((int) $user['id']);
+    $capTicks = (int) round($cap * SIMKO_TICKS_PER_USD);
+    if ($spent >= $capTicks || ($estimate > 0 && $spent + $estimate > $capTicks)) {
+        $left = max(0, $capTicks - $spent) / SIMKO_TICKS_PER_USD;
+        $msg = $spent >= $capTicks
+            ? 'Daily limit reached: you have used today\'s $' . number_format($cap, 2) . ' of Grok. It resets at midnight Eastern time.'
+            : 'Daily limit reached for this kind of request: about $' . number_format($left, 2) . ' of today\'s $' . number_format($cap, 2) . ' is left. Try a normal chat, or come back after midnight Eastern time.';
+        simko_fail(429, $msg, ['spend_cap' => 'user']);
     }
 }
 

@@ -40,7 +40,7 @@ switch ($op) {
         simko_ok([
             'models' => simko_models(),
             'default' => $cfgModel === '' ? 'grok-4.7' : $cfgModel,
-            'spend' => simko_is_grok_owner($user) ? simko_spend_status($user) : null,
+            'spend' => simko_can_use_grok($user) ? simko_spend_status($user) : null,
         ]);
         break;
     case 'code-jobs':
@@ -201,7 +201,7 @@ switch ($op) {
         if (!simko_flag('browse')) {
             simko_fail(404, 'Page reading is turned off.');
         }
-        simko_require_grok_owner($user);
+        simko_require_grok_user($user);
         simko_ok(simko_browse_fetch((string) ($body['url'] ?? '')));
         break;
     case 'browse-sites':
