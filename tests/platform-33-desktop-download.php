@@ -27,5 +27,11 @@ foreach (['SimkoSI-Windows.zip', 'SimkoSI-macOS.zip', 'simkosi-linux.tar.gz'] as
     platform_assert(is_file($path) && hash_file('sha256', $path) === ($sums[$f] ?? ''), $f . ' matches its checksum');
     platform_assert(str_contains($page, '/downloads/' . $f), '/download links ' . $f);
 }
+$js = (string) file_get_contents($pub . '/assets/simco-install.js');
+foreach (['android-app://', 'SimkoSIApp-', 'isNativePlatform', '"twa"', '"ios"', 'iPhone'] as $marker) {
+    platform_assert(str_contains($js, $marker), 'app/phone detection covers ' . $marker);
+}
+platform_assert(str_contains($page, 'id="phoneSteps"') && str_contains($page, 'Add to Home Screen'), '/download has phone steps');
+platform_assert(preg_match('/<button id="welcomeDesktop"[^>]*hidden/', $index) === 1, 'the landing button starts hidden (no flash in apps)');
 platform_stop($site, $sitePipes);
 fwrite(STDOUT, "desktop download tests passed\n");

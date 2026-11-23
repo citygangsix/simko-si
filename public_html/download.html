@@ -31,22 +31,37 @@
   .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
   code { font-size: .85rem; word-break: break-all; color: #cfe6e2; }
   #installNote { color: #b9f3c9; }
+  .simko-mobile-only, .simko-app-only { display: none; }
+  .simko-no-desktop .simko-mobile-only { display: block; }
+  .simko-app-context .simko-browser-only { display: none !important; }
+  .simko-app-context .simko-app-only { display: block; }
   .warn { color: #ffd6c4; }
 </style>
 
+<script src="/assets/simco-install.js?v=flagship7-20261123"></script>
 </head>
 <body><main>
 <header><a href="/"><img src="/assets/icons/icon-192.png" alt=""/>Simko SI</a></header>
-<h1>Simko SI for your computer</h1>
+<h1>Get the Simko SI app</h1>
 <p>Use Simko SI in its own window, with its own icon in your Start menu, Dock or app list. It is the same Simko SI as the website, so your chats and settings are the same everywhere.</p>
-<section class="card" id="oneClick">
+<section class="card simko-mobile-only" id="phoneSteps">
+<h2 class="simko-browser-only">On your phone</h2>
+<p class="simko-browser-only">A computer download is not needed on a phone. Put Simko SI on your home screen instead:</p>
+<ul class="simko-browser-only">
+<li><b>iPhone (Safari):</b> tap <b>Share</b>, then <b>Add to Home Screen</b>.</li>
+<li><b>Android (Chrome):</b> tap the <b>⋮</b> menu, then <b>Add to Home screen</b> or <b>Install app</b>.</li>
+</ul>
+<p class="simko-app-only">You are already using the Simko SI app, so there is nothing to install.</p>
+<p><a class="dl" href="/">Back to Simko SI</a></p>
+</section>
+<section class="card simko-desktop-only" id="oneClick">
 <h2>Install in one click (recommended)</h2>
 <p>Works in <b>Chrome</b> and <b>Edge</b> on Windows, Mac, Linux and ChromeOS. Nothing to download or unzip.</p>
 <p><button class="big" id="installNow" type="button" data-simko-install>Install Simko SI</button></p>
 <p id="installNote" role="status" aria-live="polite" hidden></p>
 <p class="muted" id="installHint">If the button does nothing, look for the install icon (a screen with a down arrow) at the right end of the address bar, or open the browser menu and choose <i>Cast, save and share &gt; Install page as app</i> (Chrome) or <i>Apps &gt; Install this site as an app</i> (Edge).</p>
 </section>
-<section class="card">
+<section class="card simko-desktop-only">
 <h2>Safari and Firefox</h2>
 <div class="grid">
 <div><h3>Safari on Mac</h3><p>macOS Sonoma or later: open simkosi.com in Safari, then choose <b>File &gt; Add to Dock</b>.</p></div>
@@ -54,7 +69,7 @@
 <div><h3>Firefox</h3><p>Firefox on computers does not install websites as apps. Use the launcher below, or open simkosi.com in Chrome or Edge and install it there.</p></div>
 </div>
 </section>
-<section class="card" id="launchers">
+<section class="card simko-desktop-only" id="launchers">
 <h2>Or download a small launcher</h2>
 <p>These open simkosi.com in its own app window using a browser you already have (Edge on Windows; Chrome, Edge or Brave on Mac and Linux, else your default browser). They do not include a browser and do not run anything else on your computer.</p>
 <p class="warn"><b>Heads-up:</b> the launchers are not code-signed yet, so Windows and macOS warn you the first time. On Windows choose <i>More info &gt; Run anyway</i>; on a Mac right-click the app and choose <i>Open</i>. The one-click install above has no warning.</p>
@@ -65,7 +80,6 @@
 </div>
 <p class="muted">Version 1.0.0 · <a href="/downloads/SHA256SUMS.txt">SHA-256 checksums</a></p>
 </section>
-<script src="/assets/simco-install.js?v=flagship6-20261123"></script>
 <script>
 (function () {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
