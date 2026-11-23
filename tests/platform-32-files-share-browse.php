@@ -38,11 +38,11 @@ platform_assert($old['status'] === 200 && str_contains((string) $old['data']['ev
 // Reply language.
 @unlink($bodies);
 platform_api(8868, '/api/simco/turn', ['text' => 'Hola', 'lang' => 'es'], $t);
-platform_assert(str_contains((string) @file_get_contents($bodies), 'Always reply in Spanish'), 'a picked reply language reaches Grok');
+platform_assert(str_contains((string) @file_get_contents($bodies), 'write every reply in Spanish'), 'a picked reply language reaches Grok');
 @unlink($bodies);
 platform_api(8868, '/api/simco/turn', ['text' => 'Hola', 'lang' => 'xx'], $t);
 $sent = (string) @file_get_contents($bodies);
-platform_assert(!str_contains($sent, 'Always reply in') && str_contains($sent, 'reply in their language'), 'an unknown language falls back to the writer\'s language');
+platform_assert(!str_contains($sent, "Language rule") && str_contains($sent, 'reply in their language'), 'an unknown language falls back to the writer\'s language');
 
 // DeepSearch uses the multi-agent model with 4 agents unless a model was picked.
 @unlink($bodies);

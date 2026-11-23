@@ -64,9 +64,6 @@ $langs = ['en' => 'English', 'es' => 'Spanish', 'fr' => 'French', 'de' => 'Germa
     'nl' => 'Dutch', 'pl' => 'Polish', 'uk' => 'Ukrainian', 'ru' => 'Russian', 'tr' => 'Turkish', 'ar' => 'Arabic', 'hi' => 'Hindi',
     'zh' => 'Chinese (Simplified)', 'ja' => 'Japanese', 'ko' => 'Korean', 'vi' => 'Vietnamese', 'tl' => 'Filipino', 'sk' => 'Slovak'];
 $lang = strtolower(trim((string) ($body['lang'] ?? '')));
-$system .= isset($langs[$lang])
-    ? "\n\nAlways reply in " . $langs[$lang] . ', in plain everyday words.'
-    : "\n\nIf the person writes in a language other than English, reply in their language.";
 
 $memoryChild = null;
 if (simko_flag('memory') && !empty($body['child_id'])) {
@@ -76,6 +73,11 @@ $remembered = simko_memory_prompt((int) $user['id'], $memoryChild);
 if ($remembered !== '') {
     $system .= "\n\n" . $remembered;
 }
+// Last, so it wins over any earlier 'reply in English' line in the configured prompt.
+$system .= isset($langs[$lang])
+    ? "\n\nLanguage rule (this overrides any earlier language instruction): write every reply in " . $langs[$lang]
+        . ', even when the person writes in English. Use plain everyday words.'
+    : "\n\nIf the person writes in a language other than English, reply in their language.";
 $messages = [['role' => 'system', 'content' => $system]];
 $sessionId = (string) ($body['session_id'] ?? '');
 $chat = simko_chat_owned((int) $user['id'], $sessionId);

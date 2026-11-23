@@ -71,7 +71,9 @@
     if (!box) {
       box = document.createElement("div");
       box.id = "codeRunBox";
-      reply.parentNode.insertBefore(box, reply.nextSibling);
+      // Below the reply and its buttons, so the run output never sits under them.
+      var wrap = reply.parentNode && reply.parentNode.id === "replyWrap" ? reply.parentNode : reply;
+      wrap.parentNode.insertBefore(box, wrap.nextSibling);
     }
     box.replaceChildren();
     var found = blocks(text);
