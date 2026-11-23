@@ -25,6 +25,16 @@ $owner = platform_signup($sitePort, $ownerEmail);
 $guest = platform_signup($sitePort, 'code-guest-' . getmypid() . '@simkosi.test');
 $tok = $owner['token'];
 $api = static fn(array $b, ?string $t = null) => platform_api($sitePort, '/api/platform', $b, $t ?? $tok);
+// Builds and fixes reply at once ("planning"/"fixing") and finish on the server; wait like the page does.
+$settle = static function (array $r) use ($api): array {
+    $job = $r['data']['job'] ?? null;
+    for ($i = 0; $i < 100 && is_array($job) && in_array($job['status'], ['planning', 'fixing'], true); $i++) {
+        usleep(100000);
+        $r = $api(['op' => 'code-job', 'job_id' => $job['id']]);
+        $job = $r['data']['job'] ?? null;
+    }
+    return $r;
+};
 
 $denied = $api(['op' => 'code-start', 'prompt' => 'calculator'], $guest['token']);
 platform_assert($denied['status'] === 403, 'a non-owner cannot start a coding job');
@@ -32,6 +42,8 @@ platform_assert($hits('/v1/chat/completions') === 0, 'no xAI call for the non-ow
 platform_assert($api(['op' => 'code-jobs'], $guest['token'])['status'] === 403, 'a non-owner cannot list coding jobs');
 
 $start = $api(['op' => 'code-start', 'prompt' => 'A calculator page. Clicking 4 + 4 = shows 8.', 'engine' => 'grok']);
+platform_assert($start['status'] === 200 && ($start['data']['job']['status'] ?? '') === 'planning', 'code-start replies at once with a planning job');
+$start = $settle($start);
 $job = $start['data']['job'] ?? [];
 platform_assert($start['status'] === 200 && ($job['status'] ?? '') === 'built', 'Grok builds the project and it passes the server checks');
 platform_assert(count($job['plan'] ?? []) >= 3 && ($job['entry'] ?? '') === 'index.html', 'the job has a plan and an entry page');
@@ -54,27 +66,31 @@ sort($names);
 platform_assert($names === ['calculator/SIMKO-TESTS.json', 'calculator/app.js', 'calculator/index.html', 'calculator/style.css'], 'the zip holds the files and the tests');
 
 // A failing build gets one auto-fix from the sandbox failures.
-$bad = $api(['op' => 'code-start', 'prompt' => 'A calculator page BROKEN. 4 + 4 = 8.']);
+$bad = $settle($api(['op' => 'code-start', 'prompt' => 'A calculator page BROKEN. 4 + 4 = 8.']));
 $badJob = $bad['data']['job'];
 platform_assert(str_contains($badJob['files'][2]['content'], 'a+shown'), 'the broken build concatenates');
 $fail = $api(['op' => 'code-verify', 'job_id' => $badJob['id'], 'results' => [['name' => '4 + 4 = 8', 'passed' => false, 'detail' => 'Expected "8" in #display, saw "44"']], 'errors' => []]);
 platform_assert(($fail['data']['job']['status'] ?? '') === 'tests_failed' && !empty($fail['data']['job']['can_fix']), 'failed sandbox tests can be fixed');
 platform_assert(str_contains((string) ($fail['data']['job']['test_results'][0]['detail'] ?? ''), 'saw "44"'), 'the failure detail is kept');
 $fix = $api(['op' => 'code-fix', 'job_id' => $badJob['id']]);
+platform_assert(($fix['data']['job']['status'] ?? '') === 'fixing', 'code-fix replies at once with a fixing job');
+$fix = $settle($fix);
 platform_assert(($fix['data']['job']['status'] ?? '') === 'built' && str_contains($fix['data']['job']['files'][2]['content'], 'Number(a)+Number(shown)'), 'Grok fixes the project from the failure');
 platform_assert(($fix['data']['job']['iteration'] ?? 0) === 2 && ($fix['data']['job']['cost_ticks'] ?? 0) === 160000000, 'the fix is a second iteration and its cost adds up');
 $nothing = $api(['op' => 'code-fix', 'job_id' => $job['id']]);
 platform_assert($nothing['status'] === 400, 'a verified job has nothing to fix');
 
 // Unsafe output is refused by the server checks.
-$evil = $api(['op' => 'code-start', 'prompt' => 'calculator EVILPATH']);
+$evil = $settle($api(['op' => 'code-start', 'prompt' => 'calculator EVILPATH']));
 $checks = implode(' | ', $evil['data']['job']['check_errors'] ?? []);
 platform_assert(($evil['data']['job']['status'] ?? '') === 'checks_failed', 'unsafe output fails the server checks');
 platform_assert(str_contains($checks, 'escape.php') && str_contains($checks, 'cdn.example.com'), 'path escapes and outside scripts are named');
 platform_assert(!file_exists($private . '/escape.php') && !file_exists(dirname($private) . '/escape.php'), 'nothing is written outside the job store');
 
+$down = $settle($api(['op' => 'code-start', 'prompt' => 'calculator XAIDOWN']));
+platform_assert(($down['data']['job']['status'] ?? '') === 'failed' && str_contains((string) ($down['data']['job']['error'] ?? ''), 'did not return'), 'a failed Grok call marks the job failed, not stuck');
 $list = $api(['op' => 'code-jobs']);
-platform_assert(count($list['data']['jobs'] ?? []) === 3 && ($list['data']['engines']['cursor']['ready'] ?? null) === false, 'jobs are listed and Cursor shows as not set up');
+platform_assert(count($list['data']['jobs'] ?? []) === 4 && ($list['data']['engines']['cursor']['ready'] ?? null) === false, 'jobs are listed and Cursor shows as not set up');
 $other = $api(['op' => 'code-job', 'job_id' => '../../config'], $tok);
 platform_assert(in_array($other['status'], [400, 404], true), 'a bad job id is refused');
 

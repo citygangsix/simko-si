@@ -202,7 +202,8 @@
     codeJob = job;
     if (!job) return;
     var engineNote = job.engine === "cursor" ? " (Cursor)" : "";
-    codeStatus((job.title ? job.title + ": " : "") + job.status_label + engineNote + (job.cost_label ? " · xAI cost " + job.cost_label : ""));
+    var busy = job.status === "planning" || job.status === "fixing";
+    codeStatus((job.title && !busy ? job.title + ": " : "") + job.status_label + (busy ? "…" : "") + engineNote + (job.error ? " (" + job.error + ")" : "") + (job.cost_ticks ? " · xAI cost " + job.cost_label : ""));
     codeList("codePlan", job.plan, function (li, step) { li.textContent = step; });
     codeList("codeChecks", job.check_errors, function (li, err) { li.className = "bad"; li.textContent = err; });
     codeList("codeTests", job.test_results, function (li, r) {
@@ -259,6 +260,22 @@
     }, 20000);
     frame.srcdoc = codeSrcdoc(job, runId);
   }
+  // Builds and fixes run on the server after the reply; poll until Grok is done (up to 6 minutes).
+  function waitForCodeJob(job) {
+    return new Promise(function (resolve) {
+      var started = Date.now();
+      (function tick() {
+        if (!job || (job.status !== "planning" && job.status !== "fixing")) { resolve(job); return; }
+        if (Date.now() - started > 360000) { resolve(job); return; }
+        setTimeout(function () {
+          post({ op: "code-job", job_id: job.id }).then(function (data) {
+            if (data.ok && data.job) { job = data.job; paintCodeJob(job); }
+            tick();
+          }).catch(function () { tick(); });
+        }, 3000);
+      })();
+    });
+  }
   function loadCodeJobs() {
     post({ op: "code-jobs" }).then(function (data) {
       if (!data.ok) { codeStatus(data.error || "The Code tab is not available."); return; }
@@ -295,6 +312,16 @@
         build.disabled = false;
         if (!data.ok) { codeStatus(data.error || "The build failed."); return; }
         paintCodeJob(data.job);
+        if (data.job.engine === "grok") {
+          build.disabled = true;
+          waitForCodeJob(data.job).then(function (job) {
+            build.disabled = false;
+            paintCodeJob(job);
+            runCodePreview(job);
+            loadCodeJobs();
+          });
+          return;
+        }
         if (data.job.engine === "cursor") {
           var pre = document.createElement("pre");
           pre.textContent = JSON.stringify(data.job.cursor || {}, null, 2);
@@ -312,10 +339,13 @@
       btn.disabled = true;
       codeStatus("Grok is fixing the failures…");
       post({ op: "code-fix", job_id: codeJob.id }).then(function (data) {
-        btn.disabled = false;
-        if (!data.ok) { codeStatus(data.error || "The fix failed."); return; }
+        if (!data.ok) { btn.disabled = false; codeStatus(data.error || "The fix failed."); return; }
         paintCodeJob(data.job);
-        runCodePreview(data.job);
+        waitForCodeJob(data.job).then(function (job) {
+          btn.disabled = false;
+          paintCodeJob(job);
+          runCodePreview(job);
+        });
       });
     });
     $("codeZip").addEventListener("click", function () {

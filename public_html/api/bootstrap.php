@@ -908,9 +908,6 @@ function simko_supabase_hook(string $event, array $user): void
 
 function simko_choice_text(array $data): string
 {
-    if (isset($data['output_text']) && is_string($data['output_text']) && trim($data['output_text']) !== '') {
-        return trim($data['output_text']);
-    }
     if (!empty($data['output']) && is_array($data['output'])) {
         $parts = [];
         foreach ($data['output'] as $item) {
@@ -921,9 +918,10 @@ function simko_choice_text(array $data): string
             if (!is_array($content)) {
                 continue;
             }
+            $itemText = '';
             foreach ($content as $part) {
                 if (is_string($part)) {
-                    $parts[] = $part;
+                    $itemText .= $part;
                     continue;
                 }
                 if (!is_array($part) || !isset($part['text']) || !is_string($part['text'])) {
@@ -931,14 +929,21 @@ function simko_choice_text(array $data): string
                 }
                 $partType = (string) ($part['type'] ?? 'output_text');
                 if ($partType === 'output_text' || $partType === 'text') {
-                    $parts[] = $part['text'];
+                    $itemText .= $part['text'];
                 }
             }
+            if (trim($itemText) !== '') {
+                // Separate message items (e.g. progress notes between tool calls) get a paragraph break.
+                $parts[] = trim($itemText);
+            }
         }
-        $text = trim(implode('', $parts));
+        $text = trim(implode("\n\n", $parts));
         if ($text !== '') {
             return $text;
         }
+    }
+    if (isset($data['output_text']) && is_string($data['output_text']) && trim($data['output_text']) !== '') {
+        return trim($data['output_text']);
     }
     $content = $data['choices'][0]['message']['content'] ?? '';
     if (is_string($content)) {

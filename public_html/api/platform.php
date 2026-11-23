@@ -51,12 +51,22 @@ switch ($op) {
             'confirm_paid' => !empty($body['confirm_paid']),
             'dry_run' => !empty($body['dry_run']),
         ]);
+        if ($job['engine'] === 'grok' && $job['status'] === 'planning') {
+            simko_code_reply_then_continue(['job' => simko_code_public($job)]);
+            simko_code_background($job, 'build');
+            exit;
+        }
         simko_ok(['job' => simko_code_public($job)]);
         break;
     case 'code-job':
         $job = simko_code_load($userId, (string) ($body['job_id'] ?? ''));
         if (($job['engine'] ?? '') === 'cursor') {
             $job = simko_cursor_refresh($job);
+        }
+        if (in_array($job['status'], ['planning', 'fixing'], true) && (int) ($job['updated_at'] ?? $job['created_at']) < time() - 360) {
+            $job['status'] = ($job['files'] ?? []) ? 'tests_failed' : 'failed';
+            $job['error'] = 'The build stopped before Grok finished. Try again.';
+            simko_code_save($job);
         }
         simko_ok(['job' => simko_code_public($job)]);
         break;
@@ -67,7 +77,9 @@ switch ($op) {
         break;
     case 'code-fix':
         $job = simko_code_fix(simko_code_load($userId, (string) ($body['job_id'] ?? '')));
-        simko_ok(['job' => simko_code_public($job)]);
+        simko_code_reply_then_continue(['job' => simko_code_public($job)]);
+        simko_code_background($job, 'fix');
+        exit;
         break;
     case 'code-zip':
         $job = simko_code_load($userId, (string) ($body['job_id'] ?? ''));

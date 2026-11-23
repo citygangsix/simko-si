@@ -107,9 +107,10 @@ function simko_code_public(array $job, bool $withFiles = true): array
         'error' => $job['error'] ?? '',
     ];
     $labels = [
-        'planning' => 'planning', 'built' => 'built, waiting for the sandbox tests',
+        'planning' => 'Grok is planning and writing the files', 'built' => 'built, waiting for the sandbox tests',
         'checks_failed' => 'server checks failed', 'verified' => 'all tests passed in the sandbox',
-        'tests_failed' => 'some tests failed', 'dry_run' => 'dry run, nothing launched', 'launched' => 'launched on Cursor',
+        'tests_failed' => 'some tests failed', 'fixing' => 'Grok is fixing the failures', 'failed' => 'failed',
+        'dry_run' => 'dry run, nothing launched', 'launched' => 'launched on Cursor',
     ];
     $out['status_label'] = $labels[$job['status']] ?? (string) $job['status'];
     $out['check_errors'] = [];
@@ -366,13 +367,67 @@ function simko_code_start(array $user, string $prompt, string $engine, array $op
         simko_code_save($job);
         return $job;
     }
-    [$project, $ticks] = simko_code_grok_call([
-        ['role' => 'system', 'content' => simko_code_system()],
-        ['role' => 'user', 'content' => $prompt],
-    ]);
-    simko_code_apply($job, $project, $ticks, 'build');
+    // Grok builds can take a minute or two: save the job as "planning" and build after the reply is sent.
     simko_code_save($job);
     return $job;
+}
+
+/** Runs after the HTTP reply is sent. If anything stops the build, the job is marked failed, never left hanging. */
+function simko_code_background(array $job, string $kind): void
+{
+    $GLOBALS['simko_code_bg'] = ['user_id' => (int) $job['user_id'], 'id' => (string) $job['id']];
+    register_shutdown_function(static function (): void {
+        $bg = $GLOBALS['simko_code_bg'] ?? null;
+        if (!is_array($bg)) {
+            return;
+        }
+        $path = simko_code_job_path($bg['user_id'], $bg['id']);
+        $cur = is_file($path) ? json_decode((string) file_get_contents($path), true) : null;
+        if (is_array($cur) && in_array($cur['status'] ?? '', ['planning', 'fixing'], true)) {
+            $cur['status'] = $cur['files'] ?? [] ? 'tests_failed' : 'failed';
+            $cur['error'] = 'Grok did not return a usable project. Try again or reword the request.';
+            $cur['cost_ticks'] = (int) ($cur['cost_ticks'] ?? 0) + (int) ($GLOBALS['simko_xai_cost_ticks'] ?? 0);
+            simko_code_save($cur);
+        }
+    });
+    if ($kind === 'build') {
+        [$project, $ticks] = simko_code_grok_call([
+            ['role' => 'system', 'content' => simko_code_system()],
+            ['role' => 'user', 'content' => (string) $job['prompt']],
+        ]);
+        simko_code_apply($job, $project, $ticks, 'build');
+        simko_code_save($job);
+    } else {
+        simko_code_fix_run($job);
+    }
+    $GLOBALS['simko_code_bg'] = null;
+}
+
+/** Sends the JSON reply and closes the connection so long work can continue server-side. */
+function simko_code_reply_then_continue(array $payload): void
+{
+    ignore_user_abort(true);
+    @set_time_limit(240);
+    $body = json_encode(['ok' => true] + $payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    header('Connection: close');
+    header('Content-Length: ' . strlen((string) $body));
+    echo $body;
+    flush();
+    if (function_exists('litespeed_finish_request')) {
+        litespeed_finish_request();
+    } elseif (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    }
+    // The reply is sent: anything printed later (an error from the build) must not reach the client.
+    ob_start(static fn(string $chunk): string => '');
 }
 
 /** Results from the browser test harness: [{name, passed, error}], plus page errors. */
@@ -424,6 +479,15 @@ function simko_code_fix(array $job): array
     if ($problems === []) {
         simko_fail(400, 'Nothing failed, so there is nothing to fix.');
     }
+    $job['fix_problems'] = array_slice($problems, 0, 12);
+    $job['status'] = 'fixing';
+    simko_code_save($job);
+    return $job;
+}
+
+function simko_code_fix_run(array $job): array
+{
+    $problems = (array) ($job['fix_problems'] ?? []);
     $current = json_encode(['entry' => $job['entry'], 'files' => $job['files'], 'tests' => $job['tests']], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     [$project, $ticks] = simko_code_grok_call([
         ['role' => 'system', 'content' => simko_code_system()],

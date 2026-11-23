@@ -34,6 +34,15 @@ if ($path === '/v1/chat/completions') {
     if (($body['response_format']['json_schema']['name'] ?? '') === 'simko_code_project') {
         // Mock Grok coding agent: a calculator. "BROKEN" in the request makes the first build concatenate.
         $all = json_encode($body['messages'] ?? []);
+        if (str_contains($all, 'XAIDOWN')) {
+            http_response_code(503);
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'mock outage']);
+            return;
+        }
+        if (str_contains($all, 'SLOWBUILD')) {
+            sleep(6);
+        }
         $isFix = str_contains($all, 'failed in a browser sandbox') || str_contains($all, 'run in a browser sandbox and failed');
         $broken = str_contains($all, 'BROKEN') && !$isFix;
         $js = "var shown='';var a=null;var op=null;\nfunction paint(){document.getElementById('display').textContent=shown===''?'0':shown;}\n"
