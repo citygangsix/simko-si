@@ -240,6 +240,59 @@
       try { localStorage.setItem("simko.think", on ? "1" : "0"); } catch (e) {}
     });
   }
+  // DeepSearch toggle: several web and X searches, cross-checked, sources listed.
+  function deepOn() {
+    const button = $("deepToggle");
+    return !!(button && button.getAttribute("aria-pressed") === "true");
+  }
+  function wireDeep() {
+    const button = $("deepToggle");
+    if (!button || button.dataset.wired) return;
+    button.dataset.wired = "1";
+    const flags = window.simkoPlatformFlags || {};
+    const paint = function (on) {
+      button.setAttribute("aria-pressed", on ? "true" : "false");
+      button.title = on ? "DeepSearch is on: Grok runs several searches and lists sources" : "DeepSearch is off";
+    };
+    paint(false);
+    button.addEventListener("click", function () { paint(!deepOn()); });
+    if (flags.search === false) button.hidden = true;
+  }
+  // Paperclip: one picture, PDF or text file per message, sent with the next Send.
+  let attached = null;
+  const ATTACH_MAX = 8 * 1024 * 1024;
+  function paintAttach() {
+    const chip = $("attachChip");
+    const btn = $("attachButton");
+    if (btn) btn.classList.toggle("has-file", !!attached);
+    if (!chip) return;
+    chip.hidden = !attached;
+    $("attachName").textContent = attached ? "Attached: " + attached.name + " (" + Math.max(1, Math.round(attached.size / 1024)) + " KB)" : "";
+  }
+  function wireAttach() {
+    const btn = $("attachButton");
+    const input = $("attachInput");
+    if (!btn || !input || btn.dataset.wired) return;
+    btn.dataset.wired = "1";
+    btn.addEventListener("click", function () { input.click(); });
+    input.addEventListener("change", function () {
+      const file = input.files && input.files[0];
+      input.value = "";
+      if (!file) return;
+      if (file.size > ATTACH_MAX) {
+        setReply("That file is too big. Attach a file under 8 MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function () {
+        const url = String(reader.result || "");
+        attached = { name: file.name, type: file.type, size: file.size, data: url.slice(url.indexOf(",") + 1) };
+        paintAttach();
+      };
+      reader.readAsDataURL(file);
+    });
+    $("attachRemove").addEventListener("click", function () { attached = null; paintAttach(); });
+  }
   // Code Grok ran in its sandbox, and pages read from links in the message.
   function showToolPanel(data) {
     const panel = $("toolRuns");
@@ -263,6 +316,23 @@
       out.textContent = run.output || "(no printed output)";
       body.append(head, code, outHead, out);
     });
+    const extra = [];
+    if (data && data.attachment) {
+      const a = data.attachment;
+      extra.push(a.kind === "image"
+        ? "Grok looked at the picture " + a.name
+        : "Read the file " + a.name + (a.pages ? " (" + a.pages + (a.pages === 1 ? " page)" : " pages)") : "") + ", " + a.chars + " characters" + (a.truncated ? " (cut short)" : ""));
+    }
+    if (data && data.deep_search) {
+      const c = data.search_calls || {};
+      extra.push("DeepSearch: " + (c.web || 0) + " web searches, " + (c.x || 0) + " X searches, " + ((data.sources || []).length) + " sources");
+    }
+    extra.forEach(function (text) {
+      const line = document.createElement("p");
+      line.className = "toolHead";
+      line.textContent = text;
+      body.append(line);
+    });
     pages.forEach(function (page) {
       const line = document.createElement("p");
       line.className = "toolHead";
@@ -276,9 +346,12 @@
       const bits = [];
       if (runs.length) bits.push(runs.length === 1 ? "1 code run" : runs.length + " code runs");
       if (pages.length) bits.push(pages.length === 1 ? "1 page read" : pages.length + " pages read");
+      if (data && data.attachment) bits.push("1 file");
+      if (data && data.deep_search) bits.push("DeepSearch");
+      if (data && data.cost_ticks) bits.push("$" + (data.cost_ticks / 1e10).toFixed(4));
       summary.textContent = bits.join(", ");
     }
-    panel.hidden = !(runs.length || pages.length);
+    panel.hidden = !(runs.length || pages.length || extra.length);
   }
 
   function setReply(text) {
@@ -799,7 +872,7 @@
   async function onSend(event) {
     if (event) event.preventDefault();
     const text = $("everyday").value.trim();
-    if (!text) {
+    if (!text && !attached) {
       const fromWave = event && event.submitter && event.submitter.id === "go";
       if (fromWave && window.simcoVoice && window.simcoVoice.toggleLive) {
         window.simcoVoice.toggleLive();
@@ -826,7 +899,10 @@
       chatRows.unshift(created.session);
       if (window.simcoVoice) window.simcoVoice.setContext(created.session);
     }
-    showMyMessage(text);
+    const sendFile = attached;
+    attached = null;
+    paintAttach();
+    showMyMessage(text || (sendFile ? "(" + sendFile.name + ")" : ""));
     $("everyday").value = "";
     $("everyday").dispatchEvent(new Event("input", { bubbles: true }));
     setReply("Working on it…");
@@ -841,7 +917,9 @@
         feature: detectIntent(text),
         voice: !!voiceTurn,
         child_id: window.simcoChildId || undefined,
-        reasoning_effort: thinkOn() ? "xhigh" : undefined
+        reasoning_effort: thinkOn() ? "xhigh" : undefined,
+        deep_search: deepOn() || undefined,
+        file: sendFile ? { name: sendFile.name, type: sendFile.type, data: sendFile.data } : undefined
       });
       showToolPanel(data);
       if (data && Array.isArray(data.sources) && data.sources.length && window.simcoPlatform) window.simcoPlatform.showSources(data.sources);
@@ -860,7 +938,7 @@
     const line = everyday || "No reply came back from Simko SI. Try again in a moment.";
     setReply(line);
     voiceReply(line);
-    await rememberTurn(text, line);
+    await rememberTurn(text || (sendFile ? "(attached " + sendFile.name + ")" : ""), line);
     await tagTurn(text);
   }
 
@@ -1310,6 +1388,8 @@
   showDemoList();
   autoConnect();
   wireThink();
+  wireDeep();
+  wireAttach();
   bootAuth();
   loadFamilyScript();
   document.addEventListener("simco:voice-saved", function (event) {

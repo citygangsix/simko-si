@@ -59,6 +59,8 @@ return [
         'calls' => false,
         'browse' => false,
         'store' => false,
+        // Code tab: owner-only coding agent (Grok engine on the xAI key; Cursor optional, dry run by default).
+        'code' => false,
     ],
     // Billing. Default is Stripe. Square stays in the code as a fallback.
     // platform.paywall stays false until Joseph turns it on. Nothing is charged
@@ -151,5 +153,19 @@ return [
         'project_ref' => 'wxvjajecvklfjxppawdx',
         'url' => '',
         'service_key' => '',
+    ],
+    // Paperclip: largest attachment in MB (max 20, Grok vision's limit).
+    'attach_max_mb' => 8,
+    // Code tab model (defaults to 'model').
+    // 'code_model' => 'grok-4.7',
+    // Optional Cursor Cloud Agents engine. Put the key here or in the CURSOR_API_KEY env var, never in public_html.
+    // A real run uses paid Cursor time: it needs allow_launch => true AND the owner confirming each run.
+    'cursor' => [
+        'api_key' => '',
+        'api_base' => 'https://api.cursor.com',
+        'repository' => 'https://github.com/citygangsix/simko-si',
+        'ref' => 'main',
+        'model' => '',
+        'allow_launch' => false,
     ],
 ];

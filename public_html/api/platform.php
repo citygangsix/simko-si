@@ -15,6 +15,7 @@ require_once __DIR__ . '/connectors.php';
 require_once __DIR__ . '/agents.php';
 require_once __DIR__ . '/team.php';
 require_once __DIR__ . '/browse.php';
+require_once __DIR__ . '/code.php';
 
 $body = simko_require_post_json();
 $op = (string) ($body['op'] ?? '');
@@ -24,7 +25,61 @@ if ($op === 'oauth-start') {
 $user = simko_require_user();
 $userId = (int) $user['id'];
 
+if (str_starts_with($op, 'code-') || $op === 'cursor-check') {
+    if (!simko_flag('code')) {
+        simko_fail(404, 'The Code tab is turned off.');
+    }
+    // Coding jobs spend on the owner's keys: owner only, refused before any outside call.
+    simko_require_grok_owner($user);
+    @set_time_limit(200);
+}
+
 switch ($op) {
+    case 'code-jobs':
+        $cursor = simko_cursor_settings();
+        simko_ok([
+            'jobs' => simko_code_list($userId),
+            'engines' => [
+                'grok' => ['ready' => true, 'model' => simko_code_model(), 'billing' => 'xAI key (owner)'],
+                'cursor' => ['ready' => $cursor['connected'], 'allow_launch' => $cursor['allow_launch'], 'billing' => 'Cursor account (paid agent time)'],
+            ],
+        ]);
+        break;
+    case 'code-start':
+        $engine = (string) ($body['engine'] ?? 'grok') === 'cursor' ? 'cursor' : 'grok';
+        $job = simko_code_start($user, (string) ($body['prompt'] ?? ''), $engine, [
+            'confirm_paid' => !empty($body['confirm_paid']),
+            'dry_run' => !empty($body['dry_run']),
+        ]);
+        simko_ok(['job' => simko_code_public($job)]);
+        break;
+    case 'code-job':
+        $job = simko_code_load($userId, (string) ($body['job_id'] ?? ''));
+        if (($job['engine'] ?? '') === 'cursor') {
+            $job = simko_cursor_refresh($job);
+        }
+        simko_ok(['job' => simko_code_public($job)]);
+        break;
+    case 'code-verify':
+        $job = simko_code_load($userId, (string) ($body['job_id'] ?? ''));
+        $job = simko_code_record_verify($job, $body['results'] ?? [], $body['errors'] ?? []);
+        simko_ok(['job' => simko_code_public($job)]);
+        break;
+    case 'code-fix':
+        $job = simko_code_fix(simko_code_load($userId, (string) ($body['job_id'] ?? '')));
+        simko_ok(['job' => simko_code_public($job)]);
+        break;
+    case 'code-zip':
+        $job = simko_code_load($userId, (string) ($body['job_id'] ?? ''));
+        if (empty($job['files'])) {
+            simko_fail(400, 'This job has no files yet.');
+        }
+        $name = (preg_replace('/[^a-z0-9\-]+/', '-', strtolower((string) ($job['title'] ?? 'project'))) ?: 'project');
+        simko_ok(['name' => trim(substr($name, 0, 40), '-') . '.zip', 'zip_b64' => base64_encode(simko_code_zip($job))]);
+        break;
+    case 'cursor-check':
+        simko_ok(['cursor' => simko_cursor_check()]);
+        break;
     case 'usage':
         if (!simko_flag('paywall')) {
             simko_fail(404, 'Usage is turned off.');

@@ -723,7 +723,7 @@ function simko_platform_names(): array
     return [
         'paywall', 'approvals', 'search', 'memory', 'routines', 'images',
         'shares', 'oauth', 'vault', 'connectors', 'agents', 'team',
-        'calls', 'browse', 'store',
+        'calls', 'browse', 'store', 'code',
     ];
 }
 
@@ -971,7 +971,30 @@ function simko_curl_json(string $url, array $payload, int $timeout = 45): array
         simko_log_upstream($result['code'], $result['error']);
         simko_fail(502, 'Simko SI could not reach Grok. Try again in a moment.');
     }
+    simko_xai_cost_note($url, $decoded);
     return $decoded;
+}
+
+/**
+ * What each xAI request actually cost (usage.cost_in_usd_ticks, 1 USD = 10^10 ticks;
+ * https://docs.x.ai/developers/cost-tracking). Kept per request and logged to data/xai-costs.log.
+ */
+function simko_xai_cost_note(string $url, array $decoded): int
+{
+    $ticks = (int) ($decoded['usage']['cost_in_usd_ticks'] ?? 0);
+    $GLOBALS['simko_xai_cost_ticks'] = (int) ($GLOBALS['simko_xai_cost_ticks'] ?? 0) + $ticks;
+    $dir = simko_private_dir() . '/data';
+    if (is_dir($dir)) {
+        $user = function_exists('simko_current_user') ? simko_current_user() : null;
+        $line = date('c') . ' ' . (int) ($user['id'] ?? 0) . ' ' . (string) parse_url($url, PHP_URL_PATH) . ' ' . $ticks . PHP_EOL;
+        @file_put_contents($dir . '/xai-costs.log', $line, FILE_APPEND);
+    }
+    return $ticks;
+}
+
+function simko_xai_cost_total(): int
+{
+    return (int) ($GLOBALS['simko_xai_cost_ticks'] ?? 0);
 }
 
 function simko_curl(string $url, string|array $fields, array $headers, int $timeout): array

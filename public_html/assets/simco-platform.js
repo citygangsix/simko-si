@@ -17,7 +17,7 @@
     }).then(function (res) { return res.json(); });
   }
   function show(id) {
-    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard", "agentBoard", "teamCard", "callCard", "browseCard", "storeCard"].forEach(function (name) {
+    ["paywallCard", "usagePage", "approvalCard", "searchCard", "memoryCard", "routineCard", "imageCard", "shareCard", "oauthCard", "vaultCard", "connectorCard", "agentBoard", "teamCard", "callCard", "browseCard", "storeCard", "codeCard"].forEach(function (name) {
       var card = $(name);
       if (card) card.hidden = name !== id;
     });
@@ -123,7 +123,226 @@
     }
     show("searchCard");
   }
+  function paintAgentTools(node, data) {
+    node.replaceChildren();
+    var bits = [];
+    var runs = data.code_runs || [];
+    var pages = (data.pages || []).filter(function (page) { return page && page.ok; });
+    var sources = data.sources || [];
+    if (runs.length) bits.push(runs.length === 1 ? "ran 1 code block" : "ran " + runs.length + " code blocks");
+    if (pages.length) bits.push(pages.length === 1 ? "read 1 page" : "read " + pages.length + " pages");
+    if (sources.length) bits.push(sources.length === 1 ? "1 source" : sources.length + " sources");
+    if (data.cost_ticks) bits.push("$" + (data.cost_ticks / 1e10).toFixed(4));
+    if (!bits.length) return;
+    var head = document.createElement("p");
+    head.textContent = "Tools: " + bits.join(", ");
+    node.appendChild(head);
+    sources.slice(0, 6).forEach(function (src) {
+      var url = typeof src === "string" ? src : (src && src.url) || "";
+      if (!/^https?:\/\//.test(url)) return;
+      var link = document.createElement("a");
+      link.href = url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = (src && src.title) || url;
+      var line = document.createElement("p");
+      line.appendChild(link);
+      node.appendChild(line);
+    });
+  }
+
+  /* Code tab: Grok writes a small static project, the browser runs it in a sandboxed iframe and tests it. */
+  var codeJob = null;
+  var codeRunId = 0;
+  function codeStatus(text) { var n = $("codeStatus"); if (n) n.textContent = text; }
+  function codeList(id, items, render) {
+    var list = $(id);
+    if (!list) return;
+    list.replaceChildren();
+    (items || []).forEach(function (item) {
+      var li = document.createElement("li");
+      render(li, item);
+      list.appendChild(li);
+    });
+  }
+  function codeHarness(runId, tests) {
+    // Runs inside the sandboxed preview (opaque origin, no site cookies). Posts results to the parent.
+    return "(function(){var RUN=" + JSON.stringify(runId) + ";var TESTS=" + JSON.stringify(tests || []).replace(/</g, "\\u003c") + ";" +
+      "var errors=[];window.addEventListener('error',function(e){errors.push(String(e.message||e.error||'error'));});" +
+      "function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}" +
+      "function find(sel){return new Promise(function(res,rej){var n=0;(function look(){var el=null;try{el=document.querySelector(sel);}catch(e){return rej(new Error('Bad selector '+sel));}if(el)return res(el);if(++n>40)return rej(new Error('Not found: '+sel));setTimeout(look,50);})();});}" +
+      "function textOf(el){return ('value' in el && el.tagName!=='BUTTON')?String(el.value):String(el.textContent||'');}" +
+      "async function step(s){if(s.action==='wait'){await sleep(Math.min(2000,Number(s.value)||200));return;}var el=await find(s.selector);" +
+      "if(s.action==='click'){el.click();await sleep(30);return;}" +
+      "if(s.action==='type'){el.focus();el.value=s.value;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));await sleep(30);return;}" +
+      "if(s.action==='expect_text'){var want=String(s.value).trim();for(var i=0;i<20;i++){var got=textOf(el).trim();if(got===want||got.indexOf(want)>=0&&want!=='')return;await sleep(50);}throw new Error('Expected \"'+want+'\" in '+s.selector+', saw \"'+textOf(el).trim().slice(0,80)+'\"');}" +
+      "throw new Error('Unknown step '+s.action);}" +
+      "async function run(){await sleep(150);var results=[];for(var t=0;t<TESTS.length;t++){var test=TESTS[t];var r={name:test.name,passed:true,detail:'passed'};" +
+      "try{for(var k=0;k<test.steps.length;k++){await step(test.steps[k]);}}catch(e){r.passed=false;r.detail=String(e.message||e);}results.push(r);}" +
+      "parent.postMessage({simkoCode:RUN,results:results,errors:errors.slice(0,10)},'*');}" +
+      "if(document.readyState==='complete')run();else window.addEventListener('load',run);})();";
+  }
+  function codeSrcdoc(job, runId) {
+    var files = {};
+    (job.files || []).forEach(function (f) { files[f.path] = f.content; });
+    var html = files[job.entry] || "";
+    var escapeScript = function (code) { return String(code).replace(/<\/script/gi, "<\\/script"); };
+    html = html.replace(/<link\b[^>]*href=["']([^"']+)["'][^>]*>/gi, function (tag, href) {
+      if (!/stylesheet/i.test(tag) || files[href] == null) return tag;
+      return "<style>" + String(files[href]).replace(/<\/style/gi, "<\\/style") + "</style>";
+    });
+    html = html.replace(/<script\b([^>]*)src=["']([^"']+)["']([^>]*)>\s*<\/script>/gi, function (tag, a, src, b) {
+      if (files[src] == null) return tag;
+      return "<script" + a + b + ">" + escapeScript(files[src]) + "</scr" + "ipt>";
+    });
+    var harness = "<script>" + escapeScript(codeHarness(runId, job.tests)) + "</scr" + "ipt>";
+    return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, harness + "</body>") : html + harness;
+  }
+  function paintCodeJob(job) {
+    codeJob = job;
+    if (!job) return;
+    var engineNote = job.engine === "cursor" ? " (Cursor)" : "";
+    codeStatus((job.title ? job.title + ": " : "") + job.status_label + engineNote + (job.cost_label ? " · xAI cost " + job.cost_label : ""));
+    codeList("codePlan", job.plan, function (li, step) { li.textContent = step; });
+    codeList("codeChecks", job.check_errors, function (li, err) { li.className = "bad"; li.textContent = err; });
+    codeList("codeTests", job.test_results, function (li, r) {
+      li.className = r.passed ? "ok" : "bad";
+      li.textContent = (r.passed ? "✓ " : "✗ ") + r.name + (r.passed ? "" : ": " + r.detail);
+    });
+    var files = job.files || [];
+    var body = $("codeFilesBody");
+    if (body) {
+      body.replaceChildren();
+      files.forEach(function (f) {
+        var h = document.createElement("p");
+        h.textContent = f.path + " · " + f.bytes + " bytes";
+        var pre = document.createElement("pre");
+        pre.textContent = f.content;
+        body.append(h, pre);
+      });
+    }
+    $("codeFiles").hidden = !files.length;
+    $("codeZip").hidden = !files.length;
+    $("codeRetest").hidden = !files.length || job.engine !== "grok";
+    $("codeFix").hidden = !(job.can_fix);
+  }
+  function runCodePreview(job) {
+    var old = $("codePreview");
+    if (!old || !job || !(job.files || []).length || job.engine !== "grok") return;
+    if (job.status === "checks_failed") { old.hidden = true; return; }
+    // A fresh sandboxed frame for every run: no state or history carries over between builds.
+    var frame = document.createElement("iframe");
+    frame.id = "codePreview";
+    frame.title = "Project preview";
+    frame.setAttribute("sandbox", "allow-scripts");
+    old.replaceWith(frame);
+    codeRunId += 1;
+    var runId = job.id + ":" + codeRunId;
+    frame.hidden = false;
+    codeStatus("Running " + (job.tests || []).length + " test(s) in the sandbox…");
+    var finished = false;
+    function onMessage(event) {
+      if (event.source !== frame.contentWindow || !event.data || event.data.simkoCode !== runId) return;
+      finished = true;
+      window.removeEventListener("message", onMessage);
+      post({ op: "code-verify", job_id: job.id, results: event.data.results, errors: event.data.errors }).then(function (data) {
+        if (data.ok) paintCodeJob(data.job); else codeStatus(data.error || "Could not save the test results.");
+      });
+    }
+    window.addEventListener("message", onMessage);
+    setTimeout(function () {
+      if (finished) return;
+      window.removeEventListener("message", onMessage);
+      post({ op: "code-verify", job_id: job.id, results: [], errors: ["The page did not finish its tests within 20 seconds."] }).then(function (data) {
+        if (data.ok) paintCodeJob(data.job);
+      });
+    }, 20000);
+    frame.srcdoc = codeSrcdoc(job, runId);
+  }
+  function loadCodeJobs() {
+    post({ op: "code-jobs" }).then(function (data) {
+      if (!data.ok) { codeStatus(data.error || "The Code tab is not available."); return; }
+      var cursor = data.engines && data.engines.cursor;
+      var opt = document.querySelector('#codeEngine option[value="cursor"]');
+      if (opt && cursor) opt.textContent = cursor.ready ? (cursor.allow_launch ? "Cursor cloud agent (paid)" : "Cursor cloud agent (dry run)") : "Cursor cloud agent (no key, dry run)";
+      codeList("codeJobs", (data.jobs || []).slice(0, 6), function (li, job) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = (job.title || job.prompt.slice(0, 40)) + " · " + job.status_label;
+        b.addEventListener("click", function () { paintCodeJob(job); if (job.status === "built" || job.status === "verified" || job.status === "tests_failed") runCodePreview(job); });
+        li.appendChild(b);
+      });
+    });
+  }
+  function bindCode() {
+    var open = $("codeOpen");
+    if (open) open.hidden = false;
+    if (!open || open.dataset.bound) return;
+    open.dataset.bound = "1";
+    open.addEventListener("click", function () { show("codeCard"); loadCodeJobs(); });
+    $("codeClose").addEventListener("click", hide);
+    $("codeForm").addEventListener("submit", function (event) {
+      event.preventDefault();
+      var prompt = $("codePrompt").value.trim();
+      if (!prompt) { codeStatus("Describe what to build first."); return; }
+      var engine = $("codeEngine").value;
+      var build = $("codeBuild");
+      build.disabled = true;
+      $("codePreview").hidden = true;
+      codeList("codeTests", [], function () {});
+      codeStatus(engine === "cursor" ? "Preparing the Cursor request (dry run, nothing is launched)…" : "Grok is planning and writing the files…");
+      post({ op: "code-start", prompt: prompt, engine: engine, dry_run: engine === "cursor" }).then(function (data) {
+        build.disabled = false;
+        if (!data.ok) { codeStatus(data.error || "The build failed."); return; }
+        paintCodeJob(data.job);
+        if (data.job.engine === "cursor") {
+          var pre = document.createElement("pre");
+          pre.textContent = JSON.stringify(data.job.cursor || {}, null, 2);
+          var body = $("codeFilesBody");
+          if (body) { body.replaceChildren(pre); $("codeFiles").hidden = false; $("codeFiles").open = true; }
+        }
+        runCodePreview(data.job);
+        loadCodeJobs();
+      }).catch(function () { build.disabled = false; codeStatus("The build request did not finish. Try again."); });
+    });
+    $("codeRetest").addEventListener("click", function () { if (codeJob) runCodePreview(codeJob); });
+    $("codeFix").addEventListener("click", function () {
+      if (!codeJob) return;
+      var btn = $("codeFix");
+      btn.disabled = true;
+      codeStatus("Grok is fixing the failures…");
+      post({ op: "code-fix", job_id: codeJob.id }).then(function (data) {
+        btn.disabled = false;
+        if (!data.ok) { codeStatus(data.error || "The fix failed."); return; }
+        paintCodeJob(data.job);
+        runCodePreview(data.job);
+      });
+    });
+    $("codeZip").addEventListener("click", function () {
+      if (!codeJob) return;
+      post({ op: "code-zip", job_id: codeJob.id }).then(function (data) {
+        if (!data.ok) { codeStatus(data.error || "The zip could not be made."); return; }
+        var bytes = Uint8Array.from(atob(data.zip_b64), function (c) { return c.charCodeAt(0); });
+        var url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = data.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      });
+    });
+    $("cursorCheck").addEventListener("click", function () {
+      post({ op: "cursor-check" }).then(function (data) {
+        var c = data.cursor || {};
+        codeStatus(data.ok ? (c.ok ? "Cursor key works" + (c.account ? " for " + c.account : "") + "." : (c.message || c.error || "No Cursor key is set up.")) : (data.error || "Could not check."));
+      });
+    });
+  }
+
   function boot() {
+    if (flags().code) bindCode();
     var searchClose = $("searchClose");
     if (flags().search && searchClose && !searchClose.dataset.bound) {
       searchClose.dataset.bound = "1";
@@ -268,12 +487,22 @@
             control = new AbortController();
             cancel.disabled = false;
             reply.textContent = "";
+            tools.replaceChildren();
+            reply.textContent = "Working on it…";
+            var started = false;
             fetch("/api/agent-stream", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ token: token(), agent_id: agent.id, text: text }),
               signal: control.signal
             }).then(function (res) {
+              var type = res.headers.get("Content-Type") || "";
+              if (!res.ok || type.indexOf("text/event-stream") < 0) {
+                cancel.disabled = true;
+                return res.json().catch(function () { return {}; }).then(function (data) {
+                  reply.textContent = data.error || ("The agent could not answer (" + res.status + ").");
+                });
+              }
               var reader = res.body && res.body.getReader ? res.body.getReader() : null;
               if (!reader) return;
               var decoder = new TextDecoder();
@@ -292,22 +521,29 @@
                     if (line.indexOf("data:") !== 0) return;
                     var data = {};
                     try { data = JSON.parse(line.slice(5)); } catch (e) { return; }
-                    if (data.agent_id !== agent.id || !data.delta) return;
+                    if (data.agent_id !== agent.id) return;
+                    if (data.error) { reply.textContent = data.error; return; }
+                    if (data.done) { paintAgentTools(tools, data); return; }
+                    if (!data.delta) return;
+                    if (!started) { reply.textContent = ""; started = true; }
                     reply.textContent += data.delta;
                   });
                   return pump();
                 });
               }
               return pump();
-            }).catch(function () {
+            }).catch(function (e) {
               cancel.disabled = true;
+              if (!(e && e.name === "AbortError") && !started) reply.textContent = "The agent could not be reached. Try again in a moment.";
             });
           });
           cancel.addEventListener("click", function () {
             if (control) control.abort();
             cancel.disabled = true;
           });
-          pane.append(title, persona, reply, box, send, cancel);
+          var tools = document.createElement("div");
+          tools.className = "agentTools";
+          pane.append(title, persona, reply, tools, box, send, cancel);
           if (index > 0) {
             var hand = document.createElement("button");
             hand.type = "button";

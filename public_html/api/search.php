@@ -72,7 +72,32 @@ function simko_reasoning_effort(mixed $raw): ?string
  * Responses API body for a search-enabled turn.
  * store is off so this stays as stateless as the old chat completions path.
  */
-function simko_search_payload(string $model, array $messages, bool $strict, ?string $effort = null): array
+function simko_deep_search_instructions(): string
+{
+    return 'DeepSearch mode: research this properly before answering. Run several different searches '
+        . '(at least three, using both web search and X search where it helps), open the most relevant results, '
+        . 'and cross-check facts between sources. Then answer with: a two-line summary, the key findings as short '
+        . 'bullet points with the source for each, and anything that is uncertain or disputed. Use everyday English.';
+}
+
+/** How many web and X searches the model ran for this answer. */
+function simko_search_call_count(array $data): array
+{
+    $web = 0;
+    $x = 0;
+    foreach ((array) ($data['output'] ?? []) as $item) {
+        $type = is_array($item) ? (string) ($item['type'] ?? '') : '';
+        if ($type === 'web_search_call') {
+            $web++;
+        } elseif ($type === 'x_search_call') {
+            $x++;
+        }
+    }
+    $used = $data['usage']['num_server_side_tools_used'] ?? null;
+    return ['web' => $web, 'x' => $x, 'server_tools_used' => is_int($used) ? $used : null];
+}
+
+function simko_search_payload(string $model, array $messages, bool $strict, ?string $effort = null, bool $deep = false): array
 {
     $payload = [
         'model' => $model,

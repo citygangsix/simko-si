@@ -6,11 +6,17 @@ require_once __DIR__ . '/usage.php';
 require_once __DIR__ . '/search.php';
 require_once __DIR__ . '/recall.php';
 require_once __DIR__ . '/browse.php';
+require_once __DIR__ . '/files.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
 simko_require_grok_owner($user);
 $text = trim((string) ($body['text'] ?? ''));
+// Paperclip: one picture (Grok vision) or one PDF/text file (read here for Q&A).
+$file = isset($body['file']) && $body['file'] !== null ? simko_attachment_read($body['file']) : null;
+if ($text === '' && $file !== null) {
+    $text = $file['kind'] === 'image' ? 'What is in this picture?' : 'Summarize this file in a few lines.';
+}
 if ($text === '') {
     simko_fail(400, 'Type a message, then Send.');
 }
@@ -99,8 +105,21 @@ if (simko_flag('browse') && empty($body['child_id'])) {
     }
 }
 $effort = simko_reasoning_effort($body['reasoning_effort'] ?? null);
+if ($file !== null) {
+    $spoken .= simko_attach_prompt($file);
+}
+// DeepSearch: several web and X searches, cross-checked, with a sources list.
+$deep = !empty($body['deep_search']) && simko_flag('search') && !$strictSearch;
+if ($deep) {
+    $messages[0]['content'] .= "\n\n" . simko_deep_search_instructions();
+    if ($effort === null) {
+        $effort = 'high';
+    }
+}
 
-$messages[] = ['role' => 'user', 'content' => $spoken];
+$messages[] = ['role' => 'user', 'content' => simko_flag('search')
+    ? simko_attach_responses_content($spoken, $file)
+    : simko_attach_chat_content($spoken, $file)];
 if (count($messages) > 41) {
     $messages = array_merge([$messages[0]], array_slice($messages, -40));
 }
@@ -113,12 +132,15 @@ if ($timeout < 5) {
 if (simko_flag('search') && $timeout < 90) {
     $timeout = 90;
 }
+if ($deep && $timeout < 240) {
+    $timeout = 240;
+}
 @set_time_limit($timeout + 5);
 
 if (simko_flag('search')) {
     $data = simko_curl_json(
         simko_xai_url('responses'),
-        simko_search_payload($model, $messages, $strictSearch, $effort),
+        simko_search_payload($model, $messages, $strictSearch, $effort, $deep),
         $timeout
     );
 } else {
@@ -154,5 +176,13 @@ if (simko_flag('search')) {
 if ($pages !== []) {
     $payload['pages'] = $pages;
 }
+if ($file !== null) {
+    $payload['attachment'] = simko_attach_summary($file);
+}
+if ($deep) {
+    $payload['deep_search'] = true;
+    $payload['search_calls'] = simko_search_call_count($data);
+}
+$payload['cost_ticks'] = simko_xai_cost_total();
 $payload['reasoning_effort'] = $effort ?? 'default';
 simko_ok($payload);
