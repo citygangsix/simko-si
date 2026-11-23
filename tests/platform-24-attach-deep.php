@@ -57,7 +57,9 @@ platform_assert($calls() === $before, 'no xAI call for the refused upload');
 
 $deep = platform_api($sitePort, '/api/simco/turn', ['text' => 'Latest on reef restoration?', 'deep_search' => true], $tok);
 platform_assert($deep['status'] === 200 && str_starts_with((string) ($deep['data']['everyday'] ?? ''), '[deep] '), 'DeepSearch adds its research instructions');
-platform_assert(!empty($deep['data']['deep_search']) && ($deep['data']['reasoning_effort'] ?? '') === 'high', 'DeepSearch defaults to high effort');
+platform_assert(!empty($deep['data']['deep_search']) && ($deep['data']['reasoning_effort'] ?? '') === 'medium', 'DeepSearch defaults to the multi-agent model with 4 agents (medium effort)');
+$deepThink = platform_api($sitePort, '/api/simco/turn', ['text' => 'Latest on reef restoration?', 'deep_search' => true, 'reasoning_effort' => 'xhigh'], $tok);
+platform_assert(($deepThink['data']['reasoning_effort'] ?? '') === 'high', 'DeepSearch with Think uses 16 agents (high effort)');
 $urls = array_map(static fn($s) => is_array($s) ? ($s['url'] ?? '') : $s, $deep['data']['sources'] ?? []);
 platform_assert(in_array('https://example.com/second', $urls, true) && count($urls) >= 2, 'DeepSearch sources are listed');
 platform_assert((int) ($deep['data']['search_calls']['web'] ?? 0) >= 1 && (int) ($deep['data']['search_calls']['x'] ?? 0) >= 1, 'DeepSearch reports its web and X search counts');
