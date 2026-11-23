@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Simko SI</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { min-height: 100dvh; display: grid; place-items: center; background: radial-gradient(120% 90% at 50% 0%, #0b3a52 0%, #03141c 70%); color: #e8f4f2;
+    font: 17px/1.5 -apple-system, "SF Pro Text", Georgia, serif; padding: max(1.5rem, env(safe-area-inset-top)) 1.5rem max(1.5rem, env(safe-area-inset-bottom)); box-sizing: border-box; text-align: center; }
+  main { max-width: 22rem; }
+  img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  h1 { font-size: 1.4rem; font-weight: 600; margin: 1.1rem 0 .4rem; }
+  p { margin: 0 0 1.4rem; color: #b9d3d0; }
+  button { min-height: 50px; min-width: 170px; padding: 0 1.4rem; border-radius: 999px; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12); color: inherit; font: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <img src="icon-192.png" alt=""/>
+  <h1>You're offline</h1>
+  <p>Simko SI needs an internet connection to talk to Grok. Your chats are saved on your account and will be here when you reconnect.</p>
+  <button type="button" id="retry">Try again</button>
+</main>
+<script>
+  var go = function () { location.href = 'https://simkosi.com/?source=ios'; };
+  document.getElementById('retry').addEventListener('click', function () {
+    try { window.Capacitor && window.Capacitor.Plugins.Haptics && window.Capacitor.Plugins.Haptics.impact({ style: 'MEDIUM' }); } catch (e) {}
+    go();
+  });
+  window.addEventListener('online', go);
+  try {
+    var Net = window.Capacitor && window.Capacitor.Plugins.Network;
+    if (Net) Net.addListener('networkStatusChange', function (s) { if (s.connected) go(); });
+  } catch (e) {}
+</script>
+</body>
+</html>

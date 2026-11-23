@@ -1,0 +1,24 @@
+{
+  "appId": "com.simkosi.app",
+  "appName": "Simko SI",
+  "webDir": "www",
+  "server": {
+    "url": "https://simkosi.com/?source=ios",
+    "iosScheme": "https",
+    "cleartext": false,
+    "errorPath": "offline.html",
+    "allowNavigation": ["simkosi.com", "appleid.apple.com"]
+  },
+  "ios": {
+    "appendUserAgent": "SimkoSIApp-iOS",
+    "contentInset": "never",
+    "backgroundColor": "#03141c",
+    "scrollEnabled": true,
+    "allowsLinkPreview": false
+  },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 600, "launchAutoHide": true, "backgroundColor": "#03141c", "showSpinner": false },
+    "StatusBar": { "style": "DARK", "overlaysWebView": true },
+    "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] }
+  }
+}
