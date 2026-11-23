@@ -67,3 +67,16 @@ Options -Indexes
     Deny from all
   </IfModule>
 </FilesMatch>
+
+# PWA + store app files (mobile-store branch)
+AddType application/manifest+json .webmanifest
+<IfModule mod_headers.c>
+  <FilesMatch "^(sw\.js|manifest\.webmanifest|offline\.html)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "^(assetlinks\.json|apple-app-site-association)$">
+    Header set Content-Type "application/json"
+    Header set Cache-Control "public, max-age=3600"
+    Header set Access-Control-Allow-Origin "*"
+  </FilesMatch>
+</IfModule>
