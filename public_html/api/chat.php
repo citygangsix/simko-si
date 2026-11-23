@@ -92,6 +92,10 @@ if ($chat) {
     }
 }
 $spoken = $text;
+if (isset($langs[$lang])) {
+    // Repeated next to the message: models follow a nearby note more reliably than a system line.
+    $spoken .= "\n\n[Reply in " . $langs[$lang] . '.]';
+}
 if ($feature !== '') {
     $spoken .= "\n\nThe person is on a " . $feature . " step. Answer in everyday words.";
 }
