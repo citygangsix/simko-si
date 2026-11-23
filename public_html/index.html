@@ -380,6 +380,29 @@
   #micButton[data-state="thinking"] { opacity: 0.75; }
   #micButton[data-state="speaking"] { background: rgba(64, 196, 210, 0.45); border-color: rgba(160, 240, 245, 0.85); }
   #micButton[data-state="off"] { opacity: 0.45; }
+  #thinkToggle {
+    flex: none;
+    height: 2.9rem;
+    padding: 0 0.8rem;
+    font-size: 0.85rem;
+    line-height: 1;
+    opacity: 0.7;
+  }
+  #thinkToggle[aria-pressed="true"] { opacity: 1; background: rgba(64, 196, 210, 0.45); border-color: rgba(160, 240, 245, 0.85); }
+  #toolRuns {
+    width: min(40rem, 86%);
+    margin: 0.6rem auto 0 0;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    border: 1px solid rgba(243, 230, 216, 0.3);
+    border-radius: 1rem;
+    padding: 0.6rem 0.9rem;
+    box-sizing: border-box;
+    font-size: 0.9rem;
+  }
+  #toolRuns summary { cursor: pointer; color: #f3e6d8; }
+  #toolRuns .toolHead { margin: 0.6rem 0 0.25rem; color: #f3e6d8; }
+  #toolRuns pre { margin: 0; padding: 0.55rem 0.7rem; background: rgba(0, 0, 0, 0.35); border-radius: 0.6rem; white-space: pre-wrap; word-break: break-word; max-height: 16rem; overflow: auto; font-size: 0.82rem; }
   #go {
     flex: none;
     min-height: 2.9rem;
@@ -1591,11 +1614,13 @@
     <div id="reply-bubble" aria-label="Reply" data-placeholder="Reply"></div>
     <button id="replySpeak" type="button" class="speakReply" aria-label="Play reply"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16.5 8.5a4.5 4.5 0 010 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
   </div>
+  <details id="toolRuns" hidden><summary>Tools: <span id="toolRunsSummary"></span></summary><div id="toolRunsBody"></div></details>
 </main>
 <form id="composer">
   <p id="micHint" aria-live="polite" hidden></p>
   <div id="input-bubble">
     <textarea id="everyday" rows="1" placeholder="Type everyday English"></textarea>
+    <button id="thinkToggle" type="button" aria-pressed="false" aria-label="Think: reason longer before answering" title="Think is off">Think</button>
     <button id="micButton" type="button" data-state="idle" aria-label="Talk to Simko SI" title="Talk to Simko SI"><span class="micGlyph" aria-hidden="true">🎙</span></button>
     <button id="go" type="submit" aria-label="Start voice conversation">
       <span class="goLabel">Send</span>
@@ -1622,7 +1647,7 @@
 </script>
 <script src="/assets/theme-host.js?v=971b21ff3edd"></script>
 <script src="/assets/simco-voice.js?v=voice-bots-20261108-v6"></script>
-<script src="/assets/simco-app.js?v=voice-bots-20261108-v5"></script>
+<script src="/assets/simco-app.js?v=quickwins-20261123"></script>
 
 </body>
 </html>

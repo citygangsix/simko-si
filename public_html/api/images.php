@@ -6,8 +6,8 @@ require_once __DIR__ . '/usage.php';
 
 function simko_image_model(): string
 {
-    $model = trim((string) (simko_config_or_empty()['image_model'] ?? 'grok-2-image'));
-    return $model !== '' ? $model : 'grok-2-image';
+    $model = trim((string) (simko_config_or_empty()['image_model'] ?? 'grok-imagine-image-2.0'));
+    return $model !== '' ? $model : 'grok-imagine-image-2.0';
 }
 
 function simko_image_blocked(string $prompt, bool $kid): bool

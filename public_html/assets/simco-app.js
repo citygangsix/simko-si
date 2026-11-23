@@ -218,6 +218,69 @@
   const SPEAKER_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16.5 8.5a4.5 4.5 0 010 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
   let replyAudio = null;
 
+  // Think toggle: on asks Grok for its deepest reasoning (xhigh); off leaves the server default.
+  function thinkOn() {
+    const button = $("thinkToggle");
+    return !!(button && button.getAttribute("aria-pressed") === "true");
+  }
+  function wireThink() {
+    const button = $("thinkToggle");
+    if (!button || button.dataset.wired) return;
+    button.dataset.wired = "1";
+    const paint = function (on) {
+      button.setAttribute("aria-pressed", on ? "true" : "false");
+      button.title = on ? "Think is on: Grok reasons longer" : "Think is off";
+    };
+    let saved = false;
+    try { saved = localStorage.getItem("simko.think") === "1"; } catch (e) {}
+    paint(saved);
+    button.addEventListener("click", function () {
+      const on = !thinkOn();
+      paint(on);
+      try { localStorage.setItem("simko.think", on ? "1" : "0"); } catch (e) {}
+    });
+  }
+  // Code Grok ran in its sandbox, and pages read from links in the message.
+  function showToolPanel(data) {
+    const panel = $("toolRuns");
+    if (!panel) return;
+    const body = $("toolRunsBody");
+    body.replaceChildren();
+    const runs = (data && Array.isArray(data.code_runs)) ? data.code_runs : [];
+    const pages = (data && Array.isArray(data.pages)) ? data.pages : [];
+    runs.forEach(function (run, i) {
+      const head = document.createElement("p");
+      head.className = "toolHead";
+      head.textContent = runs.length > 1 ? "Code run " + (i + 1) : "Code Grok ran";
+      const code = document.createElement("pre");
+      code.className = "toolCode";
+      code.textContent = run.code || "(no code shown)";
+      const outHead = document.createElement("p");
+      outHead.className = "toolHead";
+      outHead.textContent = "Output";
+      const out = document.createElement("pre");
+      out.className = "toolOut";
+      out.textContent = run.output || "(no printed output)";
+      body.append(head, code, outHead, out);
+    });
+    pages.forEach(function (page) {
+      const line = document.createElement("p");
+      line.className = "toolHead";
+      line.textContent = page.ok
+        ? "Read " + (page.title ? page.title + " (" + page.url + ")" : page.url) + ", " + page.chars + " characters"
+        : "Could not read " + page.url + ": " + (page.error || "error");
+      body.append(line);
+    });
+    const summary = $("toolRunsSummary");
+    if (summary) {
+      const bits = [];
+      if (runs.length) bits.push(runs.length === 1 ? "1 code run" : runs.length + " code runs");
+      if (pages.length) bits.push(pages.length === 1 ? "1 page read" : pages.length + " pages read");
+      summary.textContent = bits.join(", ");
+    }
+    panel.hidden = !(runs.length || pages.length);
+  }
+
   function setReply(text) {
     const reply = $("reply-bubble");
     reply.textContent = text || "";
@@ -767,6 +830,7 @@
     $("everyday").value = "";
     $("everyday").dispatchEvent(new Event("input", { bubbles: true }));
     setReply("Working on it…");
+    showToolPanel(null);
     let everyday = "";
     try {
       if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace("turn_sent");
@@ -776,8 +840,10 @@
         session_id: activeSessionId || "",
         feature: detectIntent(text),
         voice: !!voiceTurn,
-        child_id: window.simcoChildId || undefined
+        child_id: window.simcoChildId || undefined,
+        reasoning_effort: thinkOn() ? "xhigh" : undefined
       });
+      showToolPanel(data);
       if (data && Array.isArray(data.sources) && data.sources.length && window.simcoPlatform) window.simcoPlatform.showSources(data.sources);
       if (data && data.paywall) {
         if (window.simcoPlatform) window.simcoPlatform.showPaywall(data);
@@ -1243,6 +1309,7 @@
   armTurtleMotion();
   showDemoList();
   autoConnect();
+  wireThink();
   bootAuth();
   loadFamilyScript();
   document.addEventListener("simco:voice-saved", function (event) {

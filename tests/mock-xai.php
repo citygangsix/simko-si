@@ -94,6 +94,13 @@ if ($path === '/v1/responses') {
         $text .= ' [remembered]';
     }
     $reply = 'The reef heard you: ' . $text;
+    if (str_contains($text, 'ECHOTOOLS')) {
+        $types = [];
+        foreach ($body['tools'] ?? [] as $tool) {
+            $types[] = is_array($tool) ? (string) ($tool['type'] ?? '') : '';
+        }
+        $reply .= ' [tools:' . implode(',', $types) . '] [effort:' . (string) ($body['reasoning']['effort'] ?? 'none') . ']';
+    }
     $payload = [
         'id' => 'mock-response',
         'object' => 'response',
@@ -110,6 +117,16 @@ if ($path === '/v1/responses') {
             ]],
         ]],
     ];
+    foreach ($body['tools'] ?? [] as $tool) {
+        if (is_array($tool) && ($tool['type'] ?? '') === 'code_interpreter' && str_contains($text, 'ECHOTOOLS')) {
+            array_unshift($payload['output'], [
+                'type' => 'code_interpreter_call',
+                'status' => 'completed',
+                'code' => 'print(6 * 7)',
+                'outputs' => [['type' => 'logs', 'logs' => '42']],
+            ]);
+        }
+    }
     $hasSearch = false;
     foreach ($body['tools'] ?? [] as $tool) {
         if (is_array($tool) && ($tool['type'] ?? '') === 'web_search') {

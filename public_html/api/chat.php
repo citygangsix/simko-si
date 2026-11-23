@@ -5,6 +5,7 @@ require __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/usage.php';
 require_once __DIR__ . '/search.php';
 require_once __DIR__ . '/recall.php';
+require_once __DIR__ . '/browse.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -79,6 +80,26 @@ if (simko_flag('search') && simko_search_blocked($text, $strictSearch)) {
         : 'That search is blocked.');
 }
 
+// Page reading: only links the owner pasted into this message, never links found on a page.
+$pages = [];
+if (simko_flag('browse') && empty($body['child_id'])) {
+    foreach (simko_browse_pasted_urls($text, 2) as $url) {
+        $page = simko_browse_read($url, 6000);
+        $pages[] = [
+            'url' => (string) $page['url'],
+            'ok' => !empty($page['ok']),
+            'title' => (string) ($page['title'] ?? ''),
+            'chars' => !empty($page['ok']) ? simko_len((string) $page['text']) : 0,
+            'error' => (string) ($page['error'] ?? ''),
+        ];
+        $spoken .= !empty($page['ok'])
+            ? "\n\n[Text of the page at " . $page['url'] . ", fetched by Simko SI because the person pasted this link"
+                . (($page['title'] ?? '') !== '' ? ' (title: ' . $page['title'] . ')' : '') . "]\n" . $page['text'] . "\n[End of page text]"
+            : "\n\n[Simko SI could not read " . $url . ': ' . $page['error'] . ']';
+    }
+}
+$effort = simko_reasoning_effort($body['reasoning_effort'] ?? null);
+
 $messages[] = ['role' => 'user', 'content' => $spoken];
 if (count($messages) > 41) {
     $messages = array_merge([$messages[0]], array_slice($messages, -40));
@@ -97,15 +118,19 @@ if (simko_flag('search') && $timeout < 90) {
 if (simko_flag('search')) {
     $data = simko_curl_json(
         simko_xai_url('responses'),
-        simko_search_payload($model, $messages, $strictSearch),
+        simko_search_payload($model, $messages, $strictSearch, $effort),
         $timeout
     );
 } else {
-    $data = simko_curl_json(simko_xai_url('chat/completions'), [
+    $completion = [
         'model' => $model,
         'stream' => false,
         'messages' => $messages,
-    ], $timeout);
+    ];
+    if ($effort !== null) {
+        $completion['reasoning_effort'] = $effort;
+    }
+    $data = simko_curl_json(simko_xai_url('chat/completions'), $completion, $timeout);
 }
 $reply = simko_choice_text($data);
 if ($reply === '') {
@@ -124,5 +149,10 @@ $payload = [
 ];
 if (simko_flag('search')) {
     $payload['sources'] = simko_search_sources($data, $strictSearch);
+    $payload['code_runs'] = simko_search_code_runs($data);
 }
+if ($pages !== []) {
+    $payload['pages'] = $pages;
+}
+$payload['reasoning_effort'] = $effort ?? 'default';
 simko_ok($payload);

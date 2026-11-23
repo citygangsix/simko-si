@@ -119,6 +119,7 @@ switch ($op) {
         if (!simko_flag('browse')) {
             simko_fail(404, 'Page reading is turned off.');
         }
+        simko_require_grok_owner($user);
         simko_ok(simko_browse_fetch((string) ($body['url'] ?? '')));
         break;
     case 'call-status':
