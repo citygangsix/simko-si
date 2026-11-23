@@ -11,7 +11,8 @@ $now = time();
 $saved = platform_api($sitePort, '/api/platform', [
     'op' => 'save-routine',
     'kind' => 'bedtime',
-    'hour' => (int) date('G', $now),
+    'hour' => (int) (new DateTimeImmutable('@' . $now))->setTimezone(new DateTimeZone('America/New_York'))->format('G'),
+    'tz' => 'America/New_York',
     'minute' => 0,
 ], $user['token']);
 platform_assert($saved['status'] === 200 && ($saved['data']['routine']['kind'] ?? '') === 'bedtime', 'bedtime routine is saved');

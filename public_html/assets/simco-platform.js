@@ -897,7 +897,8 @@
             op: "save-routine",
             kind: $("routineKind").value,
             hour: Number($("routineHour").value),
-            minute: Number($("routineMinute").value)
+            minute: Number($("routineMinute").value),
+            tz: (function () { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } })()
           }).then(function () {
             post({ op: "routines" }).then(function (data) { if (data.ok) paintRoutines(data); });
           });

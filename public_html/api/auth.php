@@ -111,14 +111,22 @@ function simko_signin(array $body): void
     if ($password === '') {
         simko_fail(401, 'Email or password does not match.');
     }
+    $limits = simko_throttle_settings();
+    $ipBucket = 'ip:' . simko_client_net();
+    $acctBucket = 'acct:' . $email;
+    simko_throttle_check($ipBucket, $limits['ip'], $limits['window']);
+    simko_throttle_check($acctBucket, $limits['account'], $limits['window']);
     $stmt = simko_db()->prepare('SELECT id, email, password_hash FROM users WHERE email = ?');
     $stmt->execute([$email]);
     $row = $stmt->fetch();
     $hash = is_array($row) ? (string) $row['password_hash'] : SIMKO_DUMMY_HASH;
     $matches = password_verify($password, $hash);
     if (!$row || !$matches) {
+        simko_throttle_hit($ipBucket);
+        simko_throttle_hit($acctBucket);
         simko_fail(401, 'Email or password does not match.');
     }
+    simko_throttle_clear($acctBucket);
     $token = simko_issue_token((int) $row['id']);
     simko_supabase_hook('signin', ['id' => (int) $row['id'], 'email' => $row['email']]);
     simko_ok(['token' => $token, 'email' => $row['email']]);
@@ -158,11 +166,15 @@ function simko_confirm(array $body): void
     if ($token === '') {
         simko_fail(400, 'Enter the confirm code first.');
     }
+    $limits = simko_throttle_settings();
+    $codeBucket = 'code:' . simko_client_net();
+    simko_throttle_check($codeBucket, $limits['ip'], $limits['window']);
     $stmt = simko_db()->prepare(
         'UPDATE users SET confirmed = 1, confirm_token = NULL WHERE confirm_token = ?'
     );
     $stmt->execute([$token]);
     if ($stmt->rowCount() < 1) {
+        simko_throttle_hit($codeBucket);
         simko_fail(400, 'Confirm failed.');
     }
     simko_ok();
@@ -171,6 +183,10 @@ function simko_confirm(array $body): void
 function simko_request_reset(array $body): void
 {
     $email = simko_email($body);
+    $limits = simko_throttle_settings();
+    $sendBucket = 'resetreq:' . simko_client_net();
+    simko_throttle_check($sendBucket, $limits['reset_ip'], 3600);
+    simko_throttle_hit($sendBucket);
     $db = simko_db();
     $stmt = $db->prepare('SELECT id FROM users WHERE email = ?');
     $stmt->execute([$email]);
@@ -203,11 +219,15 @@ function simko_reset_password(array $body): void
     if ($token === '') {
         simko_fail(400, 'Reset failed.');
     }
+    $limits = simko_throttle_settings();
+    $codeBucket = 'code:' . simko_client_net();
+    simko_throttle_check($codeBucket, $limits['ip'], $limits['window']);
     $db = simko_db();
     $stmt = $db->prepare('SELECT id FROM users WHERE reset_token = ? AND reset_expires > ?');
     $stmt->execute([$token, time()]);
     $row = $stmt->fetch();
     if (!$row) {
+        simko_throttle_hit($codeBucket);
         simko_fail(400, 'Reset failed.');
     }
     $update = $db->prepare(

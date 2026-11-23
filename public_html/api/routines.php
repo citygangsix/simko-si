@@ -35,13 +35,25 @@ function simko_routine_save(int $userId, array $body): array
         simko_fail(400, 'Pick an hour and a minute.');
     }
     $childId = simko_requested_child($userId, $body);
+    $tz = simko_routine_tz((string) ($body['tz'] ?? ''));
     $now = time();
     $stmt = simko_db()->prepare(
-        'INSERT INTO routines (user_id, child_profile_id, kind, hour, minute, enabled, last_run, created_at)
-         VALUES (?, ?, ?, ?, ?, 1, 0, ?)'
+        'INSERT INTO routines (user_id, child_profile_id, kind, hour, minute, enabled, last_run, created_at, tz)
+         VALUES (?, ?, ?, ?, ?, 1, 0, ?, ?)'
     );
-    $stmt->execute([$userId, $childId, $kind, $hour, $minute, $now]);
-    return ['id' => (int) simko_db()->lastInsertId(), 'kind' => $kind, 'label' => $kinds[$kind], 'hour' => $hour, 'minute' => $minute];
+    $stmt->execute([$userId, $childId, $kind, $hour, $minute, $now, $tz]);
+    return ['id' => (int) simko_db()->lastInsertId(), 'kind' => $kind, 'label' => $kinds[$kind], 'hour' => $hour, 'minute' => $minute, 'tz' => $tz];
+}
+
+/** A routine's clock: the browser's time zone when valid, else config routines_timezone. */
+function simko_routine_tz(string $tz): string
+{
+    $tz = trim($tz);
+    if ($tz !== '' && in_array($tz, timezone_identifiers_list(), true)) {
+        return $tz;
+    }
+    $fallback = (string) (simko_config_or_empty()['routines_timezone'] ?? 'America/New_York');
+    return in_array($fallback, timezone_identifiers_list(), true) ? $fallback : 'America/New_York';
 }
 
 function simko_routine_rows(int $userId): array
@@ -83,17 +95,20 @@ function simko_routines_run(?int $now = null): int
 {
     require_once __DIR__ . '/smtp.php';
     $now = $now ?? time();
-    $hour = (int) date('G', $now);
-    $minute = (int) date('i', $now);
-    $day = date('Y-m-d', $now);
-    $stmt = simko_db()->query('SELECT r.id, r.user_id, r.child_profile_id, r.kind, r.hour, r.minute, r.last_run, u.email
+    // The worker runs every few minutes; a routine is due once its time today has
+    // passed (in its own time zone) and it has not run since. Catch up for 6 hours at most.
+    $catchUp = 6 * 3600;
+    $stmt = simko_db()->query('SELECT r.id, r.user_id, r.child_profile_id, r.kind, r.hour, r.minute, r.last_run, r.tz, r.created_at, u.email
         FROM routines r JOIN users u ON u.id = r.user_id WHERE r.enabled = 1');
     $count = 0;
     foreach ($stmt->fetchAll() as $row) {
-        if ((int) $row['hour'] !== $hour || (int) $minute < (int) $row['minute']) {
-            continue;
+        $zone = new DateTimeZone(simko_routine_tz((string) ($row['tz'] ?? '')));
+        $local = (new DateTimeImmutable('@' . $now))->setTimezone($zone);
+        $due = $local->setTime((int) $row['hour'], (int) $row['minute'])->getTimestamp();
+        if ($due > $now) {
+            $due = $local->modify('-1 day')->setTime((int) $row['hour'], (int) $row['minute'])->getTimestamp();
         }
-        if ($row['last_run'] && date('Y-m-d', (int) $row['last_run']) === $day) {
+        if ($now - $due > $catchUp || (int) $row['last_run'] >= $due || (int) $row['created_at'] > $due + 3600) {
             continue;
         }
         $name = 'there';

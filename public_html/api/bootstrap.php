@@ -170,6 +170,13 @@ function simko_api_key(): string
 
 function simko_xai_url(string $path): string
 {
+    simko_spend_guard();
+    return simko_xai_url_plain($path);
+}
+
+/** The xAI URL without the spend check, for logging. */
+function simko_xai_url_plain(string $path): string
+{
     $base = rtrim((string) (simko_config()['xai_base_url'] ?? 'https://api.x.ai/v1'), '/');
     return $base . '/' . ltrim($path, '/');
 }
@@ -683,6 +690,24 @@ function simko_migrate(PDO $db): void
             PRIMARY KEY (user_id, provider)
         )'
     );
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS auth_throttle (
+            bucket TEXT NOT NULL,
+            at INTEGER NOT NULL
+        )'
+    );
+    $db->exec('CREATE INDEX IF NOT EXISTS auth_throttle_bucket ON auth_throttle (bucket, at)');
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS xai_spend (
+            day TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            ticks INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (day, user_id)
+        )'
+    );
+    simko_add_column($db, 'chats', 'voice_id', 'TEXT NULL');
+    simko_add_column($db, 'agents', 'voice_id', 'TEXT NULL');
+    simko_add_column($db, 'routines', 'tz', 'TEXT NULL');
     simko_add_column($db, 'oauth_states', 'nonce', 'TEXT');
     simko_add_column($db, 'oauth_identities', 'email_relay', 'INTEGER NOT NULL DEFAULT 0');
 }
@@ -691,7 +716,9 @@ function simko_add_column(PDO $db, string $table, string $column, string $defini
 {
     $allowed = [
         'users' => ['role' => true, 'parent_consent_at' => true],
-        'chats' => ['child_profile_id' => true],
+        'chats' => ['child_profile_id' => true, 'voice_id' => true],
+        'agents' => ['voice_id' => true],
+        'routines' => ['tz' => true],
         'oauth_states' => ['nonce' => true],
         'oauth_identities' => ['email_relay' => true],
         'subscriptions' => [
@@ -988,6 +1015,7 @@ function simko_xai_cost_note(string $url, array $decoded): int
 {
     $ticks = (int) ($decoded['usage']['cost_in_usd_ticks'] ?? 0);
     $GLOBALS['simko_xai_cost_ticks'] = (int) ($GLOBALS['simko_xai_cost_ticks'] ?? 0) + $ticks;
+    simko_spend_add($ticks);
     $dir = simko_private_dir() . '/data';
     if (is_dir($dir)) {
         $user = function_exists('simko_current_user') ? simko_current_user() : null;
@@ -1045,4 +1073,183 @@ function simko_log_upstream(int $code, string $error): void
     }
     $line = date('c') . ' upstream ' . $code . ' ' . preg_replace('/\s+/', ' ', $error) . PHP_EOL;
     @file_put_contents($dir . '/error.log', $line, FILE_APPEND);
+}
+/**
+ * Sign-in throttle. Failed guesses are logged per bucket (an account email,
+ * or a client network) and a bucket over its limit is refused until its
+ * oldest failure in the window ages out. Limits live in config 'throttle'.
+ */
+function simko_throttle_settings(): array
+{
+    $cfg = simko_config_or_empty()['throttle'] ?? [];
+    $cfg = is_array($cfg) ? $cfg : [];
+    return [
+        'window' => max(60, (int) ($cfg['window_seconds'] ?? 900)),
+        'account' => max(1, (int) ($cfg['account_failures'] ?? 5)),
+        'ip' => max(1, (int) ($cfg['ip_failures'] ?? 20)),
+        'reset_ip' => max(1, (int) ($cfg['reset_requests_per_ip_hour'] ?? 20)),
+    ];
+}
+
+function simko_client_net(): string
+{
+    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        $bin = inet_pton($ip);
+        if ($bin !== false) {
+            // One person usually owns a whole /64, so count it as one network.
+            return bin2hex(substr($bin, 0, 8)) . '::/64';
+        }
+    }
+    return $ip === '' ? 'unknown' : $ip;
+}
+
+function simko_throttle_count(string $bucket, int $window): array
+{
+    $stmt = simko_db()->prepare('SELECT COUNT(*) AS n, MIN(at) AS first FROM auth_throttle WHERE bucket = ? AND at > ?');
+    $stmt->execute([$bucket, time() - $window]);
+    $row = $stmt->fetch() ?: [];
+    return [(int) ($row['n'] ?? 0), (int) ($row['first'] ?? 0)];
+}
+
+function simko_throttle_check(string $bucket, int $limit, int $window): void
+{
+    [$n, $first] = simko_throttle_count($bucket, $window);
+    if ($n >= $limit) {
+        $wait = max(60, $first + $window - time());
+        $minutes = (int) ceil($wait / 60);
+        header('Retry-After: ' . $wait);
+        simko_fail(429, 'Too many attempts. Try again in ' . $minutes . ' minute' . ($minutes === 1 ? '' : 's') . ', or reset your password.');
+    }
+}
+
+function simko_throttle_hit(string $bucket): void
+{
+    $db = simko_db();
+    $db->prepare('INSERT INTO auth_throttle (bucket, at) VALUES (?, ?)')->execute([$bucket, time()]);
+    if (random_int(1, 50) === 1) {
+        $db->prepare('DELETE FROM auth_throttle WHERE at < ?')->execute([time() - 86400]);
+    }
+}
+
+function simko_throttle_clear(string $bucket): void
+{
+    simko_db()->prepare('DELETE FROM auth_throttle WHERE bucket = ?')->execute([$bucket]);
+}
+
+/**
+ * Daily xAI spend caps, checked before every xAI request (simko_xai_url) and
+ * counted from each reply's usage.cost_in_usd_ticks (1 USD = 10^10 ticks).
+ * The day runs midnight to midnight in spend_caps.timezone.
+ *
+ * simkosi-private/config.php:
+ *   'spend_caps' => [
+ *       'owner_daily_usd' => 5.0,   // each owner account, per day
+ *       'user_daily_usd' => 1.0,    // each other account (paid image grant), per day
+ *       'site_daily_usd' => 10.0,   // everyone together, per day
+ *       'timezone' => 'America/New_York',
+ *   ],
+ */
+const SIMKO_TICKS_PER_USD = 10000000000;
+
+function simko_spend_caps(): array
+{
+    $raw = simko_config_or_empty()['spend_caps'] ?? [];
+    $raw = is_array($raw) ? $raw : [];
+    $tz = (string) ($raw['timezone'] ?? 'America/New_York');
+    if (!in_array($tz, timezone_identifiers_list(), true)) {
+        $tz = 'America/New_York';
+    }
+    return [
+        'owner' => max(0.0, (float) ($raw['owner_daily_usd'] ?? 5.0)),
+        'user' => max(0.0, (float) ($raw['user_daily_usd'] ?? 1.0)),
+        'site' => max(0.0, (float) ($raw['site_daily_usd'] ?? 10.0)),
+        'timezone' => $tz,
+    ];
+}
+
+function simko_spend_day(): string
+{
+    return (new DateTimeImmutable('now', new DateTimeZone(simko_spend_caps()['timezone'])))->format('Y-m-d');
+}
+
+function simko_spend_user(): ?array
+{
+    if (isset($GLOBALS['simko_spend_user']) && is_array($GLOBALS['simko_spend_user'])) {
+        return $GLOBALS['simko_spend_user'];
+    }
+    if (PHP_SAPI === 'cli' && !isset($_SERVER['REQUEST_METHOD'])) {
+        return null;
+    }
+    $user = simko_current_user();
+    if (!$user) {
+        $grant = simko_grok_image_grant();
+        if ($grant) {
+            $user = ['id' => $grant, 'email' => ''];
+        }
+    }
+    return $user;
+}
+
+function simko_spend_today(int $userId): int
+{
+    $stmt = simko_db()->prepare('SELECT ticks FROM xai_spend WHERE day = ? AND user_id = ?');
+    $stmt->execute([simko_spend_day(), $userId]);
+    return (int) ($stmt->fetchColumn() ?: 0);
+}
+
+function simko_spend_site_today(): int
+{
+    $stmt = simko_db()->prepare('SELECT COALESCE(SUM(ticks), 0) FROM xai_spend WHERE day = ?');
+    $stmt->execute([simko_spend_day()]);
+    return (int) $stmt->fetchColumn();
+}
+
+function simko_spend_add(int $ticks): void
+{
+    if ($ticks <= 0) {
+        return;
+    }
+    try {
+        $user = simko_spend_user();
+        $stmt = simko_db()->prepare(
+            'INSERT INTO xai_spend (day, user_id, ticks) VALUES (?, ?, ?)
+             ON CONFLICT(day, user_id) DO UPDATE SET ticks = ticks + excluded.ticks'
+        );
+        $stmt->execute([simko_spend_day(), (int) ($user['id'] ?? 0), $ticks]);
+    } catch (Throwable $e) {
+        // Counting must never break a reply.
+    }
+}
+
+function simko_spend_status(?array $user): array
+{
+    $caps = simko_spend_caps();
+    $owner = simko_is_grok_owner($user);
+    $cap = $owner ? $caps['owner'] : $caps['user'];
+    $spent = $user ? simko_spend_today((int) $user['id']) : 0;
+    return [
+        'day' => simko_spend_day(),
+        'cap_usd' => $cap,
+        'spent_usd' => round($spent / SIMKO_TICKS_PER_USD, 4),
+        'site_cap_usd' => $caps['site'],
+        'site_spent_usd' => round(simko_spend_site_today() / SIMKO_TICKS_PER_USD, 4),
+        'timezone' => $caps['timezone'],
+    ];
+}
+
+function simko_spend_guard(): void
+{
+    $user = simko_spend_user();
+    $caps = simko_spend_caps();
+    if (simko_spend_site_today() >= (int) round($caps['site'] * SIMKO_TICKS_PER_USD)) {
+        simko_fail(429, 'Simko SI has reached its daily Grok budget. It resets at midnight Eastern time.', ['spend_cap' => 'site']);
+    }
+    if (!$user) {
+        return;
+    }
+    $cap = simko_is_grok_owner($user) ? $caps['owner'] : $caps['user'];
+    if (simko_spend_today((int) $user['id']) >= (int) round($cap * SIMKO_TICKS_PER_USD)) {
+        simko_fail(429, 'You have reached today\'s Grok limit ($' . number_format($cap, 2) . '). It resets at midnight Eastern time.', ['spend_cap' => 'user']);
+    }
 }

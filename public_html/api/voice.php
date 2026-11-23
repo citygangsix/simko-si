@@ -84,6 +84,8 @@ function simko_speak(): void
         simko_log_upstream($result['code'], $result['error']);
         simko_fail(502, 'Simko SI could not speak just now. The browser voice will try.');
     }
+    // TTS replies carry no usage block: $15 per 1M characters = 150000 ticks a character.
+    simko_xai_cost_note(simko_xai_url_plain('tts'), ['usage' => ['cost_in_usd_ticks' => simko_len($text) * 150000]]);
     $type = $result['type'];
     $bytes = $result['body'];
     if (str_contains($type, 'json') || (isset($bytes[0]) && $bytes[0] === '{')) {
@@ -145,6 +147,8 @@ function simko_transcribe(): void
         'Accept: application/json',
     ], 45);
     @unlink($tmp);
+    // STT is $0.10 an hour; a clip is at most a minute or two, so count a flat minute.
+    simko_xai_cost_note(simko_xai_url_plain('stt'), ['usage' => ['cost_in_usd_ticks' => 16700000]]);
     $decoded = json_decode($result['body'], true);
     $text = is_array($decoded) ? trim((string) ($decoded['text'] ?? '')) : '';
     if ($result['code'] >= 400 || $text === '') {
