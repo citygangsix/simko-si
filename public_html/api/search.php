@@ -158,6 +158,15 @@ function simko_search_code_runs(array $data): array
                 }
             }
         }
+        // The sandbox reports {"stdout":..., "stderr":..., "exit_code":...}; show what it printed.
+        $decoded = json_decode($output, true);
+        if (is_array($decoded) && (isset($decoded['stdout']) || isset($decoded['stderr']))) {
+            $output = rtrim((string) ($decoded['stdout'] ?? ''));
+            $err = rtrim((string) ($decoded['stderr'] ?? ''));
+            if ($err !== '') {
+                $output .= ($output !== '' ? "\n" : '') . '[stderr] ' . $err;
+            }
+        }
         if (trim($code) === '' && trim($output) === '') {
             continue;
         }

@@ -123,7 +123,7 @@ if ($path === '/v1/responses') {
                 'type' => 'code_interpreter_call',
                 'status' => 'completed',
                 'code' => 'print(6 * 7)',
-                'outputs' => [['type' => 'logs', 'logs' => '42']],
+                'outputs' => [['type' => 'logs', 'logs' => '{"stdout":"42\\n","stderr":"","exit_code":0}']],
             ]);
         }
     }
