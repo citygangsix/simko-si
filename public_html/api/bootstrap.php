@@ -1253,3 +1253,28 @@ function simko_spend_guard(): void
         simko_fail(429, 'You have reached today\'s Grok limit ($' . number_format($cap, 2) . '). It resets at midnight Eastern time.', ['spend_cap' => 'user']);
     }
 }
+
+/**
+ * Models people can pick in the chat. config 'models' => [['id' => ..., 'label' => ...], ...]
+ * overrides the default list; the first entry is not special, config 'model' is the default.
+ */
+function simko_models(): array
+{
+    $raw = simko_config_or_empty()['models'] ?? null;
+    $out = [];
+    if (is_array($raw)) {
+        foreach ($raw as $m) {
+            if (is_array($m) && is_string($m['id'] ?? null) && preg_match('/^[a-z0-9.-]{3,60}$/', $m['id'])) {
+                $out[] = ['id' => $m['id'], 'label' => (string) ($m['label'] ?? $m['id'])];
+            }
+        }
+    }
+    if ($out === []) {
+        $out = [
+            ['id' => 'grok-4.7', 'label' => 'Grok 4.7 · best'],
+            ['id' => 'grok-4.3', 'label' => 'Grok 4.3 · faster, lower cost'],
+            ['id' => 'grok-4.20-0309-non-reasoning', 'label' => 'Grok 4.20 · quick answers'],
+        ];
+    }
+    return $out;
+}

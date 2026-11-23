@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
 <title>Simko SI: a calm Grok-powered assistant for chat, search and voice</title>
-<meta name="simko-build" content="flagship1-20261123"/>
+<meta name="simko-build" content="flagship2-20261123"/>
 <link rel="icon" href="/assets/favicon.svg?v=971b21ff3edd" type="image/svg+xml"/>
 <meta name="description" content="Simko SI is a calm, Grok-powered assistant. Chat in everyday English, search the web with sources, think through hard problems, and talk out loud."/>
 <link rel="canonical" href="https://simkosi.com/"/>
@@ -1233,6 +1233,10 @@
   #welcome #welcomeSignUp { background: rgba(255,127,106,.85); border-color: transparent; }
   #welcome .welcomeLinks { display: flex; flex-wrap: wrap; gap: .9rem; margin: .9rem 0 0; font-size: .9rem; }
   #welcome .welcomeLinks a { color: #ffd6c4; }
+  #modelRow { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin: .35rem .85rem 0; color: #f3e6d8; font-size: .92rem; }
+  #modelRow[hidden] { display: none; }
+  #modelPick { min-height: 44px; max-width: 16rem; border-radius: 999px; padding: .3rem .8rem; background: rgba(3,20,28,.55); color: #fff; border: 1px solid rgba(255,214,196,.45); font: inherit; }
+  #spendNote { color: #cfe3df; font-size: .85rem; }
 </style>
 <style id="storeReadyCss">
   /* Store readiness (awaiting sign-off): 44px minimum tap targets, report flag, delete account, legal links. */
@@ -1867,6 +1871,7 @@
     </button>
   </div>
 </form>
+<div id="modelRow" hidden><label for="modelPick">Model</label><select id="modelPick"></select><span id="spendNote" aria-live="polite"></span></div>
 <details id="raw"><summary>Raw</summary><pre id="raw-text"></pre></details>
 </section>
 </div>
@@ -1887,8 +1892,8 @@
 <script src="/assets/theme-host.js?v=971b21ff3edd"></script>
 <script src="/assets/simco-voice.js?v=voice-bots-20261108-v6"></script>
 <script src="/assets/simco-mobile.js?v=mobile-20261123"></script>
-<script src="/assets/simco-store.js?v=store-20261123"></script>
-<script src="/assets/simco-app.js?v=flagship1-20261123"></script>
+<script src="/assets/simco-store.js?v=flagship2-20261123"></script>
+<script src="/assets/simco-app.js?v=flagship2-20261123"></script>
 
 </body>
 </html>

@@ -6,6 +6,10 @@ $callLog = getenv('MOCK_XAI_LOG');
 if (is_string($callLog) && $callLog !== '') {
     file_put_contents($callLog, $path . "\n", FILE_APPEND);
 }
+$bodyLog = getenv('MOCK_XAI_BODIES');
+if (is_string($bodyLog) && $bodyLog !== '') {
+    file_put_contents($bodyLog, (string) file_get_contents('php://input') . "\n", FILE_APPEND);
+}
 
 // Mock Cursor Cloud Agents API (tests point cursor.api_base here).
 if ($path === '/v1/me' || str_starts_with($path, '/v1/agents')) {

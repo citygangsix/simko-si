@@ -126,6 +126,78 @@
     return data;
   }
 
+  // Streams a chat turn: calls onDelta with each piece of text, returns the final reply object.
+  // Falls back to a plain JSON reply (errors, older servers).
+  async function postStream(url, body, onDelta, onStatus) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "text/event-stream" },
+      body: JSON.stringify(body)
+    });
+    const type = response.headers.get("Content-Type") || "";
+    if (type.indexOf("event-stream") === -1 || !response.body || !window.TextDecoder) {
+      try { return await response.json(); } catch (e) { return {}; }
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let final = null;
+    const take = (block) => {
+      block.split("\n").forEach((line) => {
+        if (line.indexOf("data:") !== 0) return;
+        let ev;
+        try { ev = JSON.parse(line.slice(5).trim()); } catch (e) { return; }
+        if (typeof ev.delta === "string") onDelta(ev.delta);
+        else if (ev.status && onStatus) onStatus(ev.status);
+        else if (ev.done || ev.ok === false) final = ev;
+      });
+    };
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let cut;
+      while ((cut = buffer.indexOf("\n\n")) !== -1) {
+        take(buffer.slice(0, cut));
+        buffer = buffer.slice(cut + 2);
+      }
+    }
+    if (buffer.trim()) take(buffer);
+    return final || { ok: false, error: "The reply was cut off. Try again in a moment." };
+  }
+
+  function pickedModel() {
+    const pick = $("modelPick");
+    return pick && pick.value ? pick.value : undefined;
+  }
+
+  async function loadModels() {
+    const row = $("modelRow"), pick = $("modelPick");
+    if (!row || !pick) return;
+    try {
+      const data = await postJson("/api/platform", { op: "models", token: authToken });
+      if (!data.ok || !Array.isArray(data.models) || !data.models.length) return;
+      let saved = "";
+      try { saved = localStorage.getItem("simkoModel") || ""; } catch (e) {}
+      pick.innerHTML = "";
+      data.models.forEach((m) => {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        opt.textContent = m.label || m.id;
+        pick.appendChild(opt);
+      });
+      const ids = data.models.map((m) => m.id);
+      pick.value = ids.indexOf(saved) !== -1 ? saved : (ids.indexOf(data.default) !== -1 ? data.default : ids[0]);
+      if (!pick.dataset.bound) {
+        pick.dataset.bound = "1";
+        pick.addEventListener("change", () => { try { localStorage.setItem("simkoModel", pick.value); } catch (e) {} });
+      }
+      const note = $("spendNote");
+      if (note && data.spend) note.textContent = "Today $" + Number(data.spend.spent_usd).toFixed(2) + " of $" + Number(data.spend.cap_usd).toFixed(2);
+      row.hidden = !data.spend;
+    } catch (e) {}
+  }
+
   function authPost(body) {
     return postJson("/api/auth", body);
   }
@@ -669,6 +741,7 @@
   }
 
   function showSignedIn(email) {
+    setTimeout(loadModels, 0);
     if (String(activeSessionId).startsWith("demo-")) activeSessionId = "";
     window.simcoUserToken = authToken;
     if (window.simcoThemes) window.simcoThemes.syncFromServer();
@@ -911,7 +984,10 @@
     let everyday = "";
     try {
       if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace("turn_sent");
-      const data = await postJson("/api/simco/turn", {
+      let live = "";
+      const data = await postStream("/api/simco/turn", {
+        stream: !voiceTurn,
+        model: pickedModel(),
         text: text,
         token: authToken,
         session_id: activeSessionId || "",
@@ -921,7 +997,13 @@
         reasoning_effort: thinkOn() ? "xhigh" : undefined,
         deep_search: deepOn() || undefined,
         file: sendFile ? { name: sendFile.name, type: sendFile.type, data: sendFile.data } : undefined
+      }, (piece) => {
+        live += piece;
+        $("reply-bubble").textContent = live;
+      }, (status) => {
+        if (!live && status === "searching") $("reply-bubble").textContent = "Searching the web…";
       });
+      if (data && !data.everyday && !data.error && live) data.everyday = live;
       showToolPanel(data);
       if (data && Array.isArray(data.sources) && data.sources.length && window.simcoPlatform) window.simcoPlatform.showSources(data.sources);
       if (data && data.paywall) {

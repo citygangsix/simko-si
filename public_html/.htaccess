@@ -7,6 +7,10 @@ Options -Indexes
   # If the private folder is ever unpacked inside the site root, refuse it.
   RewriteRule ^simkosi-private(/|$) - [F,L]
 
+  # Old source copies and the staging site's folder are not part of the live site.
+  RewriteCond %{HTTP_HOST} ^(www\.)?simkosi\.com$ [NC]
+  RewriteRule ^(_backups|staging)(/|$) - [F,L]
+
   # HTTPS is terminated on Hostinger. Skip the loopback server used for local tests.
   RewriteCond %{HTTPS} !=on
   RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
@@ -74,7 +78,7 @@ Options -Indexes
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()"
-  Header always set Content-Security-Policy "frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
+  Header always set Content-Security-Policy "upgrade-insecure-requests; frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
 </IfModule>
 
 <FilesMatch "(^config\.php$|\.sqlite$|\.sqlite-wal$|\.sqlite-shm$)">

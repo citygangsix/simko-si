@@ -35,6 +35,14 @@ if (str_starts_with($op, 'code-') || $op === 'cursor-check') {
 }
 
 switch ($op) {
+    case 'models':
+        $cfgModel = trim((string) (simko_config_or_empty()['model'] ?? 'grok-4.7'));
+        simko_ok([
+            'models' => simko_models(),
+            'default' => $cfgModel === '' ? 'grok-4.7' : $cfgModel,
+            'spend' => simko_is_grok_owner($user) ? simko_spend_status($user) : null,
+        ]);
+        break;
     case 'code-jobs':
         $cursor = simko_cursor_settings();
         simko_ok([

@@ -7,6 +7,7 @@ require_once __DIR__ . '/search.php';
 require_once __DIR__ . '/recall.php';
 require_once __DIR__ . '/browse.php';
 require_once __DIR__ . '/files.php';
+require_once __DIR__ . '/stream.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -45,6 +46,12 @@ $model = trim((string) ($cfg['model'] ?? 'grok-4.7'));
 if ($model === '') {
     $model = 'grok-4.7';
 }
+// Model picker: only models on the server's list.
+$picked = trim((string) ($body['model'] ?? ''));
+if ($picked !== '' && in_array($picked, array_column(simko_models(), 'id'), true)) {
+    $model = $picked;
+}
+$stream = !empty($body['stream']) && empty($body['voice']);
 $system = trim((string) ($cfg['system_prompt'] ?? ''));
 if ($system === '') {
     $system = 'You are Simko SI, Joseph Simko\'s assistant. Reply in clear everyday English. Be warm and brief.';
@@ -137,7 +144,37 @@ if ($deep && $timeout < 240) {
 }
 @set_time_limit($timeout + 5);
 
-if (simko_flag('search')) {
+if ($stream) {
+    if (simko_flag('search')) {
+        $endpoint = simko_xai_url('responses');
+        $streamPayload = simko_search_payload($model, $messages, $strictSearch, $effort, $deep);
+    } else {
+        $endpoint = simko_xai_url('chat/completions');
+        $streamPayload = ['model' => $model, 'messages' => $messages, 'stream_options' => ['include_usage' => true]];
+        if ($effort !== null) {
+            $streamPayload['reasoning_effort'] = $effort;
+        }
+    }
+    $streamPayload['stream'] = true;
+    if (isset($cfg['stream_delay_ms'])) {
+        $streamPayload['stream_delay_ms'] = (int) $cfg['stream_delay_ms'];
+    }
+    simko_sse_start();
+    $result = simko_stream_xai($endpoint, $streamPayload, $timeout);
+    if ($result['ticks'] > 0) {
+        simko_xai_cost_note($endpoint, ['usage' => ['cost_in_usd_ticks' => $result['ticks']]]);
+    }
+    if ($result['aborted']) {
+        exit;
+    }
+    $data = is_array($result['final']) ? $result['final'] : ['choices' => [['message' => ['content' => $result['reply']]]]];
+    if ($result['reply'] === '' && is_array($result['final'])) {
+        $late = simko_choice_text($result['final']);
+        if ($late !== '') {
+            simko_sse_send(['delta' => $late]);
+        }
+    }
+} elseif (simko_flag('search')) {
     $data = simko_curl_json(
         simko_xai_url('responses'),
         simko_search_payload($model, $messages, $strictSearch, $effort, $deep),
@@ -155,7 +192,15 @@ if (simko_flag('search')) {
     $data = simko_curl_json(simko_xai_url('chat/completions'), $completion, $timeout);
 }
 $reply = simko_choice_text($data);
+if ($stream && $result['reply'] !== '') {
+    // Keep the saved reply identical to the text the person watched arrive.
+    $reply = $result['reply'];
+}
 if ($reply === '') {
+    if ($stream) {
+        simko_sse_send(['ok' => false, 'error' => 'No reply came back from Simko SI. Try again in a moment.']);
+        exit;
+    }
     simko_fail(502, 'No reply came back from Simko SI. Try again in a moment.');
 }
 
@@ -185,4 +230,8 @@ if ($deep) {
 }
 $payload['cost_ticks'] = simko_xai_cost_total();
 $payload['reasoning_effort'] = $effort ?? 'default';
+if ($stream) {
+    simko_sse_send(array_merge(['ok' => true, 'done' => true], $payload));
+    exit;
+}
 simko_ok($payload);
