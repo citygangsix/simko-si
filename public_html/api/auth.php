@@ -98,7 +98,7 @@ function simko_signup(array $body): void
         }
     }
     $out = ['token' => $token, 'email' => $email, 'parent' => $parent];
-    if (!simko_mail_is_smtp()) {
+    if (simko_dev_codes_in_reply()) {
         $out['dev_token'] = $confirm;
     }
     simko_ok($out);
@@ -189,7 +189,7 @@ function simko_request_reset(array $body): void
             } catch (Throwable $e) {
                 simko_fail(502, 'The email could not be sent. Try again in a moment.');
             }
-        } else {
+        } elseif (simko_dev_codes_in_reply()) {
             $out['dev_token'] = $reset;
         }
     }
@@ -215,4 +215,20 @@ function simko_reset_password(array $body): void
     );
     $update->execute([password_hash($password, PASSWORD_DEFAULT), (int) $row['id']]);
     simko_ok();
+}
+
+/**
+ * Confirm and reset codes go by email only. The one exception is a local test server:
+ * mail_mode dev, config dev_codes_in_reply === true, and a loopback client. Live never qualifies.
+ */
+function simko_dev_codes_in_reply(): bool
+{
+    if (simko_mail_is_smtp()) {
+        return false;
+    }
+    if ((simko_config_or_empty()['dev_codes_in_reply'] ?? false) !== true) {
+        return false;
+    }
+    $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+    return $ip === '127.0.0.1' || $ip === '::1';
 }

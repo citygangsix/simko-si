@@ -35,6 +35,7 @@ return [
     'xai_base_url' => 'http://127.0.0.1:9/v1',
     'model' => 'grok-4.7',
     'mail_mode' => '{$mailMode}',
+    'dev_codes_in_reply' => true,
     'site_url' => 'https://simkosi.com',
     'family_ui' => false,
     'max_input_chars' => 8000,
