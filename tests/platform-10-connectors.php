@@ -44,4 +44,23 @@ platform_assert(!empty($byId['google-calendar']['disclosure']) && str_contains((
 platform_assert(!empty($byId['google-drive']['disclosure']), 'Drive lists a disclosure');
 
 platform_stop($site2, $site2Pipes);
+
+$signInPrivate = platform_private('connectors-oauth-fallback', ['connectors' => true], [
+    'oauth' => [
+        'google' => [
+            'client_id' => 'signin-client',
+            'client_secret' => 'signin-secret',
+            'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
+            'token_url' => 'https://oauth2.googleapis.com/token',
+        ],
+    ],
+    'connectors' => [
+        'google-drive' => ['client_id' => '', 'client_secret' => ''],
+    ],
+]);
+[$site3, $site3Pipes] = platform_site($signInPrivate, 8956);
+$user3 = platform_signup(8956, 'connect-fallback-' . getmypid() . '@simkosi.test');
+$calFb = platform_api(8956, '/api/platform', ['op' => 'connector-start', 'provider' => 'google-calendar'], $user3['token']);
+platform_assert($calFb['status'] === 200 && str_contains((string) ($calFb['data']['url'] ?? ''), 'signin-client'), 'Calendar falls back to the Google sign-in client');
+platform_stop($site3, $site3Pipes);
 fwrite(STDOUT, "connector tests passed\n");

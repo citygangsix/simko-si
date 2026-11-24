@@ -44,6 +44,20 @@ function simko_connector_settings(string $provider): array
             }
         }
     }
+    // Same Cloud OAuth client as Google sign-in, if the connector block has no client id yet.
+    if (str_starts_with($provider, 'google-') && trim((string) ($row['client_id'] ?? '')) === '') {
+        $signIn = simko_config_or_empty()['oauth']['google'] ?? [];
+        if (is_array($signIn)) {
+            foreach (['client_id' => 'client_id', 'client_secret' => 'client_secret', 'authorize_url' => 'authorize_url', 'token_url' => 'token_url'] as $from => $to) {
+                if (trim((string) ($row[$to] ?? '')) === '' && trim((string) ($signIn[$from] ?? '')) !== '') {
+                    $row[$to] = $signIn[$from];
+                }
+            }
+            if (trim((string) ($row['revoke_url'] ?? '')) === '') {
+                $row['revoke_url'] = 'https://oauth2.googleapis.com/revoke';
+            }
+        }
+    }
     $clientId = trim((string) ($row['client_id'] ?? ''));
     return $catalog[$provider] + [
         'client_id' => $clientId,
