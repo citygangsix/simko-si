@@ -13,6 +13,7 @@ require_once __DIR__ . '/oauth.php';
 require_once __DIR__ . '/vault.php';
 require_once __DIR__ . '/connectors.php';
 require_once __DIR__ . '/connector-tools.php';
+require_once __DIR__ . '/push.php';
 require_once __DIR__ . '/agents.php';
 require_once __DIR__ . '/team.php';
 require_once __DIR__ . '/browse.php';
@@ -296,6 +297,25 @@ switch ($op) {
         }
         simko_connector_disconnect($userId, (string) ($body['provider'] ?? ''));
         simko_ok(['connectors' => simko_connector_list($userId)]);
+        break;
+    case 'push-status':
+        simko_ok(simko_push_status($userId));
+        break;
+    case 'push-subscribe':
+        $pushed = simko_push_subscribe($userId, is_array($body['subscription'] ?? null) ? $body['subscription'] : []);
+        if (array_key_exists('routine_alerts', $body)) {
+            $pushed = simko_push_set_pref($userId, !empty($body['routine_alerts']));
+        }
+        simko_ok($pushed);
+        break;
+    case 'push-unsubscribe':
+        simko_ok(simko_push_unsubscribe($userId, (string) ($body['endpoint'] ?? '')));
+        break;
+    case 'push-pref':
+        simko_ok(simko_push_set_pref($userId, !empty($body['routine_alerts'])));
+        break;
+    case 'push-test':
+        simko_ok(simko_push_test($userId));
         break;
     case 'drive-picker':
     case 'drive-picks':

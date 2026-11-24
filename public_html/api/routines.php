@@ -125,6 +125,8 @@ function simko_routines_run(?int $now = null): int
         $insert->execute([(int) $row['id'], (int) $row['user_id'], $body, $now]);
         $touch = simko_db()->prepare('UPDATE routines SET last_run = ? WHERE id = ?');
         $touch->execute([$now, (int) $row['id']]);
+        require_once __DIR__ . '/push.php';
+        simko_push_routine((int) $row['user_id'], $body);
         if (simko_mail_is_smtp()) {
             require_once __DIR__ . '/smtp.php';
             try {
