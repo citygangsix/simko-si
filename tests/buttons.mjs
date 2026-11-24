@@ -185,6 +185,7 @@ async function sessionCase(browser) {
 
   const stale = await openWith("stale-not-a-session", "also-stale");
   await stale.page.locator("#accountSignIn").waitFor({ state: "visible" });
+  if (await stale.page.locator("#welcomeLook").isVisible()) await stale.page.click("#welcomeLook");
   await stale.page.click("#accountSignIn");
   await stale.page.locator("#authModal").waitFor({ state: "visible" });
   await stale.page.click("#authModalClose");

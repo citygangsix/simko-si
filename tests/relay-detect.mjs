@@ -159,15 +159,25 @@ async function relayCase(page) {
   await page.locator("#everyday").pressSequentially("Hello in chat one", { delay: 12 });
   await page.click("#go");
   await page.waitForFunction(() => (document.getElementById("reply-bubble").textContent || "").includes("Hello in chat one"));
+  await page.waitForTimeout(400);
   const firstTitle = await page.locator("#threadTitle").innerText();
+  const firstId = await page.evaluate(() => (window.simcoApp && window.simcoApp.activeChatId && window.simcoApp.activeChatId()) || "");
   if (!(await page.locator("#newChat").isVisible()) && await page.locator("#backToList").isVisible()) {
     await page.click("#backToList");
   }
   await page.click("#newChat");
-  await page.waitForFunction((prev) => document.getElementById("threadTitle").textContent !== prev, firstTitle);
+  await page.waitForFunction((prev) => {
+    const id = (window.simcoApp && window.simcoApp.activeChatId && window.simcoApp.activeChatId()) || "";
+    const title = (document.getElementById("threadTitle") && document.getElementById("threadTitle").textContent) || "";
+    return !!id && id !== prev && title !== "Hello in chat one";
+  }, firstId);
   const secondTitle = await page.locator("#threadTitle").innerText();
-  if (!(await page.locator("#everyday").isVisible()) && await page.locator("#sessionList button").first().isVisible()) {
-    await page.locator("#sessionList button", { hasText: secondTitle }).click();
+  if (!(await page.locator("#everyday").isVisible())) {
+    if (await page.locator("#sessionList").isVisible()) {
+      const btn = page.locator("#sessionList button", { hasText: secondTitle });
+      if (await btn.count()) await btn.first().click();
+    }
+    await page.locator("#everyday").waitFor({ state: "visible" });
   }
   await page.locator("#everyday").click();
   await page.locator("#everyday").pressSequentially("Note for the other chat", { delay: 12 });
@@ -189,24 +199,41 @@ async function relayCase(page) {
   }
   await page.locator("#relayTarget").waitFor({ state: "visible" });
   const destination = await page.locator("#relayTarget option:checked").innerText();
+  const destId = await page.locator("#relayTarget").inputValue();
   if (!destination || destination === secondTitle) throw new Error("relay destination defaulted wrong: " + destination);
   await page.locator("#relayOverlay").getByRole("button", { name: "Send" }).click();
   await page.locator("#relayOverlay").waitFor({ state: "hidden" });
   const sent = await visibleText(page, "#reply-bubble");
   if (!sent.includes("Sent to " + destination)) throw new Error("missing confirmation: " + sent);
   if (!sent.includes("Note for the other chat")) throw new Error("confirmation dropped the note: " + sent);
-  if (!(await page.locator("#sessionList").isVisible()) && await page.locator("#backToList").isVisible()) {
-    await page.click("#backToList");
+  const deadline = Date.now() + 20000;
+  let opened = false;
+  while (Date.now() < deadline) {
+    if (!(await page.locator("#sessionList").isVisible()) && await page.locator("#backToList").isVisible()) {
+      await page.click("#backToList");
+    }
+    const destBtn = destId
+      ? page.locator('#sessionList button[data-id="' + destId + '"]')
+      : page.locator("#sessionList button", { hasText: destination });
+    if (await destBtn.count()) await destBtn.first().click();
+    try {
+      await page.waitForFunction((title) => {
+        const bubble = (document.getElementById("reply-bubble").textContent || "");
+        const history = (document.getElementById("historyBubbles") && document.getElementById("historyBubbles").innerText) || "";
+        return bubble.includes("From " + title) || history.includes("From " + title);
+      }, secondTitle, { timeout: 2000 });
+      opened = true;
+      break;
+    } catch (error) {}
   }
-  await page.waitForTimeout(300);
-  const destBtn = page.locator("#sessionList button", { hasText: destination });
-  await destBtn.click();
-  const fromLine = (title) => (document.getElementById("reply-bubble").textContent || "").includes("From " + title);
-  try {
-    await page.waitForFunction(fromLine, secondTitle, { timeout: 8000 });
-  } catch (error) {
-    await destBtn.click();
-    await page.waitForFunction(fromLine, secondTitle);
+  if (!opened) {
+    const dump = await page.evaluate(() => ({
+      title: (document.getElementById("threadTitle") || {}).textContent || "",
+      bubble: (document.getElementById("reply-bubble") || {}).textContent || "",
+      history: (document.getElementById("historyBubbles") || {}).innerText || "",
+      chats: [...document.querySelectorAll("#sessionList button")].map((b) => b.innerText)
+    }));
+    throw new Error("destination missing from-line; second=" + secondTitle + " dest=" + destination + " dump=" + JSON.stringify(dump));
   }
   const from = await visibleText(page, "#reply-bubble");
   if (!from.includes("From " + secondTitle)) throw new Error("destination missing from-line: " + from);
