@@ -453,6 +453,44 @@
     panel.hidden = !(runs.length || pages.length || extra.length);
   }
 
+  const TOOL_LABELS = { save_memory: "save memory", list_routines: "list routines", create_routine: "create routine",
+    drive_list_picked_files: "Drive: list picked files", drive_read_picked_file: "Drive: read a picked file",
+    github_list_repos: "GitHub: list repos", github_read_file: "GitHub: read a file", github_list_issues: "GitHub: list issues",
+    calendar_list_events: "Calendar: list events", calendar_create_event: "Calendar: create event",
+    calendar_update_event: "Calendar: update event", calendar_delete_event: "Calendar: delete event" };
+  function paintUsedTools(names) {
+    const box = $("usedTools");
+    if (!box) return;
+    box.replaceChildren();
+    (names || []).forEach(function (name) {
+      const chip = document.createElement("span");
+      chip.className = "usedChip";
+      chip.dataset.tool = name;
+      chip.textContent = "Used: " + (TOOL_LABELS[name] || name);
+      box.append(chip);
+    });
+    box.hidden = !(names || []).length;
+  }
+  function showChatApproval(approval, onApproved) {
+    const box = $("chatApproval");
+    if (!box) return false;
+    $("chatApprovalText").textContent = (approval.summary || "Simko SI wants to make a change.") + ". Approve?";
+    box.hidden = false;
+    const yes = $("chatApprove"), no = $("chatDecline");
+    yes.disabled = false; no.disabled = false;
+    const decide = async function (decision) {
+      yes.disabled = true; no.disabled = true;
+      const res = await postJson("/api/platform", { op: "decide", approval_id: approval.id, decision: decision, token: authToken }).catch(function () { return null; });
+      box.hidden = true;
+      if (!res || !res.ok) { setReply((res && res.error) || "That approval could not be saved. Try again."); return; }
+      if (decision === "approve") onApproved(approval.id);
+      else setReply("Okay, I did not do that.");
+    };
+    yes.onclick = function () { decide("approve"); };
+    no.onclick = function () { decide("decline"); };
+    yes.focus();
+    return true;
+  }
   function setReply(text) {
     const reply = $("reply-bubble");
     reply.textContent = text || "";
@@ -1073,6 +1111,8 @@
     $("everyday").dispatchEvent(new Event("input", { bubbles: true }));
     setReply("Working on it…");
     showToolPanel(null);
+    paintUsedTools([]);
+    if ($("chatApproval")) $("chatApproval").hidden = true;
     let everyday = "";
     try {
       if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace("turn_sent");
@@ -1088,6 +1128,7 @@
         voice: !!voiceTurn,
         child_id: window.simcoChildId || undefined,
         reasoning_effort: thinkOn() ? "xhigh" : undefined,
+        tz: (function () { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined; } catch (e) { return undefined; } })(),
         deep_search: deepOn() || undefined,
         files: sendFile ? sendFile.map(function (f) { return { name: f.name, type: f.type, data: f.data }; }) : undefined
       };
@@ -1097,13 +1138,15 @@
       }, (status) => {
         if (!live && status === "searching") $("reply-bubble").textContent = "Searching the web…";
       });
-      if (data && data.approval && window.simcoPlatform) {
+      if (data && data.approval && (window.simcoPlatform || $("chatApproval"))) {
         setReply(data.approval.summary || "Simko SI is waiting for you to approve this.");
-        window.simcoPlatform.showApproval(data.approval, async (approvalId) => {
+        const approvalShow = $("chatApproval") ? showChatApproval : window.simcoPlatform.showApproval;
+        approvalShow(data.approval, async (approvalId) => {
           setReply("Working on it…");
           const again = await postStream("/api/simco/turn", Object.assign({}, turnBody, { approval_id: approvalId, stream: false }), function () {}, function () {});
           const line = (again && (again.everyday || again.error)) || "No reply came back from Simko SI. Try again in a moment.";
           showToolPanel(again);
+          paintUsedTools(again && again.tools_used);
           setReply(line);
           voiceReply(line);
           await rememberTurn(text || (sendFile ? "(attached " + sendFile.map(function (f) { return f.name; }).join(", ") + ")" : ""), line);
@@ -1114,6 +1157,7 @@
       }
       if (data && !data.everyday && !data.error && live) data.everyday = live;
       showToolPanel(data);
+      paintUsedTools(data && data.tools_used);
       if (data && Array.isArray(data.sources) && data.sources.length && window.simcoPlatform) window.simcoPlatform.showSources(data.sources);
       if (data && data.paywall) {
         if (window.simcoPlatform) window.simcoPlatform.showPaywall(data);

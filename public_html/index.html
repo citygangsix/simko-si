@@ -437,6 +437,14 @@
   #codeFiles pre { max-height: 14rem; overflow: auto; background: rgba(0, 0, 0, 0.35); padding: 0.5rem; border-radius: 0.6rem; font-size: 0.78rem; white-space: pre-wrap; }
   .agentTools { font-size: 0.82rem; color: #f3e6d8; margin: 0.3rem 0; }
   .agentTools a { color: #bfeff4; word-break: break-all; }
+  #usedTools { display: flex; flex-wrap: wrap; gap: 0.4rem; width: min(40rem, 86%); margin: 0.4rem auto 0 0; }
+  #usedTools[hidden], #chatApproval[hidden] { display: none !important; }
+  #usedTools .usedChip { font-size: 0.8rem; padding: 0.2rem 0.65rem; border-radius: 999px; background: rgba(191,239,244,.12); border: 1px solid rgba(191,239,244,.35); color: #bfeff4; }
+  #chatApproval { width: min(40rem, 86%); box-sizing: border-box; margin: 0.5rem auto 0 0; padding: 0.7rem 0.9rem; border-radius: 0.9rem; background: rgba(255,255,255,.07); border: 1px solid rgba(255,214,196,.35); }
+  #chatApproval p { margin: 0 0 0.5rem; color: #f3e6d8; }
+  #chatApproval .chatApprovalButtons { display: flex; gap: 0.6rem; }
+  #chatApproval button { min-height: 44px; padding: 0 1.1rem; border-radius: 999px; }
+  #chatApprove { background: #bfeff4; color: #062a2e; border: 0; font-weight: 600; }
   #toolRuns {
     width: min(40rem, 86%);
     margin: 0.6rem auto 0 0;
@@ -2026,6 +2034,11 @@
     <div id="reply-bubble" role="log" aria-live="polite" aria-label="Reply" data-placeholder="Reply"></div>
     <button id="replyReport" type="button" aria-label="Report this reply" title="Report this reply"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button id="replySpeak" type="button" class="speakReply" aria-label="Play reply"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16.5 8.5a4.5 4.5 0 010 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+  </div>
+  <p id="usedTools" hidden aria-live="polite"></p>
+  <div id="chatApproval" hidden role="group" aria-labelledby="chatApprovalText">
+    <p id="chatApprovalText"></p>
+    <div class="chatApprovalButtons"><button id="chatApprove" type="button">Approve</button><button id="chatDecline" type="button">Decline</button></div>
   </div>
   <details id="toolRuns" hidden><summary>Tools: <span id="toolRunsSummary"></span></summary><div id="toolRunsBody"></div></details>
 </main>

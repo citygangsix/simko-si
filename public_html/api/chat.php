@@ -9,6 +9,7 @@ require_once __DIR__ . '/browse.php';
 require_once __DIR__ . '/files.php';
 require_once __DIR__ . '/stream.php';
 require_once __DIR__ . '/calendar-tools.php';
+require_once __DIR__ . '/agent-tools.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -80,6 +81,20 @@ if ($calendarNote !== '') {
 }
 if (simko_calendar_connected((int) $user['id'])) {
     $system .= "\n\n" . simko_calendar_system_note();
+}
+// Function calling: offered when a connector is on or the message asks for a site tool; plain chats keep streaming.
+$agentNote = simko_agent_apply_approved((int) $user['id'], $body);
+if ($agentNote !== '') {
+    $system .= "\n\n" . $agentNote;
+}
+$agentIsChild = !empty($body['child_id']);
+$agentDeep = !empty($body['deep_search']);
+$agentSchemas = (simko_calendar_connected((int) $user['id']) || $agentNote !== ''
+    || (!$agentDeep && simko_agent_wants_tools((int) $user['id'], $text, $agentIsChild)))
+    ? simko_agent_schemas((int) $user['id'], $agentIsChild, (int) ($body['approval_id'] ?? 0) > 0)
+    : [];
+if ($agentSchemas !== [] && !$agentIsChild) {
+    $system .= "\n\n" . simko_agent_system_note($agentSchemas);
 }
 // Last, so it wins over any earlier 'reply in English' line in the configured prompt.
 $system .= isset($langs[$lang])
@@ -177,7 +192,8 @@ if ($deep && $timeout < 240) {
 }
 @set_time_limit($timeout + 5);
 
-$calendarTools = simko_calendar_tools_for((int) $user['id']);
+$calendarTools = $agentSchemas !== [] ? simko_agent_tools_payload($agentSchemas) : [];
+$agentAllowed = array_column($agentSchemas, 'name');
 $usedCalendarTools = false;
 if ($calendarTools !== []) {
     $usedCalendarTools = true;
@@ -185,7 +201,7 @@ if ($calendarTools !== []) {
         $endpoint = simko_xai_url('responses');
         $toolPayload = simko_search_payload($model, $messages, $strictSearch, $effort, $deep);
         $toolPayload['tools'] = array_merge($toolPayload['tools'], $calendarTools['responses']);
-        $data = simko_calendar_tool_loop((int) $user['id'], $body, $endpoint, $toolPayload, $timeout, 'responses');
+        $data = simko_agent_tool_loop((int) $user['id'], $body, $endpoint, $toolPayload, $timeout, 'responses', $agentAllowed);
     } else {
         $endpoint = simko_xai_url('chat/completions');
         $toolPayload = [
@@ -197,7 +213,7 @@ if ($calendarTools !== []) {
         if ($effort !== null) {
             $toolPayload['reasoning_effort'] = $effort;
         }
-        $data = simko_calendar_tool_loop((int) $user['id'], $body, $endpoint, $toolPayload, $timeout, 'completions');
+        $data = simko_agent_tool_loop((int) $user['id'], $body, $endpoint, $toolPayload, $timeout, 'completions', $agentAllowed);
     }
     $result = ['ticks' => 0, 'aborted' => false, 'final' => $data, 'reply' => simko_choice_text($data)];
     if ($stream) {
@@ -267,7 +283,9 @@ if ($reply === '') {
 }
 
 simko_usage_record((int) $user['id'], !empty($body['voice']) ? 'voice' : 'message');
-simko_memory_learn((int) $user['id'], $memoryChild, $text);
+if (!in_array('save_memory', simko_agent_used(), true)) {
+    simko_memory_learn((int) $user['id'], $memoryChild, $text);
+}
 
 $payload = [
     'everyday' => $reply,
@@ -290,6 +308,9 @@ if ($file !== null) {
 if ($deep) {
     $payload['deep_search'] = true;
     $payload['search_calls'] = simko_search_call_count($data);
+}
+if (simko_agent_used() !== []) {
+    $payload['tools_used'] = simko_agent_used();
 }
 $payload['cost_ticks'] = simko_xai_cost_total();
 $payload['reasoning_effort'] = $effort ?? 'default';
