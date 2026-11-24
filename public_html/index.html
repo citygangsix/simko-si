@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"/>
 <title>Simko SI: a calm Grok-powered assistant for chat, search and voice</title>
-<meta name="simko-build" content="flagship12-20261123"/>
+<meta name="simko-build" content="flagship13-20261123"/>
 <link rel="icon" href="/assets/favicon.svg?v=971b21ff3edd" type="image/svg+xml"/>
 <meta name="description" content="Simko SI is a calm, Grok-powered assistant. Chat in everyday English, search the web with sources, think through hard problems, and talk out loud."/>
 <link rel="canonical" href="https://simkosi.com/"/>
@@ -1086,6 +1086,16 @@
   .platformCard[hidden] { display: none !important; }
   .platformCard h2 { margin: 0 2.2rem 0.4rem 0; font-size: 1.45rem; font-weight: 500; }
   .platformLead { margin: 0 0 0.8rem; line-height: 1.45; }
+  #connectorList { list-style: none; margin: 0 0 0.6rem; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+  #connectorList .connectorRow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.6rem 0.6rem 0.6rem 0.85rem; border-radius: 0.9rem; background: rgba(255,255,255,.06); border: 1px solid rgba(255,214,196,.25); }
+  #connectorList .connectorName { flex: 1; min-width: 8rem; }
+  #connectorList .connectorState { display: block; font-size: 0.8rem; color: #cfe3df; }
+  #connectorList .connectorState.is-on { color: #bff0dc; }
+  #connectorList button { min-height: 44px; }
+  #drivePicks { flex-basis: 100%; list-style: none; margin: 0.2rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+  #drivePicks li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+  #drivePicks .pickName { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  #drivePicks .pickEmpty { color: #cfe3df; }
   #deviceList { list-style: none; margin: 0 0 0.8rem; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; }
   #deviceList li { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.5rem 0.55rem 0.8rem; border-radius: 0.9rem; background: rgba(255,255,255,.06); border: 1px solid rgba(255,214,196,.25); }
   #deviceList li.is-current { border-color: rgba(160,230,210,.7); }
@@ -1631,6 +1641,7 @@
       </div>
     </div>
     <ul id="connectorList"></ul>
+    <p id="connectorMsg" role="status" aria-live="polite"></p>
   </section>
   <section id="vaultCard" class="platformCard" hidden aria-labelledby="vaultTitle">
     <button id="vaultClose" class="platformClose" type="button" aria-label="Close">×</button>
@@ -2036,11 +2047,11 @@
 <script src="/assets/theme-host.js?v=971b21ff3edd"></script>
 <script src="/assets/simco-voice.js?v=voice-bots-20261108-v6"></script>
 <script src="/assets/simco-mobile.js?v=mobile-20261123"></script>
-<script src="/assets/simco-install.js?v=flagship11-20261123"></script>
-<script src="/assets/simco-coderun.js?v=flagship11-20261123"></script>
-<script src="/assets/simco-security.js?v=flagship11-20261123"></script>
-<script src="/assets/simco-store.js?v=flagship11-20261123"></script>
-<script src="/assets/simco-app.js?v=flagship12-20261123"></script>
+<script src="/assets/simco-install.js?v=flagship13-20261123"></script>
+<script src="/assets/simco-coderun.js?v=flagship13-20261123"></script>
+<script src="/assets/simco-security.js?v=flagship13-20261123"></script>
+<script src="/assets/simco-store.js?v=flagship13-20261123"></script>
+<script src="/assets/simco-app.js?v=flagship13-20261123"></script>
 
 </body>
 </html>

@@ -67,6 +67,9 @@ function simko_connector_settings(string $provider): array
         'ready' => $clientId !== '' && !str_contains($clientId, 'REPLACE'),
         'authorize_url' => trim((string) ($row['authorize_url'] ?? $catalog[$provider]['authorize_url'])),
         'disclosure' => (string) ($catalog[$provider]['disclosure'] ?? ''),
+        'api_base' => rtrim(trim((string) ($row['api_base'] ?? ($provider === 'github' ? 'https://api.github.com' : 'https://www.googleapis.com'))), '/'),
+        'picker_api_key' => trim((string) ($row['picker_api_key'] ?? '')),
+        'app_id' => trim((string) ($row['app_id'] ?? '')),
     ];
 }
 
@@ -93,6 +96,7 @@ function simko_connector_list(int $userId = 0): array
             'expires_at' => $grant ? (int) $grant['expires_at'] : 0,
             'disclosure' => (string) ($settings['disclosure'] ?? ''),
             'privacy_url' => '/privacy.html',
+            'picker' => $id === 'google-drive' && $settings['picker_api_key'] !== '',
         ];
     }
     return $rows;
@@ -268,4 +272,36 @@ function simko_connector_disconnect(int $userId, string $provider): void
         curl_close($ch);
     }
     simko_db()->prepare('DELETE FROM connector_grants WHERE user_id = ? AND provider = ?')->execute([$userId, $provider]);
+    try {
+        simko_db()->prepare('DELETE FROM connector_picks WHERE user_id = ? AND provider = ?')->execute([$userId, $provider]);
+    } catch (Throwable $e) {
+        // No picks table yet.
+    }
+}
+
+/** A working access token for this person's connector, refreshed first when it is about to expire. */
+function simko_connector_access_token(int $userId, string $provider): string
+{
+    $stmt = simko_db()->prepare('SELECT access_nonce, access_cipher, refresh_cipher, expires_at FROM connector_grants WHERE user_id = ? AND provider = ?');
+    $stmt->execute([$userId, $provider]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        simko_fail(404, 'That connector is not connected.');
+    }
+    if ((int) $row['expires_at'] < time() + 60 && $row['refresh_cipher'] !== null) {
+        simko_connector_refresh($userId, $provider);
+        $stmt->execute([$userId, $provider]);
+        $row = $stmt->fetch();
+    }
+    $key = simko_connector_key();
+    $access = simko_connector_open((string) $row['access_cipher'], (string) $row['access_nonce'], $key);
+    sodium_memzero($key);
+    return $access;
+}
+
+function simko_connector_connected(int $userId, string $provider): bool
+{
+    $stmt = simko_db()->prepare('SELECT 1 FROM connector_grants WHERE user_id = ? AND provider = ?');
+    $stmt->execute([$userId, $provider]);
+    return (bool) $stmt->fetchColumn();
 }

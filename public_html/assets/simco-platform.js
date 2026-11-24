@@ -635,28 +635,101 @@
       if (connectorOpen) connectorOpen.hidden = false;
       if (connectorOpen && !connectorOpen.dataset.bound) {
         connectorOpen.dataset.bound = "1";
-        connectorOpen.addEventListener("click", function () {
+        connectorOpen.addEventListener("click", function () { openConnectors(); });
+        if (/[?&]connected=/.test(location.search)) {
+          try { history.replaceState(null, "", location.pathname); } catch (e) {}
+          setTimeout(function () { openConnectors("Connected."); }, 900);
+        }
+      }
+      function connectorMsg(t) { var m = $("connectorMsg"); if (m) m.textContent = t || ""; }
+      function loadPickerApi() {
+        if (window.google && window.google.picker) return Promise.resolve();
+        return new Promise(function (resolve, reject) {
+          var go = function () { window.gapi.load("picker", { callback: resolve, onerror: reject }); };
+          if (window.gapi) { go(); return; }
+          var s = document.createElement("script");
+          s.src = "https://apis.google.com/js/api.js"; s.async = true; s.onload = go; s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+      function paintPicks(box, files) {
+        box.replaceChildren();
+        if (!files.length) { var none = document.createElement("li"); none.className = "pickEmpty"; none.textContent = "No files picked yet. Grok can only read files you pick."; box.appendChild(none); return; }
+        files.forEach(function (f) {
+          var li = document.createElement("li");
+          var name = document.createElement("span"); name.className = "pickName"; name.textContent = f.name; li.appendChild(name);
+          var rm = document.createElement("button"); rm.type = "button"; rm.className = "pickRemove"; rm.textContent = "Remove";
+          rm.setAttribute("aria-label", "Stop sharing " + f.name + " with Grok");
+          rm.addEventListener("click", function () {
+            rm.disabled = true;
+            post({ op: "drive-pick-remove", file_id: f.id }).then(function (d) { if (d.ok) { paintPicks(box, d.files || []); connectorMsg(f.name + " removed."); } else rm.disabled = false; });
+          });
+          li.appendChild(rm); box.appendChild(li);
+        });
+      }
+      function openPicker(box, button) {
+        button.disabled = true; connectorMsg("Opening Google Drive…");
+        Promise.all([post({ op: "drive-picker" }), loadPickerApi()]).then(function (r) {
+          button.disabled = false;
+          var cfg = r[0];
+          if (!cfg.ok) { connectorMsg(cfg.error || "The file picker could not open."); return; }
+          connectorMsg("");
+          var gp = window.google.picker;
+          var view = new gp.DocsView(gp.ViewId.DOCS).setIncludeFolders(true).setSelectFolderEnabled(false).setMode(gp.DocsViewMode.LIST);
+          var picker = new gp.PickerBuilder()
+            .addView(view)
+            .enableFeature(gp.Feature.MULTISELECT_ENABLED)
+            .setOAuthToken(cfg.access_token)
+            .setDeveloperKey(cfg.api_key)
+            .setAppId(cfg.app_id)
+            .setOrigin(location.protocol + "//" + location.host)
+            .setTitle("Pick files Grok may read")
+            .setCallback(function (data) {
+              if (data[gp.Response.ACTION] !== gp.Action.PICKED) return;
+              var files = (data[gp.Response.DOCUMENTS] || []).map(function (d) { return { id: d[gp.Document.ID], name: d[gp.Document.NAME], mimeType: d[gp.Document.MIME_TYPE] }; });
+              post({ op: "drive-picks-save", files: files }).then(function (d) {
+                if (!d.ok) { connectorMsg(d.error || "Could not save the picked files."); return; }
+                paintPicks(box, d.files || []);
+                connectorMsg(d.saved === 1 ? "1 file picked. Ask Grok about it in a chat." : d.saved + " files picked. Ask Grok about them in a chat.");
+              });
+            })
+            .build();
+          picker.setVisible(true);
+        }, function () { button.disabled = false; connectorMsg("Google's file picker did not load. Check your connection and try again."); });
+      }
+      function openConnectors(note) {
           post({ op: "connectors" }).then(function (data) {
             var list = $("connectorList");
             if (!list) return;
             list.replaceChildren();
+            connectorMsg(note || "");
             (data.connectors || []).forEach(function (row) {
               if (!row.ready) return;
               var item = document.createElement("li");
-              item.textContent = row.name + (row.connected ? " · Connected" : " · Not connected") + " ";
+              item.className = "connectorRow";
+              item.dataset.provider = row.id;
+              var label = document.createElement("span");
+              label.className = "connectorName";
+              label.textContent = row.name;
+              var state = document.createElement("span");
+              state.className = "connectorState" + (row.connected ? " is-on" : "");
+              state.textContent = row.connected ? "Connected" : "Not connected";
+              label.appendChild(state);
+              item.appendChild(label);
               var button = document.createElement("button");
               button.type = "button";
+              button.className = "connectorToggle";
               button.textContent = row.connected ? "Disconnect" : "Connect " + row.name;
               button.addEventListener("click", function () {
+                button.disabled = true;
                 if (row.connected) {
-                  post({ op: "connector-disconnect", provider: row.id }).then(function () {
-                    item.textContent = row.name + " · Not connected";
-                  });
+                  post({ op: "connector-disconnect", provider: row.id }).then(function () { openConnectors(row.name + " disconnected."); });
                   return;
                 }
                 var box = $("connectorDisclose");
                 var textNode = $("connectorDiscloseText");
                 if (box && textNode && row.disclosure) {
+                  button.disabled = false;
                   textNode.textContent = row.disclosure;
                   box.hidden = false;
                   var yes = $("connectorDiscloseYes");
@@ -676,9 +749,19 @@
                 }
                 post({ op: "connector-start", provider: row.id }).then(function (started) {
                   if (started.url) window.location.href = started.url;
+                  else { button.disabled = false; connectorMsg(started.error || "Could not start."); }
                 });
               });
               item.appendChild(button);
+              if (row.id === "google-drive" && row.connected && row.picker) {
+                var pick = document.createElement("button");
+                pick.type = "button"; pick.id = "drivePick"; pick.textContent = "Pick files";
+                var picks = document.createElement("ul"); picks.id = "drivePicks";
+                pick.addEventListener("click", function () { openPicker(picks, pick); });
+                item.appendChild(pick);
+                item.appendChild(picks);
+                post({ op: "drive-picks" }).then(function (d) { paintPicks(picks, (d && d.files) || []); });
+              }
               list.appendChild(item);
             });
             if (!list.children.length) {
@@ -688,7 +771,6 @@
             }
             show("connectorCard");
           });
-        });
       }
       var connectorClose = $("connectorClose");
       if (connectorClose && !connectorClose.dataset.bound) {

@@ -27,8 +27,9 @@ $readyPrivate = platform_private('connectors-on', ['connectors' => true], [
 [$site2, $site2Pipes] = platform_site($readyPrivate, 8954);
 $user2 = platform_signup(8954, 'connect-on-' . getmypid() . '@simkosi.test');
 $start = platform_api(8954, '/api/platform', ['op' => 'connector-start', 'provider' => 'google-drive'], $user2['token']);
-platform_assert($start['status'] === 200 && str_contains((string) ($start['data']['url'] ?? ''), 'drive.file'), 'Drive asks only for file-level access');
-platform_assert(str_contains((string) ($start['data']['url'] ?? ''), 'access_type=offline'), 'Google asks for a refresh token');
+$driveUrl = (string) ($start['data']['url'] ?? '');
+platform_assert($start['status'] === 200 && str_contains($driveUrl, rawurlencode('https://www.googleapis.com/auth/drive.file')) && !str_contains($driveUrl, 'drive.readonly'), 'Drive asks only for drive.file (picked files), never all of Drive');
+platform_assert(str_contains($driveUrl, 'access_type=offline') && str_contains($driveUrl, 'redirect_uri=' . rawurlencode('https://simkosi.com/api/connector/callback')), 'Drive asks for a refresh token and returns to /api/connector/callback');
 platform_assert(!str_contains((string) ($start['data']['url'] ?? ''), 'gmail'), 'the Drive URL has no Gmail scope');
 $github = platform_api(8954, '/api/platform', ['op' => 'connector-start', 'provider' => 'github'], $user2['token']);
 platform_assert($github['status'] === 200 && str_contains((string) ($github['data']['scope'] ?? ''), 'public_repo'), 'GitHub connector is available');

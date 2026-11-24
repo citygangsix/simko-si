@@ -12,6 +12,7 @@ require_once __DIR__ . '/shares.php';
 require_once __DIR__ . '/oauth.php';
 require_once __DIR__ . '/vault.php';
 require_once __DIR__ . '/connectors.php';
+require_once __DIR__ . '/connector-tools.php';
 require_once __DIR__ . '/agents.php';
 require_once __DIR__ . '/team.php';
 require_once __DIR__ . '/browse.php';
@@ -295,6 +296,23 @@ switch ($op) {
         }
         simko_connector_disconnect($userId, (string) ($body['provider'] ?? ''));
         simko_ok(['connectors' => simko_connector_list($userId)]);
+        break;
+    case 'drive-picker':
+    case 'drive-picks':
+    case 'drive-picks-save':
+    case 'drive-pick-remove':
+        if (!simko_flag('connectors')) {
+            simko_fail(404, 'Connectors are turned off.');
+        }
+        if ($op === 'drive-picker') {
+            simko_ok(simko_drive_picker_config($userId));
+        } elseif ($op === 'drive-picks') {
+            simko_ok(['files' => simko_drive_picks($userId)]);
+        } elseif ($op === 'drive-picks-save') {
+            simko_ok(simko_drive_picks_save($userId, is_array($body['files'] ?? null) ? $body['files'] : []));
+        } else {
+            simko_ok(simko_drive_pick_remove($userId, (string) ($body['file_id'] ?? '')));
+        }
         break;
     case 'vault-list':
         if (!simko_flag('vault')) {

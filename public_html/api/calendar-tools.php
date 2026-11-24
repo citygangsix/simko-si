@@ -20,29 +20,7 @@ function simko_calendar_connected(int $userId): bool
     return (bool) $stmt->fetch();
 }
 
-function simko_connector_access_token(int $userId, string $provider): string
-{
-    $stmt = simko_db()->prepare(
-        'SELECT access_nonce, access_cipher, refresh_nonce, refresh_cipher, expires_at FROM connector_grants WHERE user_id = ? AND provider = ?'
-    );
-    $stmt->execute([$userId, $provider]);
-    $row = $stmt->fetch();
-    if (!$row) {
-        simko_fail(404, 'Google Calendar is not connected on this account.');
-    }
-    if ((int) $row['expires_at'] < time() + 60 && $row['refresh_cipher'] !== null) {
-        simko_connector_refresh($userId, $provider);
-        $stmt->execute([$userId, $provider]);
-        $row = $stmt->fetch();
-        if (!$row) {
-            simko_fail(404, 'Google Calendar is not connected on this account.');
-        }
-    }
-    $key = simko_connector_key();
-    $token = simko_connector_open((string) $row['access_cipher'], (string) $row['access_nonce'], $key);
-    sodium_memzero($key);
-    return $token;
-}
+// simko_connector_access_token() lives in connectors.php (shared by Drive, GitHub and Calendar).
 
 function simko_calendar_http(int $userId, string $method, string $url, ?array $json = null): array
 {

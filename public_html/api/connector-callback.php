@@ -13,5 +13,5 @@ if (!$row || $code === '') {
     simko_fail(400, 'That connection could not be finished.');
 }
 simko_connector_exchange((int) $row['user_id'], (string) $row['provider'], $code, $state);
-header('Location: /', true, 302);
+header('Location: /?connected=' . rawurlencode((string) $row['provider']), true, 302);
 exit;
