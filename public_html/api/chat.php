@@ -12,10 +12,15 @@ require_once __DIR__ . '/calendar-tools.php';
 require_once __DIR__ . '/agent-tools.php';
 require_once __DIR__ . '/projects.php';
 require_once __DIR__ . '/mcp.php';
+require_once __DIR__ . '/tasks.php';
+require_once __DIR__ . '/paywall-switch.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
 simko_require_grok_user($user);
+// Yes/No cards made on this turn belong to this chat (they re-render when it is opened again).
+$GLOBALS['simko_approval_session'] = simko_clip((string) ($body['session_id'] ?? ''), 80);
+$GLOBALS['simko_turn_cards'] = [];
 $text = trim((string) ($body['text'] ?? ''));
 // Paperclip: up to 4 pictures (Grok vision) or PDF, Word, Excel and text files (read here for Q&A).
 $files = simko_attachments_read($body);
@@ -95,6 +100,24 @@ $mcpNote = $p0Child ? '' : simko_mcp_apply_approved((int) $user['id'], $body);
 if ($mcpNote !== '') {
     $system .= "\n\n" . $mcpNote;
 }
+// Approval cards: an approved task start, paywall switch, or connector token consent runs once here.
+if (!$p0Child) {
+    foreach ([
+        simko_tasks_apply_approved((int) $user['id'], $body),
+        simko_paywall_apply_approved((int) $user['id'], $body),
+        simko_flag('mcp') ? simko_mcp_token_apply_approved((int) $user['id'], $body) : '',
+    ] as $approvalNote) {
+        if ($approvalNote !== '') {
+            $system .= "\n\n" . $approvalNote;
+        }
+    }
+}
+if (simko_flag('approvals')) {
+    $declinedNote = simko_approvals_declined_note((int) $user['id'], (string) ($body['session_id'] ?? ''));
+    if ($declinedNote !== '') {
+        $system .= "\n\n" . $declinedNote;
+    }
+}
 $agentIsChild = !empty($body['child_id']);
 $agentDeep = !empty($body['deep_search']);
 $agentSchemas = (simko_calendar_connected((int) $user['id']) || $agentNote !== ''
@@ -113,7 +136,7 @@ if (!$p0Child && $projectId > 0 && simko_flag('projects')) {
     $GLOBALS['simko_extra_tools'] = array_merge($GLOBALS['simko_extra_tools'], $projectCtx['tools']);
 }
 if (!$p0Child && simko_flag('mcp')) {
-    $mcpRead = simko_mcp_read_tools((int) $user['id']);
+    $mcpRead = simko_mcp_read_tools((int) $user['id'], true);
     $GLOBALS['simko_extra_tools'] = array_merge($GLOBALS['simko_extra_tools'], $mcpRead);
     $mcpSystem = simko_mcp_system_note((int) $user['id']);
     if ($mcpSystem !== '') {
@@ -347,6 +370,19 @@ if ($deep) {
 }
 if (simko_agent_used() !== []) {
     $payload['tools_used'] = simko_agent_used();
+}
+if (!empty($GLOBALS['simko_turn_cards'])) {
+    // Cards that do not stop the turn (first-use connector token card): shown under this reply.
+    $payload['approvals'] = $GLOBALS['simko_turn_cards'];
+}
+if ((int) ($body['approval_id'] ?? 0) > 0 && simko_flag('approvals')) {
+    $decidedRow = simko_approval_row((int) $user['id'], (int) $body['approval_id']);
+    if ($decidedRow) {
+        $payload['approval_card'] = simko_approval_public($decidedRow);
+    }
+    if (isset($GLOBALS['simko_approval_result'])) {
+        $payload['approval_result'] = (string) $GLOBALS['simko_approval_result'];
+    }
 }
 $payload['cost_ticks'] = simko_xai_cost_total();
 $payload['reasoning_effort'] = $effort ?? 'default';

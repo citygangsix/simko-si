@@ -105,7 +105,7 @@ foreach (['responses' => true, 'completions' => false] as $style => $search) {
 // Page has the chip row and the in-chat Approve button.
 $html = (string) file_get_contents(dirname(__DIR__) . '/public_html/index.html');
 $js = (string) file_get_contents(dirname(__DIR__) . '/public_html/assets/simco-app.js');
-platform_assert(str_contains($html, 'id="usedTools"') && str_contains($html, 'id="chatApprove"') && str_contains($js, '"Used: "') && str_contains($js, 'showChatApproval'), 'chat shows Used chips and an in-chat Approve button');
+platform_assert(str_contains($html, 'id="usedTools"') && str_contains($html, 'id="approvalCards"') && str_contains($html, 'id="chatApprovalTpl"') && str_contains($js, '"Used: "') && str_contains($js, 'showChatApproval'), 'chat shows Used chips and an in-chat Approve button');
 @unlink($xlog);
 @unlink($alog);
 echo "platform-39-function-calling: ok\n";

@@ -65,6 +65,7 @@ function simko_mock_p0(string $path): bool
     $fileSearch = [];
     $mcp = [];
     $mcpFns = [];
+    $siteFns = [];
     foreach ((array) ($body['tools'] ?? []) as $t) {
         if (!is_array($t)) {
             continue;
@@ -75,6 +76,8 @@ function simko_mock_p0(string $path): bool
             $mcp[] = $t['server_label'] . '=' . implode('|', (array) ($t['allowed_tools'] ?? [])) . (isset($t['headers']['Authorization']) ? '+auth' : '');
         } elseif (($t['type'] ?? '') === 'function' && str_starts_with((string) ($t['name'] ?? ''), 'mcp_')) {
             $mcpFns[] = (string) $t['name'];
+        } elseif (($t['type'] ?? '') === 'function' && in_array((string) ($t['name'] ?? ''), ['create_task', 'turn_paywall_on'], true)) {
+            $siteFns[] = (string) $t['name'];
         }
     }
     $fileIds = [];
@@ -99,13 +102,34 @@ function simko_mock_p0(string $path): bool
             $system = (string) $flat;
         }
     }
-    $project = str_contains($system, 'inside the person\'s project') || str_contains($system, 'Connector action result');
-    if ($fileSearch === [] && $mcp === [] && $mcpFns === [] && $fileIds === [] && !$project) {
+    $project = str_contains($system, 'inside the person\'s project') || str_contains($system, 'Connector action result')
+        || str_contains($system, 'Scheduled task result:') || str_contains($system, 'Paywall result:') || str_contains($system, 'Connector consent:')
+        || str_contains($system, 'tapped No on these');
+    if ($fileSearch === [] && $mcp === [] && $mcpFns === [] && $siteFns === [] && $fileIds === [] && !$project) {
         return false;
     }
     $output = [];
+    $pickFn = static function (array $fns, string $want): string {
+        foreach ($fns as $f) {
+            if (str_contains($f, $want)) {
+                return $f;
+            }
+        }
+        return $fns[0];
+    };
     if ($mcpFns !== [] && $fnOutput === null && str_contains($text, 'MCPWRITE')) {
-        $output[] = ['type' => 'function_call', 'call_id' => 'call_mcp_1', 'name' => $mcpFns[0], 'arguments' => json_encode(['title' => 'Buy grout'])];
+        $output[] = ['type' => 'function_call', 'call_id' => 'call_mcp_1', 'name' => $pickFn($mcpFns, 'create_note'), 'arguments' => json_encode(['title' => 'Buy grout'])];
+        $reply = '';
+    } elseif ($mcpFns !== [] && $fnOutput === null && str_contains($text, 'MCPREAD')) {
+        $output[] = ['type' => 'function_call', 'call_id' => 'call_mcp_2', 'name' => $pickFn($mcpFns, 'search_notes'), 'arguments' => json_encode(['query' => 'grout'])];
+        $reply = '';
+    } elseif (in_array('create_task', $siteFns, true) && $fnOutput === null && str_contains($text, 'TASKCREATE')) {
+        $output[] = ['type' => 'function_call', 'call_id' => 'call_task_1', 'name' => 'create_task', 'arguments' => json_encode([
+            'name' => 'Morning news', 'prompt' => 'Give me three top headlines in plain words.', 'freq' => 'daily', 'hour' => 7, 'minute' => 15,
+        ])];
+        $reply = '';
+    } elseif (in_array('turn_paywall_on', $siteFns, true) && $fnOutput === null && str_contains($text, 'PAYWALLON')) {
+        $output[] = ['type' => 'function_call', 'call_id' => 'call_pay_1', 'name' => 'turn_paywall_on', 'arguments' => '{}'];
         $reply = '';
     } else {
         $bits = [];
@@ -124,6 +148,14 @@ function simko_mock_p0(string $path): bool
         }
         if (preg_match('/Connector action result: (.{0,160})/s', $system, $cm)) {
             $bits[] = '[connector:' . preg_replace('/\s+/', ' ', $cm[1]) . ']';
+        }
+        foreach (['Scheduled task result' => 'task', 'Paywall result' => 'paywall', 'Connector consent' => 'consent'] as $needle => $tag) {
+            if (preg_match('/' . $needle . ': (.{0,160})/s', $system, $xm)) {
+                $bits[] = '[' . $tag . ':' . preg_replace('/\s+/', ' ', $xm[1]) . ']';
+            }
+        }
+        if (str_contains($system, 'tapped No on these')) {
+            $bits[] = '[declined-noted]';
         }
         $reply = 'The reef heard you. ' . implode(' ', $bits);
     }

@@ -471,25 +471,137 @@
     });
     box.hidden = !(names || []).length;
   }
-  function showChatApproval(approval, onApproved) {
-    const box = $("chatApproval");
-    if (!box) return false;
-    $("chatApprovalText").textContent = (approval.summary || "Simko SI wants to make a change.") + ". Approve?";
-    box.hidden = false;
-    const yes = $("chatApprove"), no = $("chatDecline");
-    yes.disabled = false; no.disabled = false;
+  // In-chat Yes/No approval cards (APPROVAL-PROMPT-SPEC). One card per sensitive action, inline under the reply
+  // that asked for it. Yes -> decide, then the next turn runs it once; No -> nothing runs. Pending cards come back
+  // when a chat is reopened; after 24 h they show "Expired, ask again".
+  const APPROVAL_TTL_MS = 24 * 3600 * 1000;
+  let cardsSessionId = null;
+  function approvalExpired(approval) {
+    if (approval.status === "expired") return true;
+    return approval.status === "pending" && approval.created_at && (approval.created_at * 1000 + APPROVAL_TTL_MS) < Date.now();
+  }
+  function collapseApprovalCard(card, text, kind) {
+    card.querySelector(".chatApprovalButtons").hidden = true;
+    const chip = card.querySelector(".approvalCardChip");
+    chip.textContent = text;
+    chip.hidden = false;
+    card.dataset.state = kind;
+    card.classList.add("approvalCardDone");
+  }
+  async function runApprovedDefault(approvalId) {
+    setReply("Working on it…");
+    const again = await postStream("/api/simco/turn", {
+      text: "Yes, go ahead.",
+      token: authToken,
+      session_id: activeSessionId || "",
+      approval_id: approvalId,
+      stream: false,
+      tz: (function () { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined; } catch (e) { return undefined; } })()
+    }, function () {}, function () {});
+    const line = (again && (again.everyday || again.error)) || "No reply came back from Simko SI. Try again in a moment.";
+    showToolPanel(again);
+    paintUsedTools(again && again.tools_used);
+    setReply(line);
+    await rememberReply(line);
+    refreshSpend();
+    return again;
+  }
+  function parkReplyAndCards() {
+    const history = $("historyBubbles");
+    const reply = $("reply-bubble");
+    if (!history || !reply) return;
+    if (reply.textContent.trim() && reply.textContent !== "Working on it…") {
+      history.appendChild(makeBubble({ role: "assistant", text: reply.textContent }));
+    }
+    parkApprovalCards(history);
+    setReply("");
+  }
+  async function rememberReply(line) {
+    if (!hasSession() || !activeSessionId || String(activeSessionId).indexOf("demo-") === 0) return;
+    await sessionPost({ op: "append", session_id: activeSessionId, role: "assistant", text: line });
+    await showSession(activeSessionId, false);
+  }
+  function makeApprovalCard(approval, onApproved) {
+    const tpl = $("chatApprovalTpl");
+    const card = tpl.content.firstElementChild.cloneNode(true);
+    card.dataset.approvalId = String(approval.id);
+    card.dataset.action = approval.action || "";
+    card.setAttribute("aria-label", approval.title || approval.summary || "Approve this?");
+    card.querySelector(".approvalCardTitle").textContent = approval.title || approval.summary || "Simko SI wants to do something.";
+    const what = card.querySelector(".approvalCardWhat");
+    what.textContent = approval.what || "";
+    what.hidden = !approval.what;
+    const facts = card.querySelector(".approvalCardFacts");
+    (approval.facts || []).forEach(function (fact) {
+      const li = document.createElement("li");
+      li.textContent = fact;
+      facts.append(li);
+    });
+    facts.hidden = !(approval.facts || []).length;
+    card.querySelector(".approvalCardCost").textContent = "Cost: " + (approval.cost_label || "Free");
+    const where = card.querySelector(".approvalCardWhere");
+    where.textContent = approval.where ? "Where: " + approval.where : "";
+    where.hidden = !approval.where;
+    const yes = card.querySelector(".approvalYes"), no = card.querySelector(".approvalNo");
+    if (approvalExpired(approval)) {
+      collapseApprovalCard(card, "Expired, ask again", "expired");
+      return card;
+    }
+    if (approval.status === "approved") { collapseApprovalCard(card, "Approved, ran: " + (approval.result || approval.summary || "done"), "approved"); return card; }
+    if (approval.status === "declined") { collapseApprovalCard(card, "Declined, nothing ran", "declined"); return card; }
     const decide = async function (decision) {
       yes.disabled = true; no.disabled = true;
-      const res = await postJson("/api/platform", { op: "decide", approval_id: approval.id, decision: decision, token: authToken }).catch(function () { return null; });
-      box.hidden = true;
-      if (!res || !res.ok) { setReply((res && res.error) || "That approval could not be saved. Try again."); return; }
-      if (decision === "approve") onApproved(approval.id);
-      else setReply("Okay, I did not do that.");
+      const res = await postJson("/api/platform", { op: "decide", approval_id: approval.id, decision: decision, token: authToken, session_id: activeSessionId || "" }).catch(function () { return null; });
+      if (res && res.expired) { collapseApprovalCard(card, "Expired, ask again", "expired"); return; }
+      if (!res || !res.ok) {
+        yes.disabled = false; no.disabled = false;
+        const chip = card.querySelector(".approvalCardChip");
+        chip.textContent = (res && res.error) || "That answer could not be saved. Try again.";
+        chip.hidden = false;
+        return;
+      }
+      if (decision !== "approve") {
+        collapseApprovalCard(card, "Declined, nothing ran", "declined");
+        return;
+      }
+      collapseApprovalCard(card, "Approved, running…", "running");
+      // The reply that asked stays above its card; the result arrives as the new reply below.
+      parkReplyAndCards();
+      let again = null;
+      try { again = await (onApproved || runApprovedDefault)(approval.id); } catch (e) { again = null; }
+      const result = again && (again.approval_result || (again.approval_card && again.approval_card.result) || again.everyday || again.error);
+      collapseApprovalCard(card, "Approved, ran: " + String(result || "done").slice(0, 200), "approved");
     };
     yes.onclick = function () { decide("approve"); };
     no.onclick = function () { decide("decline"); };
-    yes.focus();
+    return card;
+  }
+  // Kept name: the chat's in-chat Approve component, now one Yes/No card per action.
+  function showChatApproval(approval, onApproved) {
+    const box = $("approvalCards");
+    if (!box || !$("chatApprovalTpl") || !approval || !approval.id) return false;
+    if (document.querySelector('#thread .approvalCard[data-approval-id="' + approval.id + '"]')) return true;
+    // Cards belong to the open chat: redrawing that chat keeps them.
+    if (activeSessionId) cardsSessionId = activeSessionId;
+    const card = makeApprovalCard(approval, onApproved);
+    box.append(card);
+    const yes = card.querySelector(".approvalYes");
+    if (yes && !yes.disabled && !card.querySelector(".chatApprovalButtons").hidden) { try { yes.focus({ preventScroll: true }); } catch (e) {} }
+    try { card.scrollIntoView({ block: "nearest" }); } catch (e) {}
     return true;
+  }
+  async function loadPendingApprovals(sessionId) {
+    if (!authToken || !sessionId || String(sessionId).indexOf("demo-") === 0) return;
+    const res = await postJson("/api/platform", { op: "approvals-pending", session_id: sessionId, token: authToken }).catch(function () { return null; });
+    if (!res || !res.ok || activeSessionId !== sessionId) return;
+    (res.approvals || []).forEach(function (approval) { showChatApproval(approval, null); });
+  }
+  // Moves the current reply's cards into the history, right after that reply's bubble.
+  function parkApprovalCards(history) {
+    const box = $("approvalCards");
+    if (!box) return;
+    const anchor = history.querySelectorAll(".bubble").length;
+    [...box.children].forEach(function (card) { card.dataset.anchor = String(anchor); history.appendChild(card); });
   }
   function setReply(text) {
     const reply = $("reply-bubble");
@@ -567,6 +679,8 @@
   function renderHistory(session) {
     if (session && session.title) setThreadTitle(session.title);
     const history = $("historyBubbles");
+    const sameChat = !!(session && session.id && session.id === cardsSessionId);
+    const parked = sameChat ? [...history.querySelectorAll(".approvalCard")] : [];
     history.replaceChildren();
     const messages = (session && session.messages) || [];
     messages.forEach((message, index) => {
@@ -578,8 +692,26 @@
       }
       history.appendChild(makeBubble(message));
     });
+    // Cards stay under the reply they belong to when the same chat is redrawn.
+    const bubbles = [...history.querySelectorAll(".bubble")];
+    const lastAt = {};
+    parked.forEach(function (card) {
+      const at = Math.min(parseInt(card.dataset.anchor || "0", 10), bubbles.length);
+      const after = lastAt[at] || (at > 0 ? bubbles[at - 1] : null);
+      if (after && after.nextSibling) history.insertBefore(card, after.nextSibling);
+      else if (!after && history.firstChild) history.insertBefore(card, history.firstChild);
+      else history.appendChild(card);
+      lastAt[at] = card;
+    });
     const tail = messages[messages.length - 1];
     if (!tail || tail.role === "user") setReply("");
+    if (!sameChat) {
+      // Another chat (or reopening): pending cards come back from the server.
+      cardsSessionId = session && session.id ? session.id : null;
+      const box = $("approvalCards");
+      if (box) box.replaceChildren();
+      if (cardsSessionId) loadPendingApprovals(cardsSessionId);
+    }
   }
 
   function fillChatSelect(select, rows, skipId) {
@@ -678,6 +810,7 @@
     if (reply.textContent.trim() && reply.textContent !== "Working on it…") {
       history.appendChild(makeBubble({ role: "assistant", text: reply.textContent }));
     }
+    parkApprovalCards(history);
     history.appendChild(makeBubble({ role: "user", text: text }));
     setReply("");
     const thread = $("thread");
@@ -1112,7 +1245,6 @@
     setReply("Working on it…");
     showToolPanel(null);
     paintUsedTools([]);
-    if ($("chatApproval")) $("chatApproval").hidden = true;
     let everyday = "";
     try {
       if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace("turn_sent");
@@ -1138,9 +1270,11 @@
       }, (status) => {
         if (!live && status === "searching") $("reply-bubble").textContent = "Searching the web…";
       });
-      if (data && data.approval && (window.simcoPlatform || $("chatApproval"))) {
-        setReply(data.approval.summary || "Simko SI is waiting for you to approve this.");
-        const approvalShow = $("chatApproval") ? showChatApproval : window.simcoPlatform.showApproval;
+      if (data && data.approval && (window.simcoPlatform || $("approvalCards"))) {
+        const askLine = data.approval.title ? "Simko SI needs your Yes first: " + data.approval.title + "." : (data.approval.summary || "Simko SI is waiting for you to approve this.");
+        setReply(askLine);
+        const inChat = !!$("approvalCards");
+        const approvalShow = inChat ? showChatApproval : window.simcoPlatform.showApproval;
         approvalShow(data.approval, async (approvalId) => {
           setReply("Working on it…");
           const again = await postStream("/api/simco/turn", Object.assign({}, turnBody, { approval_id: approvalId, stream: false }), function () {}, function () {});
@@ -1149,10 +1283,14 @@
           paintUsedTools(again && again.tools_used);
           setReply(line);
           voiceReply(line);
-          await rememberTurn(text || (sendFile ? "(attached " + sendFile.map(function (f) { return f.name; }).join(", ") + ")" : ""), line);
+          if (inChat) await rememberReply(line);
+          else await rememberTurn(text || (sendFile ? "(attached " + sendFile.map(function (f) { return f.name; }).join(", ") + ")" : ""), line);
           await tagTurn(text);
           refreshSpend();
+          return again;
         });
+        // The ask and its card stay in the chat, so the card re-renders under it when the chat is reopened.
+        if (inChat) await rememberTurn(text || (sendFile ? "(attached " + sendFile.map(function (f) { return f.name; }).join(", ") + ")" : ""), askLine);
         return;
       }
       if (data && !data.everyday && !data.error && live) data.everyday = live;
@@ -1165,6 +1303,8 @@
         return;
       }
       everyday = (data && (data.everyday || data.error)) || "";
+      // Cards that do not stop the turn (first use of a connector login) sit under this reply.
+      if (data && Array.isArray(data.approvals)) data.approvals.forEach(function (approval) { showChatApproval(approval, null); });
       if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace(data && data.ok && everyday ? "turn_reply" : "turn_error", everyday ? "" : "empty");
       if (data && data.model) model = data.model;
       refreshSpend();

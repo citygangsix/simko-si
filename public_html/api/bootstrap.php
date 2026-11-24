@@ -833,8 +833,60 @@ function simko_platform_names(): array
 
 function simko_flag(string $name): bool
 {
+    // Flags the owner can switch from chat (after a Yes card) live in site_settings; config is the fallback.
+    $stored = simko_flag_stored($name);
+    if ($stored !== null) {
+        return $stored;
+    }
     $flags = simko_config_or_empty()['platform'] ?? [];
     return is_array($flags) && !empty($flags[$name]);
+}
+
+/** Flags that may be switched at run time (stored as site_settings 'flag_<name>'). Only the paywall today. */
+function simko_flag_switchable(): array
+{
+    return ['paywall'];
+}
+
+/** The stored value of a switchable flag, or null when unset (or the database is not there yet). */
+function simko_flag_stored(string $name, ?bool $set = null, bool $forget = false): ?bool
+{
+    static $cache = [];
+    if (!in_array($name, simko_flag_switchable(), true)) {
+        return null;
+    }
+    if ($forget) {
+        unset($cache[$name]);
+        return null;
+    }
+    if ($set !== null) {
+        $cache[$name] = $set;
+        return $set;
+    }
+    if (array_key_exists($name, $cache)) {
+        return $cache[$name];
+    }
+    $value = null;
+    if (is_file(simko_private_dir() . '/data/simko.sqlite')) {
+        try {
+            $raw = simko_setting_get('flag_' . $name, null);
+            $value = is_bool($raw) ? $raw : null;
+        } catch (Throwable $e) {
+            $value = null;
+        }
+    }
+    $cache[$name] = $value;
+    return $value;
+}
+
+/** Owner switch for a run-time flag (site_settings, additive; config stays the fallback). */
+function simko_flag_store(string $name, bool $on): void
+{
+    if (!in_array($name, simko_flag_switchable(), true)) {
+        simko_fail(400, 'That setting cannot be switched here.');
+    }
+    simko_setting_set('flag_' . $name, $on);
+    simko_flag_stored($name, $on);
 }
 
 function simko_platform_flags(): array

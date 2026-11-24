@@ -54,26 +54,59 @@ function simko_p0_route(string $op, array $user, array $body): void
             simko_ok(['assigned' => true]);
 
         // ---- Scheduled tasks ----
+        case 'task-save':
+        case 'task-toggle':
+        case 'task-run-now':
+            // Starting a task (save with enabled on, toggle on, run now) waits for an in-chat Yes card.
+            // Calling the op again with the approved approval_id runs it once (same as the next chat turn).
+            if ((int) ($body['approval_id'] ?? 0) > 0) {
+                $row = simko_approval_for_apply($userId, $body, ['task-start']);
+                if (!$row) {
+                    simko_fail(403, 'Approve that action before Simko SI will do it.');
+                }
+                if ($op === 'task-run-now') {
+                    simko_require_grok_user($user);
+                    $bucket = 'task-run:' . $userId;
+                    simko_throttle_check($bucket, simko_tasks_limits()['run_now_per_hour'], 3600);
+                    simko_throttle_hit($bucket);
+                }
+                $res = simko_task_apply_approval($userId, $row);
+                simko_ok($res + ['approval' => simko_approval_public(simko_approval_row($userId, (int) $row['id']) ?? [])]);
+            }
+            if ($op === 'task-save') {
+                simko_require_grok_user($user);
+                $wantOn = !array_key_exists('enabled', $body) || !empty($body['enabled']);
+                $task = simko_task_save($userId, $body);
+                $out = ['task' => simko_task_public($task)];
+                if ($wantOn && (int) $task['enabled'] !== 1) {
+                    if (simko_flag('approvals')) {
+                        $out['approval'] = simko_task_start_card($userId, $task, 'enable');
+                    } else {
+                        $out['needs_approval'] = 'Saved paused: starting a task needs the in-chat Yes card, and approvals are turned off.';
+                    }
+                }
+                simko_ok($out);
+            }
+            $task = simko_task_require($userId, (int) ($body['task_id'] ?? 0));
+            if ($op === 'task-toggle') {
+                $on = !empty($body['enabled']);
+                if (!$on || (int) $task['enabled'] === 1) {
+                    simko_ok(['task' => simko_task_public(simko_task_toggle($userId, (int) $task['id'], $on))]);
+                }
+                if (simko_task_next_run($task, time()) === null) {
+                    simko_fail(400, 'That one-time task has already passed. Edit its date first.');
+                }
+                simko_ok(['task' => simko_task_public($task), 'approval' => simko_task_start_card($userId, $task, 'enable')]);
+            }
+            simko_require_grok_user($user);
+            simko_ok(['task' => simko_task_public($task), 'approval' => simko_task_start_card($userId, $task, 'run')]);
         case 'task-list':
             simko_ok(['tasks' => simko_tasks_list($userId), 'limits' => ['max_per_user' => simko_tasks_limits()['max_per_user']]]);
-        case 'task-save':
-            simko_require_grok_user($user);
-            simko_ok(['task' => simko_task_public(simko_task_save($userId, $body))]);
-        case 'task-toggle':
-            simko_ok(['task' => simko_task_public(simko_task_toggle($userId, (int) ($body['task_id'] ?? 0), !empty($body['enabled'])))]);
         case 'task-delete':
             simko_task_delete($userId, (int) ($body['task_id'] ?? 0));
             simko_ok(['deleted' => true]);
         case 'task-runs':
             simko_ok(['runs' => simko_task_runs($userId, (int) ($body['task_id'] ?? 0))]);
-        case 'task-run-now':
-            $task = simko_task_require($userId, (int) ($body['task_id'] ?? 0));
-            simko_require_grok_user($user);
-            $bucket = 'task-run:' . $userId;
-            simko_throttle_check($bucket, simko_tasks_limits()['run_now_per_hour'], 3600);
-            simko_throttle_hit($bucket);
-            @set_time_limit(150);
-            simko_ok(['run' => simko_task_execute($task, true)]);
 
         // ---- MCP connectors ----
         case 'mcp-list':

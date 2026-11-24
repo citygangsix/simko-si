@@ -71,7 +71,47 @@ function simko_mcp_settings(): array
         'allow_http' => ($raw['allow_http'] ?? false) === true,       // tests only
         'allow_private' => ($raw['allow_private'] ?? false) === true, // tests only
         'config_hosts' => array_values(array_filter(array_map('simko_mcp_host_clean', (array) ($raw['allowed_hosts'] ?? [])))),
+        // Paid connectors: 'paid_hosts' => ['mcp.example.com' => 0.05] (USD per call; '*.example.com' works too).
+        'paid_hosts' => simko_mcp_paid_hosts_clean($raw['paid_hosts'] ?? []),
+        // xAI's own fee per mcp tool call (estimate); above the threshold, reads also become Yes/No cards.
+        'xai_tool_fee_usd' => max(0.0, (float) ($raw['xai_tool_fee_usd'] ?? 0.0)),
+        'spend_threshold_usd' => max(0.0, (float) ($raw['spend_threshold_usd'] ?? 0.01)),
     ];
+}
+
+function simko_mcp_paid_hosts_clean(mixed $raw): array
+{
+    $out = [];
+    foreach (is_array($raw) ? $raw : [] as $host => $cost) {
+        $h = simko_mcp_host_clean((string) $host);
+        if ($h !== '' && is_numeric($cost) && (float) $cost > 0) {
+            $out[$h] = (float) $cost;
+        }
+    }
+    return $out;
+}
+
+/** Estimated USD cost of one call to a tool on this server (0 = free). */
+function simko_mcp_call_cost(array $server, string $kind): float
+{
+    $set = simko_mcp_settings();
+    $host = (string) $server['host'];
+    $cost = 0.0;
+    foreach ($set['paid_hosts'] as $entry => $usd) {
+        if ($entry === $host || (str_starts_with($entry, '*.') && str_ends_with($host, substr($entry, 1)))) {
+            $cost = max($cost, $usd);
+        }
+    }
+    if ($kind === 'read' && $set['xai_tool_fee_usd'] > $set['spend_threshold_usd']) {
+        $cost += $set['xai_tool_fee_usd'];
+    }
+    return round($cost, 4);
+}
+
+/** Whether calls to this server spend money (paid host, or reads with an xAI fee above the threshold). */
+function simko_mcp_server_paid(array $server): bool
+{
+    return simko_mcp_call_cost($server, 'read') > 0;
 }
 
 function simko_mcp_host_clean(mixed $h): string
@@ -474,8 +514,58 @@ function simko_mcp_active(int $userId): array
     return $out;
 }
 
-/** xAI Responses "mcp" tools for the person's allowed read tools. */
-function simko_mcp_read_tools(int $userId): array
+/** Short fingerprint of the connector login, so a new token asks again. */
+function simko_mcp_token_fp(string $token): string
+{
+    return substr(hash('sha256', $token), 0, 16);
+}
+
+/**
+ * The person's answer to the first-use token card for this server and token: approved | declined | pending | none.
+ * Kept in the approvals table itself (action mcp-token-share); Yes is also in audit_log as "mcp-token-consent: <server>".
+ */
+function simko_mcp_token_consent(int $userId, int $serverId, string $fp): string
+{
+    $stmt = simko_db()->prepare('SELECT id, status, payload, created_at FROM approvals WHERE user_id = ? AND action = ? ORDER BY id DESC LIMIT 200');
+    $stmt->execute([$userId, 'mcp-token-share']);
+    foreach ($stmt->fetchAll() as $row) {
+        $p = json_decode((string) $row['payload'], true);
+        if (!is_array($p) || (int) ($p['server_id'] ?? 0) !== $serverId || (string) ($p['token_fp'] ?? '') !== $fp) {
+            continue;
+        }
+        if ((string) $row['status'] === 'pending' && (int) $row['created_at'] < time() - SIMKO_APPROVAL_TTL) {
+            return 'none'; // Expired without an answer: ask again.
+        }
+        return (string) $row['status'];
+    }
+    return 'none';
+}
+
+/** The first-use card: reads send the person's connector login to xAI. */
+function simko_mcp_token_card(int $userId, array $server, string $fp): array
+{
+    $label = (string) $server['label'];
+    return simko_approval_create($userId, 'mcp-token-share', 'Let xAI use your ' . $label . ' login to read from it', [
+        'server_id' => (int) $server['id'],
+        'server_label' => $label,
+        'token_fp' => $fp,
+    ], [
+        'title' => 'Allow reading from ' . $label . '?',
+        'what' => 'To read from ' . $label . ', Simko SI sends your ' . $label . ' login to xAI, which makes the request for you. '
+            . 'Yes lets Grok use its read tools from now on (disconnect the connector to take it back). No keeps it connected, '
+            . 'but Grok will not read from it; changes still go through Simko SI after your Yes.',
+        'cost_usd' => 0,
+        'where' => $label . ' (' . (string) $server['host'] . ')',
+    ]);
+}
+
+/**
+ * xAI Responses "mcp" tools for the person's allowed read tools.
+ *  - Paid servers are left out here: their reads are offered as function tools that ask first (mcp-spend).
+ *  - A server with a login token is only offered after the person said Yes on the first-use card for that token.
+ *    With $ask, a missing answer creates that card (returned in $GLOBALS['simko_turn_cards']).
+ */
+function simko_mcp_read_tools(int $userId, bool $ask = false): array
 {
     $out = [];
     foreach (simko_mcp_active($userId) as $a) {
@@ -485,7 +575,7 @@ function simko_mcp_read_tools(int $userId): array
                 $names[] = (string) $t['name'];
             }
         }
-        if ($names === []) {
+        if ($names === [] || simko_mcp_server_paid($a['server'])) {
             continue;
         }
         $tool = [
@@ -497,6 +587,17 @@ function simko_mcp_read_tools(int $userId): array
         ];
         $token = simko_mcp_token($a['server']);
         if ($token !== '') {
+            if (!simko_flag('approvals')) {
+                continue; // The token card needs approvals; without it the login is never handed to xAI.
+            }
+            $fp = simko_mcp_token_fp($token);
+            $consent = simko_mcp_token_consent($userId, (int) $a['server']['id'], $fp);
+            if ($consent === 'none' && $ask) {
+                $GLOBALS['simko_turn_cards'][] = simko_mcp_token_card($userId, $a['server'], $fp);
+            }
+            if ($consent !== 'approved') {
+                continue;
+            }
             $tool['headers'] = ['Authorization' => 'Bearer ' . $token];
         }
         $out[] = $tool;
@@ -518,7 +619,8 @@ function simko_mcp_write_schemas(int $userId, bool $approvedTurn = false): array
     $out = [];
     foreach (simko_mcp_active($userId) as $a) {
         foreach ($a['tools'] as $t) {
-            if ($t['kind'] !== 'write') {
+            $cost = simko_mcp_call_cost($a['server'], (string) $t['kind']);
+            if ($t['kind'] !== 'write' && $cost <= 0) {
                 continue;
             }
             $params = json_decode((string) $t['input_schema'], true);
@@ -530,7 +632,9 @@ function simko_mcp_write_schemas(int $userId, bool $approvedTurn = false): array
             $out[] = [
                 'name' => simko_mcp_fn_name((int) $a['server']['id'], (string) $t['name']),
                 'description' => '[' . $a['server']['label'] . '] ' . ($t['description'] !== '' ? $t['description'] : $t['name'])
-                    . ' (Changes something: Simko SI asks the person to approve before it runs.)',
+                    . ($t['kind'] === 'write' ? ' (Changes something' : ' (Reads')
+                    . ($cost > 0 ? '; costs about $' . number_format($cost, 2) . ' a call' : '')
+                    . ': Simko SI asks the person to approve before it runs.)',
                 'parameters' => $params,
             ];
         }
@@ -542,7 +646,8 @@ function simko_mcp_resolve_fn(int $userId, string $fn): ?array
 {
     foreach (simko_mcp_active($userId) as $a) {
         foreach ($a['tools'] as $t) {
-            if ($t['kind'] === 'write' && simko_mcp_fn_name((int) $a['server']['id'], (string) $t['name']) === $fn) {
+            if (($t['kind'] === 'write' || simko_mcp_call_cost($a['server'], (string) $t['kind']) > 0)
+                && simko_mcp_fn_name((int) $a['server']['id'], (string) $t['name']) === $fn) {
                 return ['server' => $a['server'], 'tool' => $t];
             }
         }
@@ -550,7 +655,10 @@ function simko_mcp_resolve_fn(int $userId, string $fn): ?array
     return null;
 }
 
-/** A write tool call from Grok: never runs here, it becomes an approval card. */
+/**
+ * A connector call from Grok that needs a Yes: a write (mcp-write) or a paid call (mcp-spend). A call that both
+ * writes and spends shows one mcp-spend card with both facts. Never runs here.
+ */
 function simko_mcp_run_tool(int $userId, string $fn, array $args): array
 {
     $hit = simko_mcp_resolve_fn($userId, $fn);
@@ -558,34 +666,46 @@ function simko_mcp_run_tool(int $userId, string $fn, array $args): array
         return ['ok' => false, 'error' => 'That connector tool is not available.'];
     }
     $argText = json_encode($args, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
-    $summary = 'Use ' . $hit['server']['label'] . ' · ' . $hit['tool']['name'] . ' ' . simko_clip($argText, 160);
-    simko_guard_approval($userId, [], 'mcp-write', $summary, [
+    $label = (string) $hit['server']['label'];
+    $tool = (string) $hit['tool']['name'];
+    $write = (string) $hit['tool']['kind'] === 'write';
+    $cost = simko_mcp_call_cost($hit['server'], (string) $hit['tool']['kind']);
+    $summary = 'Use ' . $label . ' · ' . $tool . ' ' . simko_clip($argText, 160);
+    $what = 'Simko SI calls ' . $tool . ' with ' . simko_clip($argText, 160) . '. '
+        . ($write ? 'This changes something in ' . $label . '.' : 'This reads from ' . $label . '.')
+        . ($cost > 0 ? ' ' . $label . ' charges for each call.' : '');
+    simko_guard_approval($userId, [], $cost > 0 ? 'mcp-spend' : 'mcp-write', $summary, [
         'server_id' => (int) $hit['server']['id'],
-        'tool' => (string) $hit['tool']['name'],
+        'tool' => $tool,
         'arguments' => $args,
+        'write' => $write,
+        'cost_usd' => $cost,
+    ], [
+        'title' => ($write ? 'Change something in ' : 'Read from ') . $label . ($cost > 0 ? ' (paid)' : '') . ': ' . $tool,
+        'what' => $what,
+        'cost_usd' => $cost,
+        'cost_unit' => 'for this call',
+        'where' => $label . ' (' . (string) $hit['server']['host'] . ')',
+        'facts' => array_values(array_filter([$write ? 'Changes something' : '', $cost > 0 ? 'Costs money' : ''])),
     ]);
     return ['ok' => false, 'error' => 'Approvals are off.'];
 }
 
-/** The turn after Approve: runs the approved MCP write once (re-checking owner, allow-list and tool). */
+/** On the turn after Yes: runs an approved connector call (write or paid) once from this server. */
 function simko_mcp_apply_approved(int $userId, array $body): string
 {
-    $approvalId = (int) ($body['approval_id'] ?? 0);
-    if ($approvalId < 1 || !simko_flag('mcp')) {
+    if (!simko_flag('mcp')) {
         return '';
     }
-    $stmt = simko_db()->prepare('SELECT action, payload, status FROM approvals WHERE id = ? AND user_id = ?');
-    $stmt->execute([$approvalId, $userId]);
-    $row = $stmt->fetch();
-    if (!$row || (string) $row['action'] !== 'mcp-write' || (string) $row['status'] !== 'approved') {
+    $row = simko_approval_for_apply($userId, $body, ['mcp-write', 'mcp-spend']);
+    if (!$row) {
         return '';
     }
-    $done = simko_db()->prepare('SELECT 1 FROM audit_log WHERE user_id = ? AND action = ? AND summary LIKE ? LIMIT 1');
-    $done->execute([$userId, 'mcp-ran', 'Ran approval ' . $approvalId . ':%']);
-    if ($done->fetch()) {
+    $approvalId = (int) $row['id'];
+    if (simko_approval_already_ran($userId, $approvalId)) {
         return 'Connector action result: that approved action already ran earlier. Do not run it again.';
     }
-    $p = json_decode((string) $row['payload'], true);
+    $p = simko_approval_payload($row);
     $serverId = (int) ($p['server_id'] ?? 0);
     $toolName = (string) ($p['tool'] ?? '');
     $args = is_array($p['arguments'] ?? null) ? $p['arguments'] : [];
@@ -593,8 +713,21 @@ function simko_mcp_apply_approved(int $userId, array $body): string
     if (!$hit || (int) $hit['server']['id'] !== $serverId || (string) $hit['tool']['name'] !== $toolName) {
         return 'Connector action result: that tool is no longer connected or allowed, so nothing was done.';
     }
+    $cost = simko_mcp_call_cost($hit['server'], (string) $hit['tool']['kind']);
+    if ($cost > 0) {
+        [$left] = simko_approval_cap($userId);
+        if ($left < $cost) {
+            return 'Connector action result: today\'s spending limit is reached, so nothing was done.';
+        }
+    }
+    if (!simko_approval_claim($userId, $approvalId, 'mcp-ran', $hit['server']['label'] . ' · ' . $toolName)) {
+        return 'Connector action result: that approved action already ran earlier. Do not run it again.';
+    }
     $target = simko_mcp_check_url((string) $hit['server']['url']);
     $result = simko_mcp_call($target, simko_mcp_token($hit['server']), 'tools/call', ['name' => $toolName, 'arguments' => $args === [] ? new stdClass() : $args]);
+    if ($cost > 0) {
+        simko_spend_add((int) round($cost * SIMKO_TICKS_PER_USD));
+    }
     $texts = [];
     foreach ((array) ($result['content'] ?? []) as $c) {
         if (is_array($c) && ($c['type'] ?? '') === 'text') {
@@ -603,12 +736,27 @@ function simko_mcp_apply_approved(int $userId, array $body): string
     }
     $out = simko_clip(trim(implode("\n", $texts)) ?: (string) json_encode($result, JSON_UNESCAPED_UNICODE), 4000);
     $failed = isset($result['error']) || !empty($result['isError']);
-    simko_audit($userId, 'mcp-ran', 'Ran approval ' . $approvalId . ': ' . $hit['server']['label'] . ' · ' . $toolName . ($failed ? ' (error)' : ''));
+    $label = $hit['server']['label'] . ' · ' . $toolName . ($failed ? ' (error)' : '') . ($cost > 0 ? ' ($' . number_format($cost, 2) . ')' : '');
+    simko_approval_finish($userId, $approvalId, $label);
+    simko_approval_note_result($label . ($failed ? '' : ': ' . simko_clip($out, 120)));
     if (function_exists('simko_agent_used')) {
         simko_agent_used(simko_mcp_fn_name($serverId, $toolName));
     }
     return 'Connector action result: the person approved, and Simko SI ran ' . $hit['server']['label'] . ' · ' . $toolName
         . ($failed ? ' but the server reported an error: ' : '. The server replied: ') . $out . "\nTell them what happened. Do not ask to run it again.";
+}
+
+/** chat.php: on the turn after Yes on a token card (consent was logged at decide time). */
+function simko_mcp_token_apply_approved(int $userId, array $body): string
+{
+    $row = simko_approval_for_apply($userId, $body, ['mcp-token-share']);
+    if (!$row) {
+        return '';
+    }
+    $label = (string) (simko_approval_payload($row)['server_label'] ?? 'that connector');
+    simko_approval_note_result($label . ' read tools on');
+    return 'Connector consent: the person said Yes to letting xAI use their ' . $label . ' login, so its read tools are available now. '
+        . 'Answer their last message, using those tools if they help.';
 }
 
 function simko_mcp_system_note(int $userId): string

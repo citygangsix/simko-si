@@ -18,6 +18,8 @@ require_once __DIR__ . '/connectors.php';
 require_once __DIR__ . '/connector-tools.php';
 require_once __DIR__ . '/calendar-tools.php';
 require_once __DIR__ . '/mcp.php';
+require_once __DIR__ . '/tasks.php';
+require_once __DIR__ . '/paywall-switch.php';
 
 function simko_agent_used(?string $name = null): array
 {
@@ -75,11 +77,38 @@ function simko_agent_schemas(int $userId, bool $isChild, bool $approvedTurn = fa
             $out[] = $schema;
         }
     }
+    // Scheduled tasks (P0): Grok can propose one; it only starts after the person's Yes on the card.
+    if (!$approvedTurn && simko_flag('tasks') && simko_flag('approvals')) {
+        $out[] = ['name' => 'create_task', 'description' => 'Propose a scheduled task: Grok runs the prompt on a schedule and delivers the result. Simko SI shows the person a Yes/No card; nothing starts before Yes.',
+            'parameters' => ['type' => 'object', 'properties' => [
+                'name' => ['type' => 'string', 'description' => 'Short name, under 80 characters.'],
+                'prompt' => ['type' => 'string', 'description' => 'What Grok should do each time.'],
+                'freq' => ['type' => 'string', 'enum' => ['once', 'daily', 'weekdays', 'weekly']],
+                'hour' => ['type' => 'integer', 'description' => '0-23, the person\'s local time'],
+                'minute' => ['type' => 'integer', 'description' => '0-59'],
+                'weekday' => ['type' => 'integer', 'description' => 'For weekly: 0=Sunday .. 6=Saturday'],
+                'run_date' => ['type' => 'string', 'description' => 'For once: YYYY-MM-DD'],
+                'deliver_email' => ['type' => 'boolean'],
+                'use_search' => ['type' => 'boolean'],
+            ], 'required' => ['name', 'prompt', 'freq', 'hour', 'minute']]];
+    }
+    // Owner only: turning the paywall on is a Yes/No card.
+    if (!$approvedTurn && simko_flag('approvals') && !simko_flag('paywall') && simko_agent_is_owner($userId)) {
+        $out[] = ['name' => 'turn_paywall_on', 'description' => 'Owner only. Ask to turn the Simko SI paywall on. Simko SI shows the owner a Yes/No card with the price, free messages, Stripe mode and who is affected; nothing changes before Yes.',
+            'parameters' => ['type' => 'object', 'properties' => new stdClass()]];
+    }
     // MCP connector write tools (P0): each call becomes an Approve card, never runs on its own.
     foreach (simko_mcp_write_schemas($userId, $approvedTurn) as $schema) {
         $out[] = $schema;
     }
     return $out;
+}
+
+function simko_agent_is_owner(int $userId): bool
+{
+    $stmt = simko_db()->prepare('SELECT id, email FROM users WHERE id = ?');
+    $stmt->execute([$userId]);
+    return simko_is_grok_owner($stmt->fetch() ?: null);
 }
 
 function simko_agent_tools_payload(array $schemas): array
@@ -105,6 +134,12 @@ function simko_agent_wants_tools(int $userId, string $text, bool $isChild): bool
     if (simko_mcp_write_schemas($userId) !== []) {
         return true;
     }
+    if (simko_flag('approvals') && simko_flag('tasks') && preg_match('/\b(schedul\w*|every (day|morning|evening|night|week\w*|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|each (day|morning|week)|daily|weekly|weekdays|tasks?)\b/i', $text)) {
+        return true;
+    }
+    if (simko_flag('approvals') && preg_match('/\bpaywall\b/i', $text) && simko_agent_is_owner($userId)) {
+        return true;
+    }
     return (bool) preg_match('/\b(remember|don\'?t forget|note that|routines?|remind(er)?s?|bedtime|homework|lifebook|check-?in)\b/i', $text);
 }
 
@@ -117,6 +152,12 @@ function simko_agent_system_note(array $schemas): string
     }
     if (in_array('create_routine', $names, true)) {
         $bits[] = 'When they ask for a routine or daily reminder, call create_routine; Simko SI shows them an Approve button before it is saved.';
+    }
+    if (in_array('create_task', $names, true)) {
+        $bits[] = 'When they ask for something to happen on a schedule (every morning, each Friday), call create_task; Simko SI shows them a Yes/No card and nothing starts before Yes.';
+    }
+    if (in_array('turn_paywall_on', $names, true)) {
+        $bits[] = 'When the owner asks to turn the paywall on, call turn_paywall_on; Simko SI shows a Yes/No card.';
     }
     if (in_array('drive_list_picked_files', $names, true)) {
         $bits[] = 'Google Drive is connected: you can only see files the person picked. If a file is not there, ask them to pick it with "Pick files" in Connectors.';
@@ -193,6 +234,37 @@ function simko_agent_run_tool(int $userId, string $name, array $args, array $bod
             // Never runs here: it waits for the person to press Approve in the chat.
             simko_guard_approval($userId, [], 'routine-create', simko_agent_routine_summary($a), ['tool' => 'create_routine', 'arguments' => $a]);
             return ['ok' => false, 'error' => 'Approvals are off.'];
+        case 'create_task':
+            $t = [
+                'name' => (string) ($args['name'] ?? ''), 'prompt' => (string) ($args['prompt'] ?? ''), 'freq' => (string) ($args['freq'] ?? 'daily'),
+                'hour' => (int) ($args['hour'] ?? -1), 'minute' => (int) ($args['minute'] ?? -1), 'weekday' => (int) ($args['weekday'] ?? 1),
+                'run_date' => (string) ($args['run_date'] ?? ''), 'tz' => (string) ($body['tz'] ?? ''),
+                'deliver_email' => !empty($args['deliver_email']), 'use_search' => !empty($args['use_search']),
+            ];
+            $checked = simko_task_validate($t, time());
+            if (isset($checked['error'])) {
+                return ['ok' => false, 'error' => $checked['error']];
+            }
+            simko_tasks_migrate();
+            $count = simko_db()->prepare('SELECT COUNT(*) FROM tasks WHERE user_id = ?');
+            $count->execute([$userId]);
+            if ((int) $count->fetchColumn() >= simko_tasks_limits()['max_per_user']) {
+                return ['ok' => false, 'error' => 'The scheduled task limit is reached. The person must delete one first.'];
+            }
+            $row = $checked['row'];
+            $facts = simko_task_card_facts($row, 'create');
+            // Never saved or started here: it waits for the person's Yes on the card.
+            simko_guard_approval($userId, [], 'task-start', $facts['title'], ['mode' => 'create', 'task' => $row], $facts);
+            return ['ok' => false, 'error' => 'Approvals are off.'];
+        case 'turn_paywall_on':
+            $owner = simko_db()->prepare('SELECT * FROM users WHERE id = ?');
+            $owner->execute([$userId]);
+            $ownerRow = $owner->fetch() ?: null;
+            if (!simko_is_grok_owner($ownerRow) || simko_flag('paywall')) {
+                return ['ok' => false, 'error' => simko_flag('paywall') ? 'The paywall is already on.' : 'Only the owner can do that.'];
+            }
+            simko_ok(['approval' => simko_paywall_request_on($ownerRow)]);
+            return ['ok' => false];
         case 'drive_list_picked_files':
             return ['ok' => true, 'files' => simko_drive_picks($userId)];
         case 'drive_read_picked_file':

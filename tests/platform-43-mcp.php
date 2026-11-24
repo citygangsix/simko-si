@@ -79,7 +79,14 @@ platform_assert($api(['op' => 'mcp-hosts-save', 'hosts' => ['bad host!']], $a)['
 // Chat: read tools go to the xAI mcp tool; no write tools yet.
 $t = platform_api($site, '/api/simco/turn', ['text' => 'find my grout note'], $a['token']);
 $reply = (string) ($t['data']['everyday'] ?? '');
-platform_assert($t['status'] === 200 && str_contains($reply, 'simko_s' . $sid . '=get_note|search_notes') && str_contains($reply, '+auth'), 'read tools sent as xAI mcp tools (token server with auth): ' . $reply);
+$sid2 = (int) $s2['data']['server']['id'];
+platform_assert($t['status'] === 200 && str_contains($reply, 'simko_s' . $sid . '=get_note|search_notes') && !str_contains($reply, '+auth'), 'read tools of the open server sent as xAI mcp tools; the token server waits: ' . $reply);
+$tokenCard = $t['data']['approvals'][0] ?? [];
+platform_assert(($tokenCard['action'] ?? '') === 'mcp-token-share' && str_contains($tokenCard['what'] ?? '', 'sends your Locked notes login to xAI'), 'first use of the token server shows the token card');
+platform_assert($api(['op' => 'decide', 'approval_id' => (int) $tokenCard['id'], 'decision' => 'approve'], $a)['status'] === 200, 'Yes on the token card');
+$t = platform_api($site, '/api/simco/turn', ['text' => 'find my grout note'], $a['token']);
+$reply = (string) ($t['data']['everyday'] ?? '');
+platform_assert($t['status'] === 200 && str_contains($reply, 'simko_s' . $sid2 . '=get_note|search_notes+auth') && empty($t['data']['approvals']), 'after Yes the token server read tools go to xAI with auth: ' . $reply);
 platform_assert(!str_contains($reply, 'create_note') && !str_contains($reply, 'delete_note'), 'write tools are never given to the xAI mcp tool');
 platform_assert($toolCalls() === 0, 'nothing was called on the server');
 

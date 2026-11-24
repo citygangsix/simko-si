@@ -13,7 +13,7 @@ $calls = sys_get_temp_dir() . '/simko-p0task-calls-' . getmypid() . '.log';
 @unlink($calls);
 putenv('MOCK_XAI_LOG=' . $calls);
 platform_mock($mockPort);
-$private = platform_private('p0task', ['tasks' => true, 'paywall' => false], [
+$private = platform_private('p0task', ['tasks' => true, 'approvals' => true, 'paywall' => false], [
     'xai_base_url' => 'http://127.0.0.1:' . $mockPort . '/v1',
     'owner_access' => ['emails' => [], 'user_ids' => [1]],
     'spend_caps' => ['owner_daily_usd' => 5.0, 'user_daily_usd' => 1.0, 'site_daily_usd' => 10.0, 'timezone' => 'America/New_York'],
@@ -29,6 +29,14 @@ platform_assert(platform_api($site, '/api/platform', ['op' => 'task-list'])['sta
 $t = $api(['op' => 'task-save'] + $base, $a);
 platform_assert($t['status'] === 200 && $t['data']['task']['freq'] === 'weekdays' && $t['data']['task']['next_run_at'] > time() && $t['data']['task']['deliver_push'] === true, 'task created with its next run');
 $tid = (int) $t['data']['task']['id'];
+// Since the approval cards: a new task is saved paused with a task-start Yes/No card.
+platform_assert($t['data']['task']['enabled'] === false && ($t['data']['approval']['action'] ?? '') === 'task-start', 'a new task waits for its Yes card');
+$yes = static function (array $card, array $who, string $op, int $taskId) use ($api): array {
+    platform_assert($api(['op' => 'decide', 'approval_id' => (int) $card['id'], 'decision' => 'approve'], $who)['status'] === 200, 'Yes on ' . $card['title']);
+    return $api(['op' => $op, 'task_id' => $taskId, 'enabled' => true, 'approval_id' => (int) $card['id']], $who);
+};
+$on = $yes($t['data']['approval'], $a, 'task-toggle', $tid);
+platform_assert($on['status'] === 200 && $on['data']['task']['enabled'] === true, 'after Yes the task is on');
 platform_assert($api(['op' => 'task-save', 'freq' => 'hourly'] + $base, $a)['status'] === 400, 'unknown frequency is 400');
 platform_assert($api(['op' => 'task-save', 'freq' => 'once', 'run_date' => '2020-01-01'] + $base, $a)['status'] === 400, 'a one-time task in the past is 400');
 platform_assert($api(['op' => 'task-save', 'prompt' => str_repeat('p', 2001)] + $base, $a)['status'] === 400, 'prompt over 2000 chars is 400');
@@ -48,13 +56,17 @@ platform_assert($api(['op' => 'task-save', 'id' => $tid] + $base, $b)['status'] 
 
 // Run now.
 $before = $responsesCalls();
-$run = $api(['op' => 'task-run-now', 'task_id' => $tid], $a);
+$runCard = $api(['op' => 'task-run-now', 'task_id' => $tid], $a);
+platform_assert($runCard['status'] === 200 && ($runCard['data']['approval']['action'] ?? '') === 'task-start' && $responsesCalls() === $before, 'run now waits for a Yes card (no call yet)');
+$run = $yes($runCard['data']['approval'], $a, 'task-run-now', $tid);
 platform_assert($run['status'] === 200 && $run['data']['run']['status'] === 'delivered' && str_contains($run['data']['run']['output'], 'The reef heard you') && in_array('app', $run['data']['run']['delivered'], true), 'run now calls Grok and records the result');
 platform_assert($responsesCalls() === $before + 1, 'exactly one Responses call (mock)');
 $runs = $api(['op' => 'task-runs', 'task_id' => $tid], $a)['data']['runs'];
 platform_assert(count($runs) === 1 && $runs[0]['manual'] === true && $runs[0]['cost_usd'] > 0, 'run history with cost');
 platform_assert($api(['op' => 'task-toggle', 'task_id' => $tid, 'enabled' => false], $a)['data']['task']['enabled'] === false, 'pause');
-platform_assert($api(['op' => 'task-toggle', 'task_id' => $tid, 'enabled' => true], $a)['data']['task']['enabled'] === true, 'resume');
+$resume = $api(['op' => 'task-toggle', 'task_id' => $tid, 'enabled' => true], $a);
+platform_assert($resume['data']['task']['enabled'] === false && ($resume['data']['approval']['action'] ?? '') === 'task-start', 'resume asks first');
+platform_assert($yes($resume['data']['approval'], $a, 'task-toggle', $tid)['data']['task']['enabled'] === true, 'resume after Yes');
 platform_assert($api(['op' => 'task-delete', 'task_id' => 5], $a)['status'] === 200 && count($api(['op' => 'task-list'], $a)['data']['tasks']) === 4, 'delete');
 
 // B: a confirmed non-owner task; then unconfirmed -> skipped without a call.
@@ -101,7 +113,7 @@ platform_assert($responsesCalls() === $before && $db->query("SELECT status FROM 
 
 // Account that may not use Grok (unconfirmed): skipped_access, no call.
 $db->prepare('UPDATE users SET confirmed = 0 WHERE id = (SELECT user_id FROM tasks WHERE id = ?)')->execute([$btid]);
-$db->prepare('UPDATE tasks SET next_run_at = ? WHERE id = ?')->execute([$now - 60, $btid]);
+$db->prepare('UPDATE tasks SET next_run_at = ?, enabled = 1 WHERE id = ?')->execute([$now - 60, $btid]);
 $before = $responsesCalls();
 simko_tasks_run($now);
 platform_assert($responsesCalls() === $before && $db->query("SELECT status FROM task_runs WHERE task_id = $btid ORDER BY id DESC LIMIT 1")->fetchColumn() === 'skipped_access', 'unconfirmed account: skipped_access, no call');

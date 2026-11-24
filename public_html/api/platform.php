@@ -26,6 +26,8 @@ if ($op === 'oauth-start') {
 }
 $user = simko_require_user();
 $userId = (int) $user['id'];
+// The chat a Yes/No card belongs to, so it re-renders when that chat is opened again.
+$GLOBALS['simko_approval_session'] = simko_clip((string) ($body['session_id'] ?? ''), 80);
 
 // P0 project workspaces, saved files, scheduled tasks, MCP connectors (each behind its own flag).
 if (preg_match('/^(project|library|task|mcp)-[a-z-]+$/', $op)) {
@@ -178,6 +180,31 @@ switch ($op) {
         $decision = (string) ($body['decision'] ?? '');
         $decided = simko_decide_approval($userId, (int) ($body['approval_id'] ?? 0), $decision === 'approve' ? 'approved' : 'declined');
         simko_ok(['approval' => $decided, 'audit' => simko_audit_rows($userId)]);
+        break;
+    case 'approvals-pending':
+        // Pending Yes/No cards for a chat (re-rendered when the chat is opened). paywall-on only for an owner.
+        if (!simko_flag('approvals')) {
+            simko_fail(404, 'Approvals are turned off.');
+        }
+        simko_ok(['approvals' => simko_approvals_pending($userId, simko_clip((string) ($body['session_id'] ?? ''), 80), simko_is_grok_owner($user))]);
+        break;
+    case 'paywall-set':
+        // Owner only. On: a paywall-on Yes/No card (calling again with the approved approval_id applies it once).
+        // Off: right away, no card. Never calls Stripe.
+        require_once __DIR__ . '/paywall-switch.php';
+        simko_require_grok_owner($user);
+        if (empty($body['on'])) {
+            simko_paywall_off($user);
+            simko_ok(['paywall' => false]);
+        }
+        if ((int) ($body['approval_id'] ?? 0) > 0) {
+            $row = simko_approval_for_apply($userId, $body, ['paywall-on']);
+            if (!$row) {
+                simko_fail(403, 'Approve that action before Simko SI will do it.');
+            }
+            simko_ok(simko_paywall_apply_approval($userId, $row) + ['paywall_on' => simko_flag('paywall')]);
+        }
+        simko_ok(['approval' => simko_paywall_request_on($user)]);
         break;
     case 'audit':
         if (!simko_flag('approvals')) {

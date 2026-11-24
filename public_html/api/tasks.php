@@ -13,6 +13,7 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/approvals.php';
 
 function simko_tasks_migrate(): void
 {
@@ -171,35 +172,34 @@ function simko_tasks_list(int $userId): array
     return array_map('simko_task_public', $stmt->fetchAll());
 }
 
-function simko_task_save(int $userId, array $body, ?int $now = null): array
+/** Checks a task form. Returns ['row' => fields, 'next' => first run] or ['error' => text]. */
+function simko_task_validate(array $body, int $now): array
 {
-    simko_tasks_migrate();
-    $now = $now ?? time();
     $limits = simko_tasks_limits();
     $name = simko_clip(trim(preg_replace('/\s+/u', ' ', (string) ($body['name'] ?? '')) ?? ''), 80);
     $prompt = trim((string) ($body['prompt'] ?? ''));
     if ($name === '' || $prompt === '') {
-        simko_fail(400, 'Give the task a name and a prompt.');
+        return ['error' => 'Give the task a name and a prompt.'];
     }
     if (simko_len($prompt) > $limits['max_prompt']) {
-        simko_fail(400, 'A task prompt can be up to ' . $limits['max_prompt'] . ' characters.');
+        return ['error' => 'A task prompt can be up to ' . $limits['max_prompt'] . ' characters.'];
     }
     $freq = (string) ($body['freq'] ?? 'daily');
     if (!in_array($freq, ['once', 'daily', 'weekdays', 'weekly'], true)) {
-        simko_fail(400, 'Pick once, daily, weekdays, or weekly.');
+        return ['error' => 'Pick once, daily, weekdays, or weekly.'];
     }
     $hour = (int) ($body['hour'] ?? -1);
     $minute = (int) ($body['minute'] ?? -1);
     if ($hour < 0 || $hour > 23 || $minute < 0 || $minute > 59) {
-        simko_fail(400, 'Pick an hour and a minute.');
+        return ['error' => 'Pick an hour and a minute.'];
     }
     $weekday = (int) ($body['weekday'] ?? 1);
     if ($weekday < 0 || $weekday > 6) {
-        simko_fail(400, 'Pick a day of the week.');
+        return ['error' => 'Pick a day of the week.'];
     }
     $runDate = (string) ($body['run_date'] ?? '');
     if ($freq === 'once' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $runDate)) {
-        simko_fail(400, 'Pick the date for a one-time task.');
+        return ['error' => 'Pick the date for a one-time task.'];
     }
     $row = [
         'name' => $name, 'prompt' => $prompt, 'freq' => $freq, 'weekday' => $weekday,
@@ -211,16 +211,44 @@ function simko_task_save(int $userId, array $body, ?int $now = null): array
     ];
     $next = simko_task_next_run($row, $now);
     if ($next === null) {
-        simko_fail(400, 'That time has already passed. Pick a time in the future.');
+        return ['error' => 'That time has already passed. Pick a time in the future.'];
     }
+    return ['row' => $row, 'next' => $next];
+}
+
+/** What a task-start approval covers: the exact prompt and schedule. Editing either needs a new Yes. */
+function simko_task_fingerprint(array $t): string
+{
+    return hash('sha256', implode("\x1f", [
+        (string) $t['prompt'], (string) $t['freq'], (string) (int) $t['weekday'], (string) $t['run_date'],
+        (string) (int) $t['hour'], (string) (int) $t['minute'], simko_task_tz((string) $t['tz']), (string) (int) ($t['use_search'] ?? 0),
+    ]));
+}
+
+/**
+ * Create or edit. Since the approval cards, a task is saved paused unless it was already on and its prompt and
+ * schedule did not change; turning it on goes through a task-start card (simko_task_start_card).
+ */
+function simko_task_save(int $userId, array $body, ?int $now = null): array
+{
+    simko_tasks_migrate();
+    $now = $now ?? time();
+    $limits = simko_tasks_limits();
+    $checked = simko_task_validate($body, $now);
+    if (isset($checked['error'])) {
+        simko_fail(400, $checked['error']);
+    }
+    $row = $checked['row'];
+    $next = $checked['next'];
     $db = simko_db();
     $id = (int) ($body['id'] ?? 0);
     if ($id > 0) {
-        simko_task_require($userId, $id);
+        $old = simko_task_require($userId, $id);
+        $keepOn = (int) $old['enabled'] === 1 && simko_task_fingerprint($old) === simko_task_fingerprint($row);
         $db->prepare('UPDATE tasks SET name = ?, prompt = ?, freq = ?, weekday = ?, run_date = ?, hour = ?, minute = ?, tz = ?,
-                deliver_push = ?, deliver_email = ?, use_search = ?, next_run_at = ?, enabled = 1, updated_at = ? WHERE id = ? AND user_id = ?')
+                deliver_push = ?, deliver_email = ?, use_search = ?, next_run_at = ?, enabled = ?, updated_at = ? WHERE id = ? AND user_id = ?')
             ->execute([$row['name'], $row['prompt'], $row['freq'], $row['weekday'], $row['run_date'], $row['hour'], $row['minute'], $row['tz'],
-                $row['deliver_push'], $row['deliver_email'], $row['use_search'], $next, $now, $id, $userId]);
+                $row['deliver_push'], $row['deliver_email'], $row['use_search'], $next, $keepOn ? 1 : 0, $now, $id, $userId]);
         return simko_task_require($userId, $id);
     }
     $count = $db->prepare('SELECT COUNT(*) FROM tasks WHERE user_id = ?');
@@ -229,15 +257,19 @@ function simko_task_save(int $userId, array $body, ?int $now = null): array
         simko_fail(409, 'You can have up to ' . $limits['max_per_user'] . ' scheduled tasks. Delete one to add another.', ['cap' => 'tasks']);
     }
     $db->prepare('INSERT INTO tasks (user_id, name, prompt, freq, weekday, run_date, hour, minute, tz, deliver_push, deliver_email, use_search, enabled, next_run_at, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)')
         ->execute([$userId, $row['name'], $row['prompt'], $row['freq'], $row['weekday'], $row['run_date'], $row['hour'], $row['minute'], $row['tz'],
             $row['deliver_push'], $row['deliver_email'], $row['use_search'], $next, $now, $now]);
     return simko_task_require($userId, (int) $db->lastInsertId());
 }
 
+/** Pausing never needs a card. Turning on is done by simko_task_apply_approval after Yes. */
 function simko_task_toggle(int $userId, int $taskId, bool $enabled, ?int $now = null): array
 {
     $t = simko_task_require($userId, $taskId);
+    if ($enabled && (int) $t['enabled'] !== 1) {
+        simko_fail(403, 'Approve starting that task first.');
+    }
     $next = $enabled ? simko_task_next_run($t, $now ?? time()) : $t['next_run_at'];
     if ($enabled && $next === null) {
         simko_fail(400, 'That one-time task has already passed. Edit its date first.');
@@ -245,6 +277,170 @@ function simko_task_toggle(int $userId, int $taskId, bool $enabled, ?int $now = 
     simko_db()->prepare('UPDATE tasks SET enabled = ?, next_run_at = ?, updated_at = ? WHERE id = ? AND user_id = ?')
         ->execute([$enabled ? 1 : 0, $next, time(), $taskId, $userId]);
     return simko_task_require($userId, $taskId);
+}
+
+function simko_task_schedule_label(array $t, ?int $now = null): string
+{
+    $tz = simko_task_tz((string) $t['tz']);
+    $time = (new DateTimeImmutable('2000-01-01 ' . sprintf('%02d:%02d', (int) $t['hour'], (int) $t['minute'])))->format('g:i A');
+    $days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    $when = match ((string) $t['freq']) {
+        'once' => 'Once on ' . $t['run_date'],
+        'weekdays' => 'Weekdays',
+        'weekly' => 'Every ' . ($days[(int) $t['weekday']] ?? 'week'),
+        default => 'Every day',
+    };
+    $label = $when . ' at ' . $time . ' (' . $tz . ')';
+    $next = simko_task_next_run($t, $now ?? time());
+    if ($next !== null) {
+        $label .= ', next run ' . (new DateTimeImmutable('@' . $next))->setTimezone(new DateTimeZone($tz))->format('D M j, g:i A');
+    }
+    return $label;
+}
+
+function simko_task_runs_per_day(array $t): float
+{
+    return match ((string) $t['freq']) {
+        'weekly' => round(1 / 7, 2),
+        'weekdays' => round(5 / 7, 2),
+        default => 1.0,
+    };
+}
+
+/** Card facts for a task-start approval. $mode: enable | run | create. */
+function simko_task_card_facts(array $t, string $mode): array
+{
+    $limits = simko_tasks_limits();
+    $deliver = [];
+    if ((int) ($t['deliver_push'] ?? 1) === 1) {
+        $deliver[] = 'push';
+    }
+    if ((int) ($t['deliver_email'] ?? 0) === 1) {
+        $deliver[] = 'email';
+    }
+    $deliverText = $deliver === [] ? 'in the app' : 'by ' . implode(' and ', $deliver) . ' and in the app';
+    $name = (string) $t['name'];
+    $prompt = simko_clip((string) $t['prompt'], 200);
+    if ($mode === 'run') {
+        return [
+            'title' => 'Run scheduled task \'' . $name . '\' now',
+            'what' => 'Grok runs "' . $prompt . '" once now and delivers the result ' . $deliverText . '.',
+            'cost_usd' => $limits['estimate_usd'],
+            'cost_unit' => 'for this run',
+            'where' => simko_task_schedule_label($t),
+        ];
+    }
+    $perDay = simko_task_runs_per_day($t);
+    return [
+        'title' => 'Start scheduled task \'' . $name . '\'',
+        'what' => 'Grok runs "' . $prompt . '" on this schedule and delivers each result ' . $deliverText . '. You can pause it any time.',
+        'cost_usd' => $limits['estimate_usd'],
+        'cost_unit' => 'per run x ' . rtrim(rtrim(number_format($perDay, 2), '0'), '.') . ' run' . ($perDay === 1.0 ? '' : 's') . '/day',
+        'where' => simko_task_schedule_label($t),
+    ];
+}
+
+/**
+ * Creates the task-start card for an existing task (mode enable or run). Approvals off: refuses
+ * (gated actions never run ungated).
+ */
+function simko_task_start_card(int $userId, array $task, string $mode): array
+{
+    if (!simko_flag('approvals')) {
+        simko_fail(403, 'Starting a task needs the in-chat Yes card, and approvals are turned off.', ['approvals_off' => true]);
+    }
+    $facts = simko_task_card_facts($task, $mode);
+    return simko_approval_create($userId, 'task-start', $facts['title'], [
+        'mode' => $mode,
+        'task_id' => (int) $task['id'],
+        'fingerprint' => simko_task_fingerprint($task),
+    ], $facts);
+}
+
+/**
+ * Runs an approved task-start once (dedupe by audit "Ran approval N:"). Re-checks the owner, the flag, that the
+ * prompt and schedule are what was approved, and the caps. Returns ['ok', 'note', 'task'?, 'run'?].
+ */
+function simko_task_apply_approval(int $userId, array $row): array
+{
+    $approvalId = (int) $row['id'];
+    if (!simko_flag('tasks')) {
+        return ['ok' => false, 'note' => 'Scheduled tasks are turned off, so nothing was started.'];
+    }
+    simko_tasks_migrate();
+    $p = simko_approval_payload($row);
+    $mode = (string) ($p['mode'] ?? '');
+    $now = time();
+    if ($mode === 'create') {
+        $checked = simko_task_validate(is_array($p['task'] ?? null) ? $p['task'] : [], $now);
+        if (isset($checked['error'])) {
+            return ['ok' => false, 'note' => 'Nothing was started: ' . $checked['error']];
+        }
+        $count = simko_db()->prepare('SELECT COUNT(*) FROM tasks WHERE user_id = ?');
+        $count->execute([$userId]);
+        if ((int) $count->fetchColumn() >= simko_tasks_limits()['max_per_user']) {
+            return ['ok' => false, 'note' => 'Nothing was started: the scheduled task limit is reached. Delete one first.'];
+        }
+        $t = $checked['row'] + ['name' => (string) ($p['task']['name'] ?? 'Task')];
+        if (!simko_approval_claim($userId, $approvalId, 'task-ran', 'Started task \'' . $t['name'] . '\'')) {
+            return ['ok' => false, 'note' => 'That task was already started earlier.', 'already' => true];
+        }
+        simko_db()->prepare('INSERT INTO tasks (user_id, name, prompt, freq, weekday, run_date, hour, minute, tz, deliver_push, deliver_email, use_search, enabled, next_run_at, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)')
+            ->execute([$userId, $t['name'], $t['prompt'], $t['freq'], $t['weekday'], $t['run_date'], $t['hour'], $t['minute'], $t['tz'],
+                $t['deliver_push'], $t['deliver_email'], $t['use_search'], $checked['next'], $now, $now]);
+        $task = simko_task_require($userId, (int) simko_db()->lastInsertId());
+        $label = 'Started \'' . $task['name'] . '\', ' . simko_task_schedule_label($task);
+        simko_approval_finish($userId, $approvalId, $label);
+        simko_approval_note_result($label);
+        return ['ok' => true, 'note' => $label, 'task' => simko_task_public($task)];
+    }
+    $task = simko_task_owned($userId, (int) ($p['task_id'] ?? 0));
+    if (!$task) {
+        return ['ok' => false, 'note' => 'That task is gone, so nothing was started.'];
+    }
+    if (simko_task_fingerprint($task) !== (string) ($p['fingerprint'] ?? '')) {
+        return ['ok' => false, 'note' => 'The task\'s prompt or schedule changed after Yes, so nothing was started. Ask again to approve the new version.'];
+    }
+    if ($mode === 'enable') {
+        $next = simko_task_next_run($task, $now);
+        if ($next === null) {
+            return ['ok' => false, 'note' => 'That one-time task has already passed, so nothing was started.'];
+        }
+        if (!simko_approval_claim($userId, $approvalId, 'task-ran', 'Started task \'' . $task['name'] . '\'')) {
+            return ['ok' => false, 'note' => 'That task was already started earlier.', 'already' => true];
+        }
+        simko_db()->prepare('UPDATE tasks SET enabled = 1, next_run_at = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+            ->execute([$next, $now, (int) $task['id'], $userId]);
+        $task = simko_task_require($userId, (int) $task['id']);
+        $label = 'Started \'' . $task['name'] . '\', ' . simko_task_schedule_label($task);
+        simko_approval_finish($userId, $approvalId, $label);
+        simko_approval_note_result($label);
+        return ['ok' => true, 'note' => $label, 'task' => simko_task_public($task)];
+    }
+    if ($mode === 'run') {
+        if (!simko_approval_claim($userId, $approvalId, 'task-ran', 'Ran task \'' . $task['name'] . '\' once')) {
+            return ['ok' => false, 'note' => 'That run already happened earlier.', 'already' => true];
+        }
+        @set_time_limit(150);
+        $run = simko_task_execute($task, true);
+        $label = 'Ran \'' . $task['name'] . '\' once: ' . $run['status'];
+        simko_approval_finish($userId, $approvalId, $label);
+        simko_approval_note_result($label);
+        return ['ok' => $run['status'] === 'delivered', 'note' => $label . ($run['output'] !== '' ? '. Result: ' . simko_clip($run['output'], 600) : ''), 'run' => $run, 'task' => simko_task_public($task)];
+    }
+    return ['ok' => false, 'note' => 'Unknown task approval.'];
+}
+
+/** chat.php: on the turn after Yes, runs an approved task-start once. Returns a note for the system prompt. */
+function simko_tasks_apply_approved(int $userId, array $body): string
+{
+    $row = simko_approval_for_apply($userId, $body, ['task-start']);
+    if (!$row) {
+        return '';
+    }
+    $res = simko_task_apply_approval($userId, $row);
+    return 'Scheduled task result: ' . $res['note'] . ' Tell the person what happened in one or two lines. Do not ask to start it again.';
 }
 
 function simko_task_delete(int $userId, int $taskId): void
