@@ -802,6 +802,7 @@
     authMode = mode === "signup" ? "signup" : "signin";
     paintAuthMode();
     setAuthError("");
+    if ($("authTwofaForm")) { $("authTwofaForm").hidden = true; $("authTabs").hidden = false; }
     $("authResetForm").hidden = true;
     $("authModalForm").hidden = false;
     $("authModal").hidden = false;
@@ -835,11 +836,58 @@
       payload.consent = true;
     }
     const data = await authPost(payload);
+    if (data.ok && data.twofa_required && data.challenge) {
+      openTwofaStep(data.challenge, email);
+      return;
+    }
     if (!data.ok || !data.token) {
       setAuthError(data.error || (op === "signup" ? "Could not create the account." : "Sign in failed."));
       return;
     }
     await finishAuth(data, email);
+  }
+
+  /* Two-step sign-in: the password was right, now the 6-digit app code (or a backup code). */
+  let twofaChallenge = "";
+  let twofaEmail = "";
+  function setTwofaError(message) {
+    const line = $("authTwofaError");
+    line.hidden = !message;
+    line.textContent = message || "";
+  }
+  function openTwofaStep(challenge, email) {
+    twofaChallenge = challenge;
+    twofaEmail = email || "";
+    setAuthError("");
+    setTwofaError("");
+    $("authModalForm").hidden = true;
+    $("authResetForm").hidden = true;
+    $("authTabs").hidden = true;
+    $("authTwofaForm").hidden = false;
+    $("authModalTitle").textContent = "Two-step sign-in";
+    $("modalTwofaCode").value = "";
+    $("authModal").hidden = false;
+    setTimeout(() => $("modalTwofaCode").focus(), 30);
+  }
+  function closeTwofaStep() {
+    twofaChallenge = "";
+    $("authTwofaForm").hidden = true;
+    $("authTabs").hidden = false;
+  }
+  async function submitTwofa(event) {
+    if (event) event.preventDefault();
+    const code = $("modalTwofaCode").value.trim();
+    if (!code) { setTwofaError("Type the 6-digit code from your authenticator app."); return; }
+    $("authTwofaSubmit").disabled = true;
+    const data = await authPost({ op: "twofa-verify", challenge: twofaChallenge, code: code });
+    $("authTwofaSubmit").disabled = false;
+    if (!data.ok || !data.token) {
+      setTwofaError(data.error || "That code did not match.");
+      if (data.twofa_restart) { closeTwofaStep(); openAuthModal("signin"); setAuthError(data.error || "Sign in again."); }
+      return;
+    }
+    closeTwofaStep();
+    await finishAuth(data, twofaEmail);
   }
 
   async function confirmEmail() {
@@ -1330,6 +1378,9 @@
       }
       if (!data.ok) {
         showSignedOut();
+        let pending = "";
+        try { pending = sessionStorage.getItem("simkoTwofaChallenge") || ""; sessionStorage.removeItem("simkoTwofaChallenge"); } catch (e) {}
+        if (pending) openTwofaStep(pending, "");
         return;
       }
       showSignedIn(data.email);
@@ -1405,6 +1456,8 @@
   $("authForgot").addEventListener("click", () => openReset());
   $("authResetBack").addEventListener("click", () => openAuthModal("signin"));
   $("authResetForm").addEventListener("submit", submitReset);
+  $("authTwofaForm").addEventListener("submit", submitTwofa);
+  $("authTwofaBack").addEventListener("click", () => { closeTwofaStep(); openAuthModal("signin"); });
   $("replySpeak").addEventListener("click", () => speakLine($("replySpeak").dataset.say || $("reply-bubble").textContent, $("replySpeak")));
   $("toolsToggle").addEventListener("click", () => {
     const drawer = $("drawer");

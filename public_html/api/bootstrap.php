@@ -828,6 +828,9 @@ function simko_user_for_token(string $token): ?array
     );
     $stmt->execute([hash('sha256', $token), time()]);
     $row = $stmt->fetch();
+    if ($row && function_exists('simko_security_touch')) {
+        simko_security_touch($token);
+    }
     return $row ?: null;
 }
 
@@ -857,6 +860,9 @@ function simko_issue_token(int $userId): string
     $stmt = simko_db()->prepare('INSERT INTO auth_tokens (token_hash, user_id, expires_at) VALUES (?, ?, ?)');
     $expires = time() + 60 * 60 * 24 * 30;
     $stmt->execute([hash('sha256', $token), $userId, $expires]);
+    if (function_exists('simko_security_note_token')) {
+        simko_security_note_token($token);
+    }
     simko_set_cookie($token, $expires);
     return $token;
 }
@@ -1356,3 +1362,4 @@ function simko_setting_set(string $name, mixed $value): void
     $st->execute([$name, json_encode($value, JSON_UNESCAPED_SLASHES), gmdate('c')]);
 }
 
+require_once __DIR__ . '/security.php';

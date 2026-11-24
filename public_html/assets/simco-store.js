@@ -16,7 +16,7 @@
     }).then(function (r) { return r.json().catch(function () { return { ok: false, error: "Something went wrong. Try again." }; }); });
   }
   function open(id) {
-    ["accountCard", "deleteAccountCard", "reportCard"].forEach(function (n) { var c = $(n); if (c) c.hidden = n !== id; });
+    Array.prototype.forEach.call(document.querySelectorAll("#storeStage > section"), function (c) { c.hidden = c.id !== id; });
     var s = $("storeStage"); if (s) s.hidden = false;
     var first = $(id) && $(id).querySelector("input, textarea, button:not(.platformClose)");
     if (first) setTimeout(function () { first.focus(); }, 30);

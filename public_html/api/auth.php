@@ -35,6 +35,34 @@ switch ($op) {
     case 'delete-account':
         simko_delete_account($body);
         break;
+    case 'twofa-verify':
+        $uid = simko_twofa_verify_challenge((string) ($body['challenge'] ?? ''), (string) ($body['code'] ?? ''));
+        $issued = simko_issue_token($uid);
+        $who = simko_db()->prepare('SELECT email FROM users WHERE id = ?');
+        $who->execute([$uid]);
+        simko_ok(['token' => $issued, 'email' => (string) $who->fetchColumn()]);
+        break;
+    case 'twofa-status':
+        simko_ok(simko_twofa_status((int) simko_require_user()['id']));
+        break;
+    case 'twofa-setup':
+        simko_ok(simko_twofa_setup(simko_require_user()));
+        break;
+    case 'twofa-enable':
+        simko_ok(simko_twofa_enable(simko_require_user(), (string) ($body['code'] ?? '')));
+        break;
+    case 'twofa-disable':
+        simko_ok(simko_twofa_disable(simko_require_user(), (string) ($body['password'] ?? ''), (string) ($body['code'] ?? '')));
+        break;
+    case 'devices':
+        simko_ok(['devices' => simko_devices((int) simko_require_user()['id'])]);
+        break;
+    case 'device-signout':
+        simko_ok(['devices' => simko_device_signout((int) simko_require_user()['id'], (int) ($body['device_id'] ?? 0))]);
+        break;
+    case 'devices-signout-others':
+        simko_ok(simko_devices_signout_others((int) simko_require_user()['id']));
+        break;
     default:
         simko_fail(400, 'That sign-in step is not recognized.');
 }
@@ -133,6 +161,10 @@ function simko_signin(array $body): void
         simko_fail(401, 'Email or password does not match.');
     }
     simko_throttle_clear($acctBucket);
+    if (simko_twofa_enabled((int) $row['id'])) {
+        // Password was right; the session is only issued after the code step (op twofa-verify).
+        simko_ok(['twofa_required' => true, 'challenge' => simko_twofa_challenge((int) $row['id'])]);
+    }
     $token = simko_issue_token((int) $row['id']);
     simko_supabase_hook('signin', ['id' => (int) $row['id'], 'email' => $row['email']]);
     simko_ok(['token' => $token, 'email' => $row['email']]);

@@ -186,9 +186,12 @@ function simko_oauth_finish(string $provider, string $code, string $state, array
         $save = simko_db()->prepare('INSERT INTO oauth_identities (provider, subject, user_id, email_relay, created_at) VALUES (?, ?, ?, 0, ?)');
         $save->execute([$provider, $sub, $userId, time()]);
     }
-    $issued = simko_issue_token($userId);
     $emailStmt = simko_db()->prepare('SELECT email FROM users WHERE id = ?');
     $emailStmt->execute([$userId]);
+    if (simko_twofa_enabled($userId)) {
+        return ['token' => '', 'email' => (string) $emailStmt->fetchColumn(), 'twofa_challenge' => simko_twofa_challenge($userId)];
+    }
+    $issued = simko_issue_token($userId);
     return ['token' => $issued, 'email' => (string) $emailStmt->fetchColumn()];
 }
 
@@ -263,9 +266,12 @@ function simko_apple_finish(array $cfg, string $code, string $nonce, array $post
         );
         $save->execute(['apple', $sub, $userId, $relay ? 1 : 0, time()]);
     }
-    $issued = simko_issue_token($userId);
     $emailStmt = simko_db()->prepare('SELECT email FROM users WHERE id = ?');
     $emailStmt->execute([$userId]);
+    if (simko_twofa_enabled($userId)) {
+        return ['token' => '', 'email' => (string) $emailStmt->fetchColumn(), 'email_relay' => $relay, 'twofa_challenge' => simko_twofa_challenge($userId)];
+    }
+    $issued = simko_issue_token($userId);
     return ['token' => $issued, 'email' => (string) $emailStmt->fetchColumn(), 'email_relay' => $relay];
 }
 
