@@ -171,6 +171,20 @@
     return pick && pick.value ? pick.value : undefined;
   }
 
+  // Usage meter beside the model picker: today's Grok spend against the daily limit.
+  function paintSpend(spend) {
+    const note = $("spendNote");
+    if (!note || !spend) return;
+    const spent = Number(spend.spent_usd) || 0;
+    const shown = spent > 0 && spent < 0.005 ? "under $0.01" : "$" + spent.toFixed(2);
+    note.textContent = (spend.demo ? "Demo account: free during preview. " : "") + "Today " + shown + " of $" + Number(spend.cap_usd).toFixed(2);
+  }
+
+  function refreshSpend() {
+    if (!$("spendNote") || $("modelRow").hidden) return;
+    postJson("/api/platform", { op: "models", token: authToken }).then((data) => { if (data && data.ok) paintSpend(data.spend); }).catch(() => {});
+  }
+
   async function loadModels() {
     const row = $("modelRow"), pick = $("modelPick");
     if (!row || !pick) return;
@@ -192,8 +206,7 @@
         pick.dataset.bound = "1";
         pick.addEventListener("change", () => { try { localStorage.setItem("simkoModel", pick.value); } catch (e) {} });
       }
-      const note = $("spendNote");
-      if (note && data.spend) note.textContent = (data.spend.demo ? "Demo account: free during preview. " : "") + "Today $" + Number(data.spend.spent_usd).toFixed(2) + " of $" + Number(data.spend.cap_usd).toFixed(2);
+      paintSpend(data.spend);
       row.hidden = !data.spend;
     } catch (e) {}
   }
@@ -1041,6 +1054,7 @@
       everyday = (data && (data.everyday || data.error)) || "";
       if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace(data && data.ok && everyday ? "turn_reply" : "turn_error", everyday ? "" : "empty");
       if (data && data.model) model = data.model;
+      refreshSpend();
     } catch (e) {
       if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace("turn_error", e.name);
       everyday = "Simko SI could not be reached. Try again in a moment.";
