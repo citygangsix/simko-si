@@ -18,6 +18,7 @@ $ownerEmail = 'attach-owner-' . getmypid() . '@simkosi.test';
 $private = platform_private('attach', ['search' => true, 'browse' => true, 'agents' => true, 'paywall' => false], [
     'xai_base_url' => 'http://127.0.0.1:' . $mockPort . '/v1',
     'owner_access' => ['emails' => [$ownerEmail], 'user_ids' => []],
+    'grok_access' => 'owner', // these checks cover the owner-lock mode
     'attach_max_mb' => 1,
 ]);
 [$site, $sitePipes] = platform_site($private, $sitePort);

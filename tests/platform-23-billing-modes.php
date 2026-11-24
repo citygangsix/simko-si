@@ -29,6 +29,7 @@ $writeConfig = static function (string $mode, bool $paywall) use (&$private, $mo
     $dir = platform_private('billmodes', ['paywall' => $paywall, 'images' => true], [
         'xai_base_url' => 'http://127.0.0.1:' . $mockPort . '/v1',
         'owner_access' => ['emails' => [$ownerEmail], 'user_ids' => []],
+        'grok_access' => 'owner', // these checks cover the owner-lock mode
         'billing' => ['provider' => 'stripe', 'image_billing_mode' => $mode, 'image_invoice_min_cents' => 10],
         'stripe' => [
             'restricted_key' => 'rk_test_local_mock',

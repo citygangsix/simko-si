@@ -9,6 +9,7 @@ $sitePort = $mockPort + 1;
 $private = platform_private('images', ['images' => true, 'paywall' => false], [
     // Pictures follow the subscription here, so no test sign-up is the owner.
     'owner_access' => ['emails' => ['nobody-owner@simkosi.test'], 'user_ids' => []],
+    'grok_access' => 'owner', // these checks cover the owner-lock mode
     'xai_base_url' => 'http://127.0.0.1:' . $mockPort . '/v1',
     'images_daily_cap' => 2,
 ]);

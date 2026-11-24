@@ -11,6 +11,7 @@ $ownerEmail = 'owner-qw-' . getmypid() . '@simkosi.test';
 $private = platform_private('quickwins', ['search' => true, 'images' => true, 'browse' => true, 'paywall' => false], [
     'xai_base_url' => 'http://127.0.0.1:' . $mockPort . '/v1',
     'owner_access' => ['emails' => [$ownerEmail], 'user_ids' => []],
+    'grok_access' => 'owner', // these checks cover the owner-lock mode
 ]);
 [$site, $sitePipes] = platform_site($private, $sitePort);
 $owner = platform_signup($sitePort, $ownerEmail);

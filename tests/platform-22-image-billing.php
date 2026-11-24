@@ -18,6 +18,7 @@ $ownerEmail = 'owner-img-' . getmypid() . '@simkosi.test';
 $private = platform_private('imgbill', ['images' => true, 'paywall' => true, 'search' => true], [
     'xai_base_url' => 'http://127.0.0.1:' . $mockPort . '/v1',
     'owner_access' => ['emails' => [$ownerEmail], 'user_ids' => []],
+    'grok_access' => 'owner', // these checks cover the owner-lock mode
     'images_daily_cap' => 3,
 ]);
 [$site, $sitePipes] = platform_site($private, $sitePort);
