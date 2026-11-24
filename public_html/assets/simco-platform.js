@@ -970,37 +970,93 @@
     if (flags().memory) {
       var memoryOpen = $("memoryOpen");
       if (memoryOpen) memoryOpen.hidden = false;
+      var accountMemory = $("accountMemory");
+      if (accountMemory) accountMemory.hidden = false;
+      var TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+      function memoryDate(ts) {
+        try { return new Date(ts * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); }
+        catch (e) { return ""; }
+      }
+      function memoryMsg(text) { var m = $("memoryMsg"); if (m) m.textContent = text || ""; }
       function paintMemories(rows) {
         var list = $("memoryList");
         if (!list) return;
+        rows = rows || [];
         list.replaceChildren();
-        (rows || []).forEach(function (row) {
+        rows.forEach(function (row) {
           var item = document.createElement("li");
-          item.textContent = row.fact + " ";
+          var text = document.createElement("span");
+          text.className = "memoryText";
+          text.textContent = row.fact;
+          var date = document.createElement("span");
+          date.className = "memoryDate";
+          date.textContent = "Saved " + memoryDate(row.created_at);
+          text.appendChild(date);
           var button = document.createElement("button");
           button.type = "button";
-          button.textContent = "Delete";
+          button.className = "memoryDelete";
+          button.innerHTML = TRASH;
+          button.setAttribute("aria-label", "Delete memory: " + row.fact);
+          button.title = "Delete";
           button.addEventListener("click", function () {
+            button.disabled = true;
             post({ op: "forget", memory_id: row.id }).then(function (data) {
-              if (data.ok) paintMemories(data.memories || []);
+              if (data.ok) { paintMemories(data.memories || []); memoryMsg("Memory deleted."); }
+              else { button.disabled = false; memoryMsg(data.error || "Could not delete that memory."); }
             });
           });
+          item.appendChild(text);
           item.appendChild(button);
           list.appendChild(item);
         });
-        if (!(rows || []).length) {
-          var empty = document.createElement("li");
-          empty.textContent = "No memories yet.";
-          list.appendChild(empty);
-        }
+        var empty = $("memoryEmpty"), clear = $("memoryClearAll"), confirmBox = $("memoryConfirm");
+        if (empty) empty.hidden = rows.length > 0;
+        list.hidden = rows.length === 0;
+        if (clear) clear.hidden = rows.length === 0;
+        if (confirmBox) confirmBox.hidden = true;
+      }
+      function openMemory() {
+        memoryMsg("");
+        post({ op: "memories" }).then(function (data) {
+          if (!data.ok) return;
+          paintMemories(data.memories || []);
+          show("memoryCard");
+        });
       }
       if (memoryOpen && !memoryOpen.dataset.bound) {
         memoryOpen.dataset.bound = "1";
-        memoryOpen.addEventListener("click", function () {
-          post({ op: "memories" }).then(function (data) {
-            if (!data.ok) return;
-            paintMemories(data.memories || []);
-            show("memoryCard");
+        memoryOpen.addEventListener("click", openMemory);
+      }
+      if (accountMemory && !accountMemory.dataset.bound) {
+        accountMemory.dataset.bound = "1";
+        accountMemory.addEventListener("click", function () {
+          var store = $("storeStage");
+          if (store) store.hidden = true;
+          openMemory();
+        });
+      }
+      var clearAll = $("memoryClearAll");
+      if (clearAll && !clearAll.dataset.bound) {
+        clearAll.dataset.bound = "1";
+        clearAll.addEventListener("click", function () {
+          var n = $("memoryList") ? $("memoryList").children.length : 0;
+          $("memoryConfirmText").textContent = "Delete all " + n + (n === 1 ? " memory" : " memories") + "? Simko SI will stop using them. This cannot be undone.";
+          $("memoryConfirm").hidden = false;
+          clearAll.hidden = true;
+          $("memoryClearNo").focus();
+        });
+        $("memoryClearNo").addEventListener("click", function () {
+          $("memoryConfirm").hidden = true;
+          clearAll.hidden = false;
+          clearAll.focus();
+        });
+        $("memoryClearYes").addEventListener("click", function () {
+          var yes = $("memoryClearYes");
+          yes.disabled = true;
+          post({ op: "forget-all", confirm: "all" }).then(function (data) {
+            yes.disabled = false;
+            if (data.ok) { paintMemories(data.memories || []); memoryMsg("All memories deleted."); }
+            else memoryMsg(data.error || "Could not clear memories.");
           });
         });
       }

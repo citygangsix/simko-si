@@ -396,6 +396,18 @@ switch ($op) {
         simko_memory_delete($userId, (int) ($body['memory_id'] ?? 0));
         simko_ok(['memories' => simko_memory_rows($userId, simko_requested_child($userId, $body))]);
         break;
+    case 'forget-all':
+        if (!simko_flag('memory')) {
+            simko_fail(404, 'Memory is turned off.');
+        }
+        // The panel asks first; the request must say so too.
+        if (($body['confirm'] ?? '') !== 'all') {
+            simko_fail(400, 'Confirm to delete all memories.');
+        }
+        $childId = simko_requested_child($userId, $body);
+        $deleted = simko_memory_clear($userId, $childId);
+        simko_ok(['deleted' => $deleted, 'memories' => simko_memory_rows($userId, $childId)]);
+        break;
     case 'start-trial':
         if (!simko_flag('paywall')) {
             simko_fail(404, 'Usage is turned off.');

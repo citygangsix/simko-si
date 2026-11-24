@@ -84,3 +84,16 @@ function simko_memory_delete(int $userId, int $memoryId): void
         simko_fail(404, 'That memory is not on this account.');
     }
 }
+
+/** Clear all: every memory of one person (or of one of their children), never anyone else's. */
+function simko_memory_clear(int $userId, ?int $childId): int
+{
+    if ($childId === null) {
+        $stmt = simko_db()->prepare('DELETE FROM memories WHERE user_id = ? AND child_profile_id IS NULL');
+        $stmt->execute([$userId]);
+    } else {
+        $stmt = simko_db()->prepare('DELETE FROM memories WHERE user_id = ? AND child_profile_id = ?');
+        $stmt->execute([$userId, $childId]);
+    }
+    return $stmt->rowCount();
+}
