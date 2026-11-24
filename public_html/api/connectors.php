@@ -8,13 +8,21 @@ function simko_connector_catalog(): array
     return [
         'google-drive' => [
             'name' => 'Google Drive',
-            'scope' => 'https://www.googleapis.com/auth/drive.readonly',
+            'scope' => 'https://www.googleapis.com/auth/drive.file',
             'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
+            'disclosure' => 'If you connect Google Drive, Simko SI can use files you pick with Google\'s file picker, and new files you ask it to create. Tokens are stored encrypted on our server. The file content needed for a request is sent to xAI\'s Grok API only to answer that request, and is not used to train Grok. You can disconnect at any time.',
+        ],
+        'google-calendar' => [
+            'name' => 'Google Calendar',
+            'scope' => 'https://www.googleapis.com/auth/calendar.events',
+            'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
+            'disclosure' => 'If you connect Google Calendar, Simko SI can view events on calendars you can access, and can create, change, or cancel events when you ask — writes wait for your approval. Tokens are stored encrypted on our server. The event details needed for a request are sent to xAI\'s Grok API only to answer that request, and are not used to train Grok. You can disconnect at any time.',
         ],
         'github' => [
             'name' => 'GitHub',
             'scope' => 'read:user public_repo',
             'authorize_url' => 'https://github.com/login/oauth/authorize',
+            'disclosure' => 'If you connect GitHub, Simko SI can read your public profile and public repositories. You can disconnect at any time.',
         ],
     ];
 }
@@ -27,6 +35,15 @@ function simko_connector_settings(string $provider): array
     }
     $all = simko_config_or_empty()['connectors'] ?? [];
     $row = is_array($all) && isset($all[$provider]) && is_array($all[$provider]) ? $all[$provider] : [];
+    // Google Calendar (and any later google-* connector) reuses the Drive OAuth client when its own id is empty.
+    if (str_starts_with($provider, 'google-') && $provider !== 'google-drive') {
+        $shared = is_array($all['google-drive'] ?? null) ? $all['google-drive'] : [];
+        foreach (['client_id', 'client_secret', 'token_url', 'revoke_url', 'authorize_url'] as $key) {
+            if (trim((string) ($row[$key] ?? '')) === '' && trim((string) ($shared[$key] ?? '')) !== '') {
+                $row[$key] = $shared[$key];
+            }
+        }
+    }
     $clientId = trim((string) ($row['client_id'] ?? ''));
     return $catalog[$provider] + [
         'client_id' => $clientId,
@@ -35,6 +52,7 @@ function simko_connector_settings(string $provider): array
         'revoke_url' => trim((string) ($row['revoke_url'] ?? '')),
         'ready' => $clientId !== '' && !str_contains($clientId, 'REPLACE'),
         'authorize_url' => trim((string) ($row['authorize_url'] ?? $catalog[$provider]['authorize_url'])),
+        'disclosure' => (string) ($catalog[$provider]['disclosure'] ?? ''),
     ];
 }
 
@@ -59,6 +77,8 @@ function simko_connector_list(int $userId = 0): array
             'ready' => $settings['ready'],
             'connected' => $grant !== null,
             'expires_at' => $grant ? (int) $grant['expires_at'] : 0,
+            'disclosure' => (string) ($settings['disclosure'] ?? ''),
+            'privacy_url' => '/privacy.html',
         ];
     }
     return $rows;
@@ -75,14 +95,19 @@ function simko_connector_start(int $userId, string $provider): array
         'INSERT INTO connector_states (state, user_id, provider, created_at) VALUES (?, ?, ?, ?)'
     );
     $stmt->execute([$state, $userId, $provider, time()]);
-    $query = http_build_query([
+    $params = [
         'client_id' => $settings['client_id'],
         'redirect_uri' => rtrim((string) (simko_config_or_empty()['site_url'] ?? 'https://simkosi.com'), '/') . '/api/connector/callback',
         'response_type' => 'code',
         'scope' => $settings['scope'],
         'state' => $state,
-    ]);
-    return ['url' => $settings['authorize_url'] . '?' . $query, 'scope' => $settings['scope']];
+    ];
+    if (str_contains((string) $settings['authorize_url'], 'accounts.google.com')) {
+        $params['access_type'] = 'offline';
+        $params['prompt'] = 'consent';
+    }
+    $query = http_build_query($params);
+    return ['url' => $settings['authorize_url'] . '?' . $query, 'scope' => $settings['scope'], 'disclosure' => (string) ($settings['disclosure'] ?? '')];
 }
 
 function simko_connector_key(): string

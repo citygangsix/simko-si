@@ -654,6 +654,26 @@
                   });
                   return;
                 }
+                var box = $("connectorDisclose");
+                var textNode = $("connectorDiscloseText");
+                if (box && textNode && row.disclosure) {
+                  textNode.textContent = row.disclosure;
+                  box.hidden = false;
+                  var yes = $("connectorDiscloseYes");
+                  var no = $("connectorDiscloseNo");
+                  if (yes) {
+                    yes.onclick = function () {
+                      box.hidden = true;
+                      post({ op: "connector-start", provider: row.id }).then(function (started) {
+                        if (started.url) window.location.href = started.url;
+                      });
+                    };
+                  }
+                  if (no) {
+                    no.onclick = function () { box.hidden = true; };
+                  }
+                  return;
+                }
                 post({ op: "connector-start", provider: row.id }).then(function (started) {
                   if (started.url) window.location.href = started.url;
                 });

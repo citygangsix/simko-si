@@ -92,7 +92,7 @@ return [
     // Google: Cloud Console, OAuth client, redirect https://simkosi.com/api/oauth/callback
     // Apple: developer.apple.com, Services ID, Sign in with Apple, same redirect. $99/year membership is Joseph's decision.
     // Connectors. Client ids empty means the buttons stay hidden.
-    // Google Drive is read-only. GitHub reads repositories. No Gmail. No banks.
+    // Google Drive uses drive.file (files the person picks). Google Calendar uses calendar.events and reuses the Drive OAuth client if its own id is empty. GitHub reads repositories. No Gmail. No banks.
     // Phone calls stay disabled. Filling a provider does not place a call and does not open an account.
     // Hosts the page reader may fetch. No logins. Full browser automation is not on shared hosting.
     'browse_allow' => [],
@@ -109,6 +109,15 @@ return [
             'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
             'token_url' => 'https://oauth2.googleapis.com/token',
             'revoke_url' => 'https://oauth2.googleapis.com/revoke',
+        ],
+        // Leave these empty to reuse the google-drive OAuth client (same Cloud client).
+        'google-calendar' => [
+            'client_id' => '',
+            'client_secret' => '',
+            'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
+            'token_url' => 'https://oauth2.googleapis.com/token',
+            'revoke_url' => 'https://oauth2.googleapis.com/revoke',
+            'api_base' => '',
         ],
         'github' => [
             'client_id' => '',

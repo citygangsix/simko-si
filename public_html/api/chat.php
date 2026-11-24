@@ -8,6 +8,7 @@ require_once __DIR__ . '/recall.php';
 require_once __DIR__ . '/browse.php';
 require_once __DIR__ . '/files.php';
 require_once __DIR__ . '/stream.php';
+require_once __DIR__ . '/calendar-tools.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -72,6 +73,13 @@ if (simko_flag('memory') && !empty($body['child_id'])) {
 $remembered = simko_memory_prompt((int) $user['id'], $memoryChild);
 if ($remembered !== '') {
     $system .= "\n\n" . $remembered;
+}
+$calendarNote = simko_calendar_apply_approved((int) $user['id'], $body);
+if ($calendarNote !== '') {
+    $system .= "\n\n" . $calendarNote;
+}
+if (simko_calendar_connected((int) $user['id'])) {
+    $system .= "\n\n" . simko_calendar_system_note();
 }
 // Last, so it wins over any earlier 'reply in English' line in the configured prompt.
 $system .= isset($langs[$lang])
@@ -169,7 +177,36 @@ if ($deep && $timeout < 240) {
 }
 @set_time_limit($timeout + 5);
 
-if ($stream) {
+$calendarTools = simko_calendar_tools_for((int) $user['id']);
+$usedCalendarTools = false;
+if ($calendarTools !== []) {
+    $usedCalendarTools = true;
+    if (simko_flag('search')) {
+        $endpoint = simko_xai_url('responses');
+        $toolPayload = simko_search_payload($model, $messages, $strictSearch, $effort, $deep);
+        $toolPayload['tools'] = array_merge($toolPayload['tools'], $calendarTools['responses']);
+        $data = simko_calendar_tool_loop((int) $user['id'], $body, $endpoint, $toolPayload, $timeout, 'responses');
+    } else {
+        $endpoint = simko_xai_url('chat/completions');
+        $toolPayload = [
+            'model' => $model,
+            'stream' => false,
+            'messages' => $messages,
+            'tools' => $calendarTools['completions'],
+        ];
+        if ($effort !== null) {
+            $toolPayload['reasoning_effort'] = $effort;
+        }
+        $data = simko_calendar_tool_loop((int) $user['id'], $body, $endpoint, $toolPayload, $timeout, 'completions');
+    }
+    $result = ['ticks' => 0, 'aborted' => false, 'final' => $data, 'reply' => simko_choice_text($data)];
+    if ($stream) {
+        simko_sse_start();
+        if ($result['reply'] !== '') {
+            simko_sse_send(['delta' => $result['reply']]);
+        }
+    }
+} elseif ($stream) {
     if (simko_flag('search')) {
         $endpoint = simko_xai_url('responses');
         $streamPayload = simko_search_payload($model, $messages, $strictSearch, $effort, $deep);

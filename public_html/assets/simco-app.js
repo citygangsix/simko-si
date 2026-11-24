@@ -1072,7 +1072,7 @@
     try {
       if (voiceTurn && window.simcoVoice.trace) window.simcoVoice.trace("turn_sent");
       let live = "";
-      const data = await postStream("/api/simco/turn", {
+      const turnBody = {
         stream: !voiceTurn,
         model: deepOn() ? undefined : pickedModel(),
         lang: replyLang() || undefined,
@@ -1085,12 +1085,28 @@
         reasoning_effort: thinkOn() ? "xhigh" : undefined,
         deep_search: deepOn() || undefined,
         files: sendFile ? sendFile.map(function (f) { return { name: f.name, type: f.type, data: f.data }; }) : undefined
-      }, (piece) => {
+      };
+      const data = await postStream("/api/simco/turn", turnBody, (piece) => {
         live += piece;
         $("reply-bubble").textContent = live;
       }, (status) => {
         if (!live && status === "searching") $("reply-bubble").textContent = "Searching the web…";
       });
+      if (data && data.approval && window.simcoPlatform) {
+        setReply(data.approval.summary || "Simko SI is waiting for you to approve this.");
+        window.simcoPlatform.showApproval(data.approval, async (approvalId) => {
+          setReply("Working on it…");
+          const again = await postStream("/api/simco/turn", Object.assign({}, turnBody, { approval_id: approvalId, stream: false }), function () {}, function () {});
+          const line = (again && (again.everyday || again.error)) || "No reply came back from Simko SI. Try again in a moment.";
+          showToolPanel(again);
+          setReply(line);
+          voiceReply(line);
+          await rememberTurn(text || (sendFile ? "(attached " + sendFile.map(function (f) { return f.name; }).join(", ") + ")" : ""), line);
+          await tagTurn(text);
+          refreshSpend();
+        });
+        return;
+      }
       if (data && !data.everyday && !data.error && live) data.everyday = live;
       showToolPanel(data);
       if (data && Array.isArray(data.sources) && data.sources.length && window.simcoPlatform) window.simcoPlatform.showSources(data.sources);

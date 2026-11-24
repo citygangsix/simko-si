@@ -48,6 +48,16 @@ foreach ($status['data']['connectors'] as $row) {
     $byId[$row['id']] = $row;
 }
 platform_assert(!empty($byId['google-drive']['connected']) && empty($byId['github']['connected']), 'status is per connector');
+$calStart = platform_api($sitePort, '/api/platform', ['op' => 'connector-start', 'provider' => 'google-calendar'], $user['token']);
+parse_str((string) parse_url($calStart['data']['url'], PHP_URL_QUERY), $calQuery);
+platform_assert(str_contains((string) ($calStart['data']['scope'] ?? ''), 'calendar.events'), 'Calendar scope is calendar.events');
+file_get_contents('http://127.0.0.1:' . $sitePort . '/api/connector/callback?code=cal&state=' . $calQuery['state']);
+$afterCal = platform_api($sitePort, '/api/platform', ['op' => 'connectors'], $user['token']);
+$calBy = [];
+foreach ($afterCal['data']['connectors'] as $row) {
+    $calBy[$row['id']] = $row;
+}
+platform_assert(!empty($calBy['google-calendar']['connected']) && !empty($calBy['google-drive']['connected']), 'Drive and Calendar grants are independent');
 platform_assert(!str_contains(json_encode($status['data']), 'access-one'), 'status does not reveal the access token');
 $other = platform_signup($sitePort, 'grant-other-' . getmypid() . '@simkosi.test');
 $otherStatus = platform_api($sitePort, '/api/platform', ['op' => 'connectors'], $other['token']);

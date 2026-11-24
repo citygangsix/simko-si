@@ -29,22 +29,34 @@
 <li><b>Usage:</b> message and picture counts used for the free limit and billing, plus basic server and error logs (IP address, time, browser type) kept for security.</li>
 <li><b>Payments:</b> if you subscribe, payment is handled by Stripe. We receive your subscription status and a Stripe customer ID, never your full card number.</li>
 <li><b>Reports:</b> if you report an AI reply, we keep the reply text, the reason and any note you add.</li>
+<li><b>Connected Google apps:</b> if you choose to connect Google Drive or Google Calendar, we store the OAuth tokens that let us act for you, and we fetch only the files or events needed for a request you make. Tokens are encrypted on our server. We do not store a standing copy of your whole Drive or calendar. Gmail is not connected yet.</li>
 </ul>
 <h2>How we use it</h2>
 <ul><li>To run the service: sign you in, keep your chats, answer your messages, and apply the free and paid limits.</li>
 <li>To keep it safe: prevent abuse, fix errors, and review reported replies.</li>
-<li>We do not sell your personal information and we do not use it for advertising. There are no third-party ads or ad trackers.</li></ul>
+<li>We do not sell your personal information and we do not use it for advertising. There are no third-party ads or ad trackers.</li>
+<li>Google Drive and Calendar data is used only to provide the user-facing features you asked for in Simko SI: summarizing or answering questions about a file you pointed us to, and showing, creating, or updating calendar events you asked us to handle. Writes to your calendar wait for your approval.</li></ul>
 <h2>Who processes it</h2>
-<ul><li><b>xAI (Grok):</b> your messages, voice clips and picture prompts are sent to xAI's API to produce replies, speech and pictures.</li>
+<ul><li><b>xAI (Grok):</b> your messages, voice clips and picture prompts are sent to xAI's API to produce replies, speech and pictures. When you ask Grok to work with a connected Google app, the file text or calendar details needed for that request are also sent to xAI's API, only to complete that request. We do not grant xAI permission to train on this data, and it is never used to train Grok or any other foundation model.</li>
 <li><b>Hostinger:</b> hosts the website and database.</li>
 <li><b>Stripe:</b> processes payments if you subscribe.</li>
-<li><b>Google / Apple:</b> only if you choose to sign in with them.</li></ul>
+<li><b>Google / Apple:</b> if you sign in with them, or if you connect Google Drive or Google Calendar, Google provides that sign-in or that app data under the permissions you grant.</li></ul>
 <h2>Keeping and deleting your data</h2>
-<p>We keep your data while your account exists. You can delete your account at any time inside the app (sign in, tap your email at the top, then <b>Delete account</b>) or by emailing <a href="mailto:support@simkosi.com">support@simkosi.com</a> from your account email. Deletion removes your account and all the content listed above. Billing records needed for tax and accounting are kept with your account number only.</p>
+<p>We keep your data while your account exists. You can delete your account at any time inside the app (sign in, tap your email at the top, then <b>Delete account</b>) or by emailing <a href="mailto:support@simkosi.com">support@simkosi.com</a> from your account email. Deletion removes your account and all the content listed above, including stored Google tokens. You can also disconnect a Google app at any time in Simko SI (open Connectors and disconnect) or by visiting <a href="https://myaccount.google.com/permissions">Google's account permissions page</a>. Disconnecting deletes the stored tokens for that connection. Billing records needed for tax and accounting are kept with your account number only.</p>
 <h2>Children</h2>
 <p>Simko SI is meant for adults. A parent or guardian may add child profiles under their own account after giving consent; children do not get their own accounts. If you believe a child gave us personal information without consent, email us and we will delete it.</p>
 <h2>Security</h2>
 <p>Connections use HTTPS. Passwords are hashed, vault items are encrypted, and private files are stored outside the public website.</p>
+<h2>Limited Use</h2>
+<p>Simko SI's use of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+<p>The use of information received from Google Workspace scopes will adhere to the <a href="https://developers.google.com/workspace/workspace-api-user-data-developer-policy">Google User Data Policy</a>, including the Limited Use requirements.</p>
+<ul>
+<li>We use Google user data only to provide or improve user-facing features that are prominent in Simko SI.</li>
+<li>We do not transfer Google user data except to provide those features with your consent (including sending the needed content to xAI's Grok API to complete your request), for security, to comply with the law, or as part of a sale of the business after we first get your explicit consent.</li>
+<li>We do not use Google user data to create, train, or improve a machine-learning or artificial-intelligence model, and we do not allow it to be used to train or improve Grok or any other foundation model.</li>
+<li>Humans at Simko SI do not read your Google files or events unless you ask us to look at a specific item, or it is necessary to investigate abuse, fix a bug, or comply with the law, or the data is aggregated for internal operations.</li>
+<li>We do not sell Google user data, and we do not use it for advertising, retargeting, or credit decisions.</li>
+</ul>
 <h2>Changes and contact</h2>
 <p>If this policy changes we will update the date above. Questions: <a href="mailto:support@simkosi.com">support@simkosi.com</a>.</p>
 <nav><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms of use</a><a href="/support.html">Support</a><a href="/">Back to Simko SI</a></nav>

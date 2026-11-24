@@ -35,6 +35,12 @@ if ($path === '/v1/chat/completions') {
     if (!is_array($body)) {
         $body = [];
     }
+    $calendar = simko_mock_calendar_payload($body, false);
+    if (is_array($calendar)) {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($calendar, JSON_UNESCAPED_UNICODE);
+        return;
+    }
     if (($body['response_format']['json_schema']['name'] ?? '') === 'simko_code_project') {
         // Mock Grok coding agent: a calculator. "BROKEN" in the request makes the first build concatenate.
         $all = json_encode($body['messages'] ?? []);
@@ -149,6 +155,21 @@ if ($path === '/v1/responses') {
     $body = json_decode(file_get_contents('php://input') ?: '', true);
     if (!is_array($body)) {
         $body = [];
+    }
+    $calendar = simko_mock_calendar_payload($body, true);
+    if (is_array($calendar)) {
+        if (!empty($body['stream'])) {
+            header('Content-Type: text/event-stream; charset=utf-8');
+            $reply = (string) ($calendar['output_text'] ?? '');
+            echo "event: response.output_text.delta\n";
+            echo 'data: ' . json_encode(['type' => 'response.output_text.delta', 'delta' => $reply]) . "\n\n";
+            echo "event: response.completed\n";
+            echo 'data: ' . json_encode(['type' => 'response.completed', 'response' => $calendar]) . "\n\n";
+            return;
+        }
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($calendar, JSON_UNESCAPED_UNICODE);
+        return;
     }
     $text = '';
     $system = '';
@@ -301,4 +322,119 @@ function simko_mock_wav(): string
     return 'RIFF' . pack('V', 36 + $dataBytes) . 'WAVE'
         . 'fmt ' . pack('VvvVVvv', 16, 1, 1, $rate, $rate * 2, 2, 16)
         . 'data' . pack('V', $dataBytes) . $pcm;
+}
+
+
+function simko_mock_has_calendar_tool(array $body): bool
+{
+    foreach ($body['tools'] ?? [] as $tool) {
+        if (!is_array($tool)) {
+            continue;
+        }
+        $name = (string) ($tool['name'] ?? ($tool['function']['name'] ?? ''));
+        if (str_starts_with($name, 'calendar_')) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function simko_mock_calendar_payload(array $body, bool $responses): ?array
+{
+    if (!simko_mock_has_calendar_tool($body)) {
+        return null;
+    }
+    $blob = json_encode($body) ?: '';
+    $text = '';
+    $items = $responses ? ($body['input'] ?? []) : ($body['messages'] ?? []);
+    foreach ($items as $message) {
+        if (!is_array($message)) {
+            continue;
+        }
+        $content = $message['content'] ?? '';
+        $flat = is_string($content) ? $content : json_encode($content);
+        if (($message['role'] ?? '') === 'user') {
+            $text = $flat;
+        }
+    }
+    $already = str_contains($blob, 'Calendar action result:')
+        || str_contains($blob, '"role":"tool"')
+        || str_contains($blob, 'function_call_output');
+    if ($already) {
+        if (str_contains($blob, 'deleted') || str_contains(strtolower($text), 'delete')) {
+            $reply = 'The test event has been deleted from your calendar.';
+        } elseif (str_contains($blob, 'Simko SI test') || str_contains($text, 'Simko SI test')) {
+            $reply = 'I created Simko SI test on your calendar.';
+        } elseif (str_contains($blob, 'Team standup')) {
+            $reply = 'This week you have Team standup on your calendar.';
+        } else {
+            $reply = 'I checked your calendar: ' . $text;
+        }
+        if ($responses) {
+            return [
+                'id' => 'mock-cal',
+                'object' => 'response',
+                'status' => 'completed',
+                'output_text' => $reply,
+                'output' => [[
+                    'type' => 'message',
+                    'role' => 'assistant',
+                    'content' => [['type' => 'output_text', 'text' => $reply]],
+                ]],
+                'usage' => ['cost_in_usd_ticks' => 1000],
+            ];
+        }
+        return [
+            'id' => 'mock-cal',
+            'choices' => [['message' => ['role' => 'assistant', 'content' => $reply]]],
+            'usage' => ['cost_in_usd_ticks' => 1000],
+        ];
+    }
+    $lower = strtolower($text);
+    if (str_contains($lower, 'delete')) {
+        $name = 'calendar_delete_event';
+        $args = ['event_id' => 'evt-1'];
+        if (preg_match('/evt-[0-9]+/', $blob, $m)) {
+            $args['event_id'] = $m[0];
+        }
+    } elseif (str_contains($lower, 'create') || str_contains($text, 'Simko SI test')) {
+        $name = 'calendar_create_event';
+        $args = [
+            'summary' => 'Simko SI test',
+            'start' => ['dateTime' => '2026-11-24T15:00:00-05:00'],
+            'end' => ['dateTime' => '2026-11-24T16:00:00-05:00'],
+        ];
+    } else {
+        $name = 'calendar_list_events';
+        $args = [];
+    }
+    if ($responses) {
+        return [
+            'id' => 'mock-cal-call',
+            'object' => 'response',
+            'status' => 'completed',
+            'output' => [[
+                'type' => 'function_call',
+                'call_id' => 'call-cal-1',
+                'name' => $name,
+                'arguments' => json_encode($args),
+            ]],
+            'usage' => ['cost_in_usd_ticks' => 1000],
+        ];
+    }
+    return [
+        'id' => 'mock-cal-call',
+        'choices' => [[
+            'message' => [
+                'role' => 'assistant',
+                'content' => null,
+                'tool_calls' => [[
+                    'id' => 'call-cal-1',
+                    'type' => 'function',
+                    'function' => ['name' => $name, 'arguments' => json_encode($args)],
+                ]],
+            ],
+        ]],
+        'usage' => ['cost_in_usd_ticks' => 1000],
+    ];
 }
