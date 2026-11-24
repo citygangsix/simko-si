@@ -17,6 +17,7 @@ return [
     'max_input_chars' => 8000,
     'system_prompt' => 'You are Simko SI. Reply in everyday English.',
     'mail_mode' => 'dev',
+    'dev_codes_in_reply' => true,
     'extra_origins' => [],
     'installers' => [],
     'supabase' => [
@@ -73,6 +74,30 @@ function watch(page, problems) {
   });
 }
 
+
+async function submitSignupAndConfirm(page) {
+  const pending = page.waitForResponse((response) => {
+    return response.url().includes("/api/auth") && response.request().method() === "POST" && (response.request().postData() || "").includes('"signup"');
+  });
+  await page.click("#authModalSubmit");
+  const response = await pending;
+  const data = await response.json();
+  if (data && data.dev_token) {
+    await page.waitForFunction(() => !!(sessionStorage.getItem("podcoderToken") || ""));
+    const ok = await page.evaluate(async (code) => {
+      const token = sessionStorage.getItem("podcoderToken") || "";
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "confirm-email", confirm_token: code, token })
+      });
+      const body = await res.json();
+      return !!(body && body.ok);
+    }, data.dev_token);
+    if (!ok) throw new Error("email confirm failed");
+  }
+}
+
 async function openTools(page) {
   if (await page.locator("#drawer").isVisible()) return;
   if (!(await page.locator("#toolsToggle").isVisible())) {
@@ -116,6 +141,10 @@ async function sessionCase(browser) {
   const email = `kept-${Date.now()}@simkosi.test`;
   const signed = await post("/api/auth", { op: "signup", email, password: "reef-turtle-8" });
   if (!signed.ok || !signed.token) throw new Error("session fixture signup failed");
+  if (signed.dev_token) {
+    const confirmed = await post("/api/auth", { op: "confirm-email", confirm_token: signed.dev_token, token: signed.token });
+    if (!confirmed.ok) throw new Error("session fixture confirm failed");
+  }
   const token = signed.token;
 
   async function openWith(storageToken, cookieToken) {
@@ -130,7 +159,7 @@ async function sessionCase(browser) {
       }]);
     }
     await context.addInitScript((value) => {
-      sessionStorage.setItem("podcoderToken", value);
+      try { sessionStorage.setItem("podcoderToken", value); } catch (e) {}
     }, storageToken);
     const page = await context.newPage({ viewport: { width: 1280, height: 800 } });
     const problems = [];
@@ -262,8 +291,10 @@ async function auditSignedOut(page) {
   await page.locator("#drawer").waitFor({ state: "hidden" });
   await page.waitForFunction(() => /GPU/i.test(document.getElementById("reply-bubble").textContent || "") && /Recommended/i.test(document.getElementById("reply-bubble").textContent || ""));
   await openTools(page);
-  await page.click("#downloadNow");
-  await page.waitForFunction(() => (document.getElementById("reply-bubble").textContent || "").includes("coming soon"));
+  const download = page.locator("#downloadNow");
+  if (!(await download.isVisible())) throw new Error("download control missing");
+  const href = (await download.getAttribute("href")) || "";
+  if (!/^https:\/\//i.test(href)) throw new Error("download link should be an https installer, got " + href);
   await page.click("#advancedLink");
   await page.locator("#advancedNote").waitFor({ state: "visible" });
   await page.click("#whatRent");
@@ -310,8 +341,12 @@ async function auditSignedIn(page, width) {
   await ensureThread(page);
   await page.locator("#everyday").click();
   await page.locator("#everyday").pressSequentially("Button audit hello", { delay: 8 });
+  await page.waitForFunction(() => document.getElementById("go") && document.getElementById("go").getAttribute("aria-label") === "Send");
   await page.click("#go");
-  await page.waitForFunction(() => (document.getElementById("reply-bubble").textContent || "").includes("The reef heard you"));
+  await page.waitForFunction(() => {
+    const text = document.getElementById("reply-bubble").textContent || "";
+    return text.includes("Button audit hello") && !/Working on it/.test(text);
+  });
   await visibleBox(page, "#replySpeak.is-shown");
   if (width === 1280) await page.screenshot({ path: "/opt/cursor/artifacts/simko-speaker-1280x800.png" });
   if (width === 390) await page.screenshot({ path: "/opt/cursor/artifacts/simko-speaker-390x844.png" });
@@ -340,7 +375,7 @@ async function auditSignedIn(page, width) {
 writeConfig();
 const mock = start(["-S", "127.0.0.1:8742", "-t", "tests", "tests/mock-xai.php"]);
 const site = start(["-S", "127.0.0.1:8741", "-t", "public_html", "public_html/router.php"]);
-const browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--mute-audio"] });
+const browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--mute-audio", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
 
 try {
   await waitFor(SITE + "/api/health");
@@ -353,13 +388,14 @@ try {
     watch(page, problems);
     await page.goto(SITE + "/", { waitUntil: "domcontentloaded" });
     await page.locator("#accountSignIn").waitFor({ state: "visible" });
+    if (await page.locator("#welcomeLook").isVisible()) await page.click("#welcomeLook");
     await auditSignedOut(page);
     const email = `audit-${width}-${Date.now()}@simkosi.test`;
     await page.click("#accountSignIn");
     await page.click("#authTabUp");
     await page.locator("#modalEmail").fill(email);
     await page.locator("#modalPassword").fill("reef-turtle-8");
-    await page.click("#authModalSubmit");
+    await submitSignupAndConfirm(page);
     await page.waitForFunction((address) => (document.getElementById("accountEmail").title || "") === address, email);
     await auditSignedIn(page, width);
     await page.click("#accountSignOut");

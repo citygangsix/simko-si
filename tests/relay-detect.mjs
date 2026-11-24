@@ -17,6 +17,7 @@ return [
     'max_input_chars' => 8000,
     'system_prompt' => 'You are Simko SI. Reply in everyday English.',
     'mail_mode' => 'dev',
+    'dev_codes_in_reply' => true,
     'extra_origins' => [],
     'installers' => [],
     'supabase' => ['enabled' => false, 'project_ref' => 'wxvjajecvklfjxppawdx', 'url' => '', 'service_key' => ''],
@@ -52,6 +53,30 @@ async function visibleText(page, selector) {
   return locator.innerText();
 }
 
+
+async function submitSignupAndConfirm(page) {
+  const pending = page.waitForResponse((response) => {
+    return response.url().includes("/api/auth") && response.request().method() === "POST" && (response.request().postData() || "").includes('"signup"');
+  });
+  await page.click("#authModalSubmit");
+  const response = await pending;
+  const data = await response.json();
+  if (data && data.dev_token) {
+    await page.waitForFunction(() => !!(sessionStorage.getItem("podcoderToken") || ""));
+    const ok = await page.evaluate(async (code) => {
+      const token = sessionStorage.getItem("podcoderToken") || "";
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "confirm-email", confirm_token: code, token })
+      });
+      const body = await res.json();
+      return !!(body && body.ok);
+    }, data.dev_token);
+    if (!ok) throw new Error("email confirm failed");
+  }
+}
+
 async function signUp(page, email) {
   await page.click("#accountSignIn");
   await page.locator("#authModal").waitFor({ state: "visible" });
@@ -60,11 +85,17 @@ async function signUp(page, email) {
   await page.locator("#modalEmail").pressSequentially(email, { delay: 10 });
   await page.locator("#modalPassword").click();
   await page.locator("#modalPassword").pressSequentially("reef-turtle-8", { delay: 10 });
-  await page.click("#authModalSubmit");
+  await submitSignupAndConfirm(page);
   await page.waitForFunction((address) => (document.getElementById("accountEmail").title || "") === address, email);
 }
 
+async function dismissWelcome(page) {
+  const look = page.locator("#welcomeLook");
+  if (await look.isVisible()) await look.click();
+}
+
 async function openTools(page) {
+  await dismissWelcome(page);
   if (await page.locator("#drawer").isVisible()) return;
   if (!(await page.locator("#toolsToggle").isVisible())) {
     await page.evaluate(() => document.body.classList.remove("thread-open"));
@@ -99,6 +130,8 @@ async function newChatCase(page) {
   await page.locator("#everyday").pressSequentially("Hi", { delay: 15 });
   await page.click("#go");
   await page.waitForFunction(() => (document.getElementById("reply-bubble").textContent || "").includes("Hi"));
+  await page.waitForFunction(() => document.querySelectorAll("#sessionList button").length >= 1);
+  await page.waitForTimeout(300);
   const newChat = page.getByRole("button", { name: "New chat" });
   if (!(await newChat.isVisible()) && await page.locator("#backToList").isVisible()) {
     await page.click("#backToList");
@@ -165,8 +198,16 @@ async function relayCase(page) {
   if (!(await page.locator("#sessionList").isVisible()) && await page.locator("#backToList").isVisible()) {
     await page.click("#backToList");
   }
-  await page.locator("#sessionList button", { hasText: destination }).click();
-  await page.waitForFunction((title) => (document.getElementById("reply-bubble").textContent || "").includes("From " + title), secondTitle);
+  await page.waitForTimeout(300);
+  const destBtn = page.locator("#sessionList button", { hasText: destination });
+  await destBtn.click();
+  const fromLine = (title) => (document.getElementById("reply-bubble").textContent || "").includes("From " + title);
+  try {
+    await page.waitForFunction(fromLine, secondTitle, { timeout: 8000 });
+  } catch (error) {
+    await destBtn.click();
+    await page.waitForFunction(fromLine, secondTitle);
+  }
   const from = await visibleText(page, "#reply-bubble");
   if (!from.includes("From " + secondTitle)) throw new Error("destination missing from-line: " + from);
   if (!from.includes("Note for the other chat")) throw new Error("destination dropped the note: " + from);

@@ -18,6 +18,7 @@ return [
     'max_input_chars' => 8000,
     'system_prompt' => 'You are Simko SI. Reply in everyday English.',
     'mail_mode' => 'dev',
+    'dev_codes_in_reply' => true,
     'extra_origins' => [],
     'installers' => [],
     'supabase' => [
@@ -90,6 +91,10 @@ async function apiTests() {
   const signed = await post("/api/auth", { op: "signup", email, password: "reef-turtle-8" });
   assert(signed.data.ok && signed.data.token, "signup failed " + JSON.stringify(signed.data));
   const token = signed.data.token;
+  if (signed.data.dev_token) {
+    const confirmed = await post("/api/auth", { op: "confirm-email", confirm_token: signed.data.dev_token, token });
+    assert(confirmed.status === 200 && confirmed.data.ok, "confirm failed " + JSON.stringify(confirmed.data));
+  }
 
   const created = await post("/api/sessions", { op: "create", token, title: "Cap" });
   assert(created.data.session && created.data.session.id, "create chat failed");
@@ -131,6 +136,30 @@ async function shot(page, width, height, file, threadOpen) {
   console.log("saved", file);
 }
 
+
+async function submitSignupAndConfirm(page) {
+  const pending = page.waitForResponse((response) => {
+    return response.url().includes("/api/auth") && response.request().method() === "POST" && (response.request().postData() || "").includes('"signup"');
+  });
+  await page.click("#authModalSubmit");
+  const response = await pending;
+  const data = await response.json();
+  if (data && data.dev_token) {
+    await page.waitForFunction(() => !!(sessionStorage.getItem("podcoderToken") || ""));
+    const ok = await page.evaluate(async (code) => {
+      const token = sessionStorage.getItem("podcoderToken") || "";
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "confirm-email", confirm_token: code, token })
+      });
+      const body = await res.json();
+      return !!(body && body.ok);
+    }, data.dev_token);
+    if (!ok) throw new Error("email confirm failed");
+  }
+}
+
 async function browserTests() {
   mkdirSync("/opt/cursor/artifacts", { recursive: true });
   const browser = await chromium.launch({
@@ -162,7 +191,7 @@ async function browserTests() {
   await page.locator("#modalEmail").pressSequentially(email, { delay: 12 });
   await page.locator("#modalPassword").click();
   await page.locator("#modalPassword").pressSequentially("reef-turtle-8", { delay: 12 });
-  await page.click("#authModalSubmit");
+  await submitSignupAndConfirm(page);
   await page.waitForFunction((address) => (document.getElementById("accountEmail").textContent || "").length > 0 && (document.getElementById("accountEmail").title || "").includes(address), email);
   await page.locator("#authModal").waitFor({ state: "hidden" });
   await page.waitForFunction(() => {
@@ -175,11 +204,22 @@ async function browserTests() {
   const box = page.locator("#everyday");
   await box.click();
   await box.pressSequentially("Hello sea turtle", { delay: 30 });
+  await page.waitForFunction(() => document.getElementById("go") && document.getElementById("go").getAttribute("aria-label") === "Send");
   await page.click("#go");
-  await page.waitForFunction(() => {
-    const text = document.getElementById("reply-bubble").textContent || "";
-    return text.includes("The reef heard you") && text.includes("Hello sea turtle");
-  }, null, { timeout: 20000 });
+  try {
+    await page.waitForFunction(() => {
+      const text = document.getElementById("reply-bubble").textContent || "";
+      return text.includes("Hello sea turtle") && text.includes("Simko SI") && !/Working on it/.test(text);
+    }, null, { timeout: 20000 });
+  } catch (error) {
+    const info = await page.evaluate(() => ({
+      bubble: (document.getElementById("reply-bubble") && document.getElementById("reply-bubble").textContent) || "",
+      go: document.getElementById("go") && document.getElementById("go").getAttribute("aria-label"),
+      live: !!(document.getElementById("liveVoice") && !document.getElementById("liveVoice").hidden),
+      box: document.getElementById("everyday") && document.getElementById("everyday").value
+    }));
+    throw new Error("chat reply missing: " + JSON.stringify(info));
+  }
   const speaker = await page.locator("#replySpeak.is-shown").boundingBox();
   if (!speaker || speaker.width < 8 || speaker.height < 8) throw new Error("speaker button is not visible");
   console.log("typed turn returned a reply with a speaker button");

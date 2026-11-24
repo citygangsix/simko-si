@@ -198,3 +198,29 @@ CREATE TABLE IF NOT EXISTS routine_deliveries (
     created_at INTEGER NOT NULL,
     read_at INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS live_voice_usage (
+    day TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    seconds INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (day, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS live_voice_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    day TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    seconds INTEGER NOT NULL,
+    session_id TEXT,
+    at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS live_voice_log_day ON live_voice_log (day, at);
+
+CREATE TABLE IF NOT EXISTS live_voice_sessions (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    started_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    reported_seconds INTEGER NOT NULL DEFAULT 0
+);

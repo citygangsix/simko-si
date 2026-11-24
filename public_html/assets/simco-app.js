@@ -46,6 +46,7 @@
   let signedIn = false;
   let authMode = "signin";
   let creatingChat = false;
+  let lastNewChatAt = 0;
   let listEpoch = 0;
   let activeSessionId = "";
   let voiceSessionEpoch = 0;
@@ -978,12 +979,13 @@
       needAccount();
       return;
     }
-    if (creatingChat) return;
+    if (creatingChat || (Date.now() - lastNewChatAt < 800)) return;
     if (currentChatIsEmpty()) {
       focusComposer();
       return;
     }
     creatingChat = true;
+    lastNewChatAt = Date.now();
     const button = $("newChat");
     if (button) button.disabled = true;
     try {
@@ -996,8 +998,10 @@
       await refreshChats(created.session.id);
       focusComposer();
     } finally {
-      creatingChat = false;
-      if (button) button.disabled = false;
+      setTimeout(function () {
+        creatingChat = false;
+        if (button) button.disabled = false;
+      }, 800);
     }
   }
 
@@ -1058,6 +1062,7 @@
       activeSessionId = created.session.id;
       sessionCache[activeSessionId] = created.session;
       chatRows.unshift(created.session);
+      paintChatList(chatRows, false);
       if (window.simcoVoice) window.simcoVoice.setContext(created.session);
     }
     const sendFile = attached;

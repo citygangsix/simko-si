@@ -756,6 +756,35 @@ function simko_migrate(PDO $db): void
     simko_add_column($db, 'routines', 'tz', 'TEXT NULL');
     simko_add_column($db, 'oauth_states', 'nonce', 'TEXT');
     simko_add_column($db, 'oauth_identities', 'email_relay', 'INTEGER NOT NULL DEFAULT 0');
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS live_voice_usage (
+            day TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            seconds INTEGER NOT NULL DEFAULT 0,
+            updated_at INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (day, user_id)
+        )'
+    );
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS live_voice_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            day TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            seconds INTEGER NOT NULL,
+            session_id TEXT,
+            at INTEGER NOT NULL
+        )'
+    );
+    $db->exec('CREATE INDEX IF NOT EXISTS live_voice_log_day ON live_voice_log (day, at)');
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS live_voice_sessions (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            started_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL,
+            reported_seconds INTEGER NOT NULL DEFAULT 0
+        )'
+    );
 }
 
 function simko_add_column(PDO $db, string $table, string $column, string $definition): void

@@ -46,7 +46,7 @@ if ($uri === '/api/voice/clientlog') {
     return true;
 }
 
-if (preg_match('#^/api/voice/(voices|speak|transcribe)$#', $uri, $match)) {
+if (preg_match('#^/api/voice/(voices|speak|transcribe|realtime|usage|quota)$#', $uri, $match)) {
     $_GET['op'] = $match[1];
     require __DIR__ . '/api/voice.php';
     return true;

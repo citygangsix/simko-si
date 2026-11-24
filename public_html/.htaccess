@@ -44,7 +44,7 @@ Options -Indexes
   RewriteRule ^api/health/?$ api/machine.php?op=health [L,QSA]
   RewriteRule ^api/installers/?$ api/machine.php?op=installers [L,QSA]
   RewriteRule ^api/voice/clientlog/?$ api/voice-clientlog.php [L]
-  RewriteRule ^api/voice/(voices|speak|transcribe)/?$ api/voice.php?op=$1 [L,QSA]
+  RewriteRule ^api/voice/(voices|speak|transcribe|realtime|usage|quota)/?$ api/voice.php?op=$1 [L,QSA]
   RewriteRule ^themes/theme-host\.js$ assets/theme-host.js [L]
   RewriteRule ^themes/([A-Za-z0-9._-]+)/theme\.css$ assets/themes/$1/theme.css [L]
 </IfModule>

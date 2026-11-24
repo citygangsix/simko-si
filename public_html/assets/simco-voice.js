@@ -351,6 +351,11 @@
     var blob = new Blob(state.chunks, { type: type });
     state.chunks = [];
     if (!blob.size) { setMic("idle"); return; }
+    if (!signedIn()) {
+      setMic("idle");
+      showMicNote("Sign in to use the microphone. You can still type.");
+      return;
+    }
     setMic("thinking");
     var audio = await new Promise(function (resolve) {
       var r = new FileReader();
@@ -477,6 +482,7 @@
     if (!validVoice(id)) return false;
     options = options || {};
     state.voice = id;
+    pushRealtimeVoice();
     var contextId = state.contextId || "";
     if (options.persist !== false) {
       save(VOICE_KEY, id);
@@ -592,8 +598,18 @@
     if (micToggle) micToggle.addEventListener("click", function () {
       if (!state.live) return;
       unlock();
-      if (state.livePhase === "error") { state.micPaused = false; listenTurn(state.liveGen); return; }
+      if (state.livePhase === "error") {
+        state.micPaused = false;
+        beginLive(state.liveGen);
+        return;
+      }
       state.micPaused = !state.micPaused;
+      if (state.realtime) {
+        enableMic(!state.micPaused);
+        setLivePhase(state.micPaused ? "paused" : "listening");
+        paintVoiceControls();
+        return;
+      }
       if (state.micPaused) {
         stopRecognition(); stopServerRec(); enableMic(false);
         if (state.livePhase === "listening") setLivePhase("paused");
@@ -678,6 +694,15 @@
 
   function liveError(message) {
     if (!state.live) return;
+    if (state.realtime) {
+      state.rtClosing = true;
+      if (state.rtTimer) { clearInterval(state.rtTimer); state.rtTimer = 0; }
+      if (state.rtWs) {
+        try { state.rtWs.onclose = null; state.rtWs.onerror = null; state.rtWs.onmessage = null; state.rtWs.close(); } catch (e) {}
+        state.rtWs = null;
+      }
+      reportUsage(true);
+    }
     stopRecognition(); stopServerRec(); enableMic(false);
     setLivePhase("error");
     voiceNote(message + " Tap the microphone to retry, or type below.");
@@ -692,7 +717,7 @@
       box.dataset.phase = phase;
     }
     if (label) {
-      label.textContent = phase === "listening" ? "Listening…" : phase === "thinking" ? "Thinking…" : phase === "speaking" ? "Speaking…" : phase === "paused" ? "Microphone paused" : phase === "error" ? "Please retry" : "";
+      label.textContent = phase === "listening" ? "Listening…" : phase === "connecting" ? "Connecting…" : phase === "thinking" ? "Thinking…" : phase === "speaking" ? "Speaking…" : phase === "paused" ? "Microphone paused" : phase === "error" ? "Please retry" : "";
     }
     paintVoiceControls();
     paintGo();
@@ -745,6 +770,7 @@
     state.livePhase = "off";
     state.session = false;
     state.pendingTurn = false;
+    closeRealtime();
     stopRecognition();
     stopServerRec();
     stopViz();
@@ -782,7 +808,40 @@
     var gen = state.liveGen;
     var panel = $("liveVoice");
     if (panel) panel.hidden = false;
-    listenTurn(gen);
+    beginLive(gen);
+  }
+
+  function beginLive(gen) {
+    closeRealtime();
+    var box = $("liveVoiceTranscript");
+    if (box) { box.innerHTML = ""; box.hidden = true; }
+    state.trRow = null;
+    setLivePhase("connecting");
+    mintRealtime().then(function (sess) {
+      if (!state.live || gen !== state.liveGen) return;
+      if (!sess || sess._status === 401) {
+        liveError("Sign in to use live voice.");
+        return;
+      }
+      if (sess._status === 429 || (sess && sess.live_voice_cap)) {
+        paintRemain(sess);
+        liveError(sess.error || "Daily live-voice limit reached.");
+        return;
+      }
+      if (!sess.ok || !sess.value) {
+        liveError(sess.error || "Live voice is not available just now.");
+        return;
+      }
+      paintRemain(sess);
+      if (sess.mock) {
+        listenTurn(gen);
+        return;
+      }
+      startRealtime(sess, gen);
+    }).catch(function () {
+      if (!state.live || gen !== state.liveGen) return;
+      liveError("Live voice is not available just now.");
+    });
   }
 
   function onLiveBoxClick(event) {
@@ -1032,6 +1091,326 @@
       if (typeof MediaRecorder !== "undefined") startServerRec(gen);
       else startWebRec(gen);
     });
+  }
+
+
+  function authBody() {
+    var token = "";
+    try { token = sessionStorage.getItem("podcoderToken") || ""; } catch (e) {}
+    return { token: token };
+  }
+  function paintRemain(info) {
+    var el = $("liveVoiceRemain");
+    if (!el) return;
+    if (!info || typeof info.remaining_user_seconds !== "number") { el.hidden = true; return; }
+    var userSec = Math.max(0, Number(info.remaining_user_seconds) || 0);
+    var siteSec = info.remaining_site_seconds == null ? userSec : Math.max(0, Number(info.remaining_site_seconds) || 0);
+    var sec = Math.min(userSec, siteSec);
+    var mins = Math.floor(sec / 60);
+    var text = sec <= 0 ? "No live-voice time left today"
+      : mins < 1 ? "Under a minute left today"
+      : mins === 1 ? "1 minute left today"
+      : mins + " minutes left today";
+    el.textContent = text;
+    el.hidden = false;
+  }
+  function appendTranscript(who, text, done) {
+    var box = $("liveVoiceTranscript");
+    if (!box) return;
+    text = String(text || "");
+    if (!text) return;
+    box.hidden = false;
+    var row = state.trRow && state.trRow.who === who && !state.trRow.done ? state.trRow.el : null;
+    if (!row) {
+      row = document.createElement("p");
+      row.className = who === "you" ? "lvYou" : "lvGrok";
+      var label = document.createElement("span");
+      label.className = "lvWho";
+      label.textContent = who === "you" ? "You" : "Simko SI";
+      var body = document.createElement("span");
+      body.className = "lvText";
+      row.appendChild(label);
+      row.appendChild(body);
+      box.appendChild(row);
+      state.trRow = { who: who, el: row, done: false };
+    }
+    row.querySelector(".lvText").textContent = text;
+    if (done) state.trRow.done = true;
+    box.scrollTop = box.scrollHeight;
+  }
+  function mintRealtime() {
+    return fetch(apiUrl("/api/voice/realtime"), voiceRequest({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.assign(authBody(), { voice: state.voice }))
+    })).then(function (res) {
+      return res.json().then(function (data) {
+        data = data || {};
+        data._status = res.status;
+        return data;
+      }, function () { return { ok: false, _status: res.status }; });
+    });
+  }
+  function reportUsage(force, sessionId) {
+    var id = sessionId || state.rtSession;
+    if (!id) return Promise.resolve();
+    var now = Date.now();
+    var started = state.rtStarted || now;
+    var total = Math.max(0, Math.round((now - started) / 1000));
+    var already = state.rtReported || 0;
+    var add = total - already;
+    if (!force && add < 5) return Promise.resolve();
+    if (add < 0) add = 0;
+    state.rtReported = total;
+    return fetch(apiUrl("/api/voice/usage"), voiceRequest({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify(Object.assign(authBody(), { session_id: id, seconds: add }))
+    })).then(function (res) { return res.json(); }).then(function (data) {
+      if (data && data.ok) paintRemain(data);
+      if (state.live && data && data.capped && (data.remaining_user_seconds <= 0 || data.remaining_site_seconds <= 0)) {
+        voiceNote("You have used today's live-voice time. It resets at midnight Eastern time.");
+        stopLive();
+      }
+      return data;
+    }).catch(function () {});
+  }
+  function closeRealtime() {
+    state.rtClosing = true;
+    if (state.rtTimer) { clearInterval(state.rtTimer); state.rtTimer = 0; }
+    if (state.rtProc) {
+      try { state.rtProc.onaudioprocess = null; state.rtProc.disconnect(); } catch (e) {}
+      state.rtProc = null;
+    }
+    if (state.rtSrc) { try { state.rtSrc.disconnect(); } catch (e) {} state.rtSrc = null; }
+    if (state.rtWs) {
+      try { state.rtWs.onclose = null; state.rtWs.onerror = null; state.rtWs.onmessage = null; state.rtWs.close(); } catch (e) {}
+      state.rtWs = null;
+    }
+    if (state.playCtx && state.playCtx !== state.audioCtx && state.playCtx !== state.vizCtx) {
+      try { state.playCtx.close(); } catch (e) {}
+    }
+    state.playCtx = null;
+    state.playAt = 0;
+    var sess = state.rtSession;
+    state.rtSession = null;
+    state.realtime = false;
+    if (sess) reportUsage(true, sess);
+    state.rtClosing = false;
+  }
+  function pcm16FromFloats(floats) {
+    var buf = new ArrayBuffer(floats.length * 2);
+    var view = new DataView(buf);
+    for (var i = 0; i < floats.length; i++) {
+      var s = Math.max(-1, Math.min(1, floats[i]));
+      view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+    return new Uint8Array(buf);
+  }
+  function u8ToB64(u8) {
+    var s = "";
+    for (var i = 0, n = u8.length; i < n; i += 0x8000) {
+      s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    }
+    return btoa(s);
+  }
+  function b64ToU8(b64) {
+    var bin = atob(b64);
+    var u8 = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return u8;
+  }
+  function playPcm16(u8, rate) {
+    if (state.muted || !u8 || !u8.length) return;
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      if (!state.playCtx || (state.playCtx.sampleRate !== rate && Math.abs(state.playCtx.sampleRate - rate) > 1 && !state.playResampleOk)) {
+        if (state.playCtx && state.playCtx !== state.audioCtx && state.playCtx !== state.vizCtx) {
+          try { state.playCtx.close(); } catch (e) {}
+        }
+        try { state.playCtx = new Ctx({ sampleRate: rate }); }
+        catch (e) { state.playCtx = state.audioCtx || new Ctx(); }
+        state.playResampleOk = true;
+      }
+      var ctx = state.playCtx;
+      if (ctx.state === "suspended" && ctx.resume) ctx.resume();
+      var samples = Math.floor(u8.length / 2);
+      var floats = new Float32Array(samples);
+      var view = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+      for (var i = 0; i < samples; i++) floats[i] = view.getInt16(i * 2, true) / 32768;
+      var useRate = ctx.sampleRate;
+      var data = floats;
+      if (Math.abs(useRate - rate) > 1) {
+        var outLen = Math.max(1, Math.round(samples * useRate / rate));
+        var out = new Float32Array(outLen);
+        var ratio = samples / outLen;
+        for (var o = 0; o < outLen; o++) {
+          var srcAt = o * ratio;
+          var i0 = Math.floor(srcAt);
+          var i1 = Math.min(samples - 1, i0 + 1);
+          var f = srcAt - i0;
+          out[o] = floats[i0] * (1 - f) + floats[i1] * f;
+        }
+        data = out;
+      }
+      var buf = ctx.createBuffer(1, data.length, useRate);
+      buf.getChannelData(0).set(data);
+      var src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(ctx.destination);
+      var now = ctx.currentTime;
+      if (!state.playAt || state.playAt < now + 0.02) state.playAt = now + 0.02;
+      src.start(state.playAt);
+      state.playAt += buf.duration;
+    } catch (e) {}
+  }
+  function pushRealtimeVoice() {
+    if (!state.realtime || !state.rtWs || state.rtWs.readyState !== 1) return;
+    var xaiVoice = (state.voiceMap && state.voiceMap[state.voice]) || "";
+    if (!xaiVoice) return;
+    try {
+      state.rtWs.send(JSON.stringify({ type: "session.update", session: { voice: xaiVoice } }));
+    } catch (e) {}
+  }
+  function startRealtime(sess, gen) {
+    state.realtime = true;
+    state.rtSession = sess.session_id;
+    state.rtStarted = Date.now();
+    state.rtReported = 0;
+    state.voiceMap = sess.voice_map || state.voiceMap || {};
+    state.rtUserText = "";
+    state.rtGrokText = "";
+    var token = sess.value;
+    var url = sess.ws_url || "wss://api.x.ai/v1/realtime?model=grok-voice-latest";
+    var ws;
+    try {
+      ws = new WebSocket(url, ["xai-client-secret." + token]);
+    } catch (e) {
+      liveError("Live voice could not start in this browser.");
+      return;
+    }
+    state.rtWs = ws;
+    ws.binaryType = "arraybuffer";
+    setLivePhase("connecting");
+    ws.onopen = function () {
+      if (!state.live || gen !== state.liveGen) { try { ws.close(); } catch (e) {} return; }
+      var xaiVoice = (state.voiceMap && state.voiceMap[state.voice]) || sess.xai_voice || "eve";
+      var rate = state.rtRate || ((state.audioCtx && state.audioCtx.sampleRate) || 24000);
+      var supported = [8000, 16000, 22050, 24000, 32000, 44100, 48000];
+      if (supported.indexOf(rate) < 0) rate = 24000;
+      state.rtRate = rate;
+      ws.send(JSON.stringify({
+        type: "session.update",
+        session: {
+          voice: xaiVoice,
+          instructions: sess.instructions || "You are Simko SI. Reply in clear everyday English. Be warm, brief, and useful. You are speaking out loud, so keep answers conversational and concise.",
+          turn_detection: { type: "server_vad" },
+          audio: {
+            input: { format: { type: "audio/pcm", rate: rate }, transcription: { model: "grok-transcribe" } },
+            output: { format: { type: "audio/pcm", rate: rate } }
+          }
+        }
+      }));
+      openViz().then(function () {
+        if (!state.live || gen !== state.liveGen) return;
+        attachRealtimeMic(ws, gen);
+        setLivePhase(state.micPaused ? "paused" : "listening");
+        startBars();
+      });
+      if (state.rtTimer) clearInterval(state.rtTimer);
+      state.rtTimer = setInterval(function () { reportUsage(false); }, 15000);
+    };
+    ws.onmessage = function (ev) {
+      if (!state.live || gen !== state.liveGen) return;
+      if (typeof ev.data !== "string") return;
+      var event;
+      try { event = JSON.parse(ev.data); } catch (e) { return; }
+      onRealtimeEvent(event);
+    };
+    ws.onerror = function () {
+      if (state.rtClosing || !state.live || gen !== state.liveGen) return;
+      liveError("The live-voice connection had a problem.");
+    };
+    ws.onclose = function () {
+      if (state.rtClosing || !state.live || gen !== state.liveGen) return;
+      liveError("The live-voice connection closed.");
+    };
+  }
+  function attachRealtimeMic(ws, gen) {
+    try {
+      var ctx = state.vizCtx || state.audioCtx;
+      if (!ctx || !state.vizStream) return;
+      var rate = ctx.sampleRate || 24000;
+      var supported = [8000, 16000, 22050, 24000, 32000, 44100, 48000];
+      state.rtRate = supported.indexOf(rate) >= 0 ? rate : 24000;
+      var src = ctx.createMediaStreamSource(state.vizStream);
+      var proc = ctx.createScriptProcessor(4096, 1, 1);
+      var mute = ctx.createGain();
+      mute.gain.value = 0;
+      proc.onaudioprocess = function (e) {
+        if (!state.live || gen !== state.liveGen || state.micPaused) return;
+        if (!ws || ws.readyState !== 1) return;
+        var input = e.inputBuffer.getChannelData(0);
+        var data = input;
+        if (state.rtRate !== ctx.sampleRate) {
+          var outLen = Math.max(1, Math.round(input.length * state.rtRate / ctx.sampleRate));
+          var resampled = new Float32Array(outLen);
+          var ratio = input.length / outLen;
+          for (var o = 0; o < outLen; o++) {
+            var si = o * ratio;
+            var i0 = Math.floor(si);
+            var i1 = Math.min(input.length - 1, i0 + 1);
+            var f = si - i0;
+            resampled[o] = input[i0] * (1 - f) + input[i1] * f;
+          }
+          data = resampled;
+        }
+        ws.send(JSON.stringify({ type: "input_audio_buffer.append", audio: u8ToB64(pcm16FromFloats(data)) }));
+      };
+      src.connect(proc);
+      proc.connect(mute);
+      mute.connect(ctx.destination);
+      state.rtSrc = src;
+      state.rtProc = proc;
+      enableMic(!state.micPaused);
+    } catch (e) {
+      liveError("The microphone could not start for live voice.");
+    }
+  }
+  function onRealtimeEvent(event) {
+    var type = event && event.type;
+    if (!type) return;
+    if (type === "input_audio_buffer.speech_started" && !state.micPaused) setLivePhase("listening");
+    if (type === "input_audio_buffer.speech_stopped") setLivePhase("thinking");
+    if (type === "conversation.item.input_audio_transcription.updated" || type === "conversation.item.input_audio_transcription.completed") {
+      var t = event.transcript || (event.item && (event.item.transcript || event.item.text)) || event.text || "";
+      if (t) { state.rtUserText = t; appendTranscript("you", t, type.indexOf("completed") >= 0); }
+    }
+    if (type === "response.output_audio_transcript.delta" || type === "response.audio_transcript.delta") {
+      state.rtGrokText = (state.rtGrokText || "") + (event.delta || "");
+      appendTranscript("grok", state.rtGrokText, false);
+      if (state.livePhase !== "speaking") setLivePhase("speaking");
+    }
+    if (type === "response.output_audio_transcript.done" || type === "response.audio_transcript.done") {
+      var done = event.transcript || state.rtGrokText;
+      if (done) { state.rtGrokText = done; appendTranscript("grok", done, true); }
+    }
+    if (type === "response.output_audio.delta" || type === "response.audio.delta") {
+      if (state.livePhase !== "speaking") setLivePhase("speaking");
+      if (event.delta) playPcm16(b64ToU8(event.delta), state.rtRate || 24000);
+    }
+    if (type === "response.output_audio.done" || type === "response.done") {
+      if (state.rtGrokText) appendTranscript("grok", state.rtGrokText, true);
+      state.rtGrokText = "";
+      if (state.live && !state.micPaused) setLivePhase("listening");
+    }
+    if (type === "error") {
+      var msg = (event.error && (event.error.message || event.error.code)) || event.message || "Live voice hit a problem.";
+      msg = String(msg).replace(/xai-[A-Za-z0-9._-]{8,}/g, "xai-…");
+      liveError(msg);
+    }
   }
 
   window.simcoVoice = {

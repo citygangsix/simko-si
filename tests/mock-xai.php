@@ -303,6 +303,15 @@ if ($path === '/v1/tts') {
     return;
 }
 
+if ($path === '/v1/realtime/client_secrets') {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'value' => 'xai-realtime-client-secret-mock',
+        'expires_at' => time() + 300,
+    ]);
+    return;
+}
+
 if ($path === '/v1/stt') {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['text' => 'mock transcript', 'language' => 'en']);

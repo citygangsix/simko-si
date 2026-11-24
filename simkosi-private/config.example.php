@@ -13,6 +13,15 @@ return [
     // Current Grok chat model. Change this when you want a different one.
     'model' => 'grok-4.7',
     'stt_model' => 'grok-voice-transcribe-2.0',
+    // Live (realtime) voice chat over xAI Speech-to-Speech, about $0.08 a minute.
+    // Caps are minutes per calendar day in spend_caps.timezone (Eastern).
+    // Demo accounts use the same per-person cap. The site cap is logged.
+    'live_voice' => [
+        'user_daily_minutes' => 10,
+        'site_daily_minutes' => 60,
+        'model' => 'grok-voice-latest',
+        'token_ttl_seconds' => 300,
+    ],
     'timeout_seconds' => 45,
     // Malformed-request hygiene only. Not a usage quota.
     'max_input_chars' => 8000,

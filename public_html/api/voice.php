@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/voice-catalog.php';
+require_once __DIR__ . '/voice-live.php';
 
 $op = (string) ($_GET['op'] ?? '');
 
@@ -15,6 +16,15 @@ switch ($op) {
         break;
     case 'transcribe':
         simko_transcribe();
+        break;
+    case 'realtime':
+        simko_live_voice_session();
+        break;
+    case 'usage':
+        simko_live_voice_usage();
+        break;
+    case 'quota':
+        simko_live_voice_quota();
         break;
     default:
         simko_fail(404, 'That voice step is not on this website.');
