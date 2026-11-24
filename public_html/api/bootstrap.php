@@ -791,7 +791,7 @@ function simko_add_column(PDO $db, string $table, string $column, string $defini
 {
     $allowed = [
         'users' => ['role' => true, 'parent_consent_at' => true],
-        'chats' => ['child_profile_id' => true, 'voice_id' => true],
+        'chats' => ['child_profile_id' => true, 'voice_id' => true, 'project_id' => true],
         'agents' => ['voice_id' => true],
         'routines' => ['tz' => true],
         'oauth_states' => ['nonce' => true],
@@ -826,6 +826,8 @@ function simko_platform_names(): array
         'paywall', 'approvals', 'search', 'memory', 'routines', 'images',
         'shares', 'oauth', 'vault', 'connectors', 'agents', 'team',
         'calls', 'browse', 'store', 'code',
+        // P0 (off until the private config turns them on): project workspaces, saved files, scheduled tasks, MCP connectors.
+        'projects', 'library', 'tasks', 'mcp',
     ];
 }
 

@@ -112,6 +112,11 @@ function simko_search_payload(string $model, array $messages, bool $strict, ?str
     if ($effort !== null) {
         $payload['reasoning'] = ['effort' => $effort];
     }
+    // P0: a project's file_search and connected MCP servers' read tools (set by chat.php for this turn only).
+    $extra = $GLOBALS['simko_extra_tools'] ?? [];
+    if (is_array($extra) && $extra !== [] && !$strict) {
+        $payload['tools'] = array_merge($payload['tools'], array_values($extra));
+    }
     return $payload;
 }
 

@@ -11,6 +11,12 @@ if (is_string($bodyLog) && $bodyLog !== '') {
     file_put_contents($bodyLog, (string) file_get_contents('php://input') . "\n", FILE_APPEND);
 }
 
+// P0 features: Files, Collections, file_search / mcp / input_file Responses (mock-xai-p0.php).
+require_once __DIR__ . '/mock-xai-p0.php';
+if (simko_mock_p0($path)) {
+    return;
+}
+
 // Mock Cursor Cloud Agents API (tests point cursor.api_base here).
 if ($path === '/v1/me' || str_starts_with($path, '/v1/agents')) {
     header('Content-Type: application/json');

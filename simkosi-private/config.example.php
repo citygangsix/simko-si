@@ -70,6 +70,12 @@ return [
         'store' => false,
         // Code tab: owner-only coding agent (Grok engine on the xAI key; Cursor optional, dry run by default).
         'code' => false,
+        // P0 (built 2026-11-24, off until Joseph turns each on): project workspaces, saved file library,
+        // scheduled tasks, MCP connectors. Projects and saved files in chat need 'search' => true (Responses API).
+        'projects' => false,
+        'library' => false,
+        'tasks' => false,
+        'mcp' => false,
     ],
     // Billing. Default is Stripe. Square stays in the code as a fallback.
     // platform.paywall stays false until Joseph turns it on. Nothing is charged
@@ -186,4 +192,13 @@ return [
         'model' => '',
         'allow_launch' => false,
     ],
+    // P0 caps and settings (defaults shown).
+    // Project file search uses xAI Collections, which needs a separate xAI Management API key. Never in git.
+    'xai_management_key' => '',
+    'xai_management_url' => 'https://management-api.x.ai/v1',
+    'library' => ['max_file_mb' => 25, 'max_total_mb' => 200, 'max_files' => 200],
+    'projects' => ['max_projects' => 50, 'max_files' => 20],
+    'tasks' => ['max_per_user' => 5, 'run_now_per_hour' => 5, 'model' => '', 'estimate_usd' => 0.02],
+    // MCP servers: only hosts on this list (plus the owner's list in the app) can be connected. https only.
+    'mcp' => ['allowed_hosts' => [], 'max_servers' => 10, 'max_tools' => 50],
 ];

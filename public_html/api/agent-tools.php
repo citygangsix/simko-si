@@ -17,6 +17,7 @@ require_once __DIR__ . '/routines.php';
 require_once __DIR__ . '/connectors.php';
 require_once __DIR__ . '/connector-tools.php';
 require_once __DIR__ . '/calendar-tools.php';
+require_once __DIR__ . '/mcp.php';
 
 function simko_agent_used(?string $name = null): array
 {
@@ -74,6 +75,10 @@ function simko_agent_schemas(int $userId, bool $isChild, bool $approvedTurn = fa
             $out[] = $schema;
         }
     }
+    // MCP connector write tools (P0): each call becomes an Approve card, never runs on its own.
+    foreach (simko_mcp_write_schemas($userId, $approvedTurn) as $schema) {
+        $out[] = $schema;
+    }
     return $out;
 }
 
@@ -97,6 +102,9 @@ function simko_agent_wants_tools(int $userId, string $text, bool $isChild): bool
     if (simko_flag('connectors') && (simko_connector_connected($userId, 'google-drive') || simko_connector_connected($userId, 'github'))) {
         return true;
     }
+    if (simko_mcp_write_schemas($userId) !== []) {
+        return true;
+    }
     return (bool) preg_match('/\b(remember|don\'?t forget|note that|routines?|remind(er)?s?|bedtime|homework|lifebook|check-?in)\b/i', $text);
 }
 
@@ -115,6 +123,12 @@ function simko_agent_system_note(array $schemas): string
     }
     if (in_array('github_list_repos', $names, true)) {
         $bits[] = 'GitHub is connected (read only).';
+    }
+    foreach ($names as $n) {
+        if (str_starts_with((string) $n, 'mcp_')) {
+            $bits[] = 'Tools named mcp_* belong to the person\'s connected MCP servers and change something there; Simko SI shows an Approve button before any of them runs.';
+            break;
+        }
     }
     return implode(' ', $bits);
 }
@@ -192,6 +206,9 @@ function simko_agent_run_tool(int $userId, string $name, array $args, array $bod
     }
     if (str_starts_with($name, 'calendar_')) {
         return simko_calendar_run_tool($userId, $name, $args, $body);
+    }
+    if (str_starts_with($name, 'mcp_')) {
+        return simko_mcp_run_tool($userId, $name, $args);
     }
     return ['ok' => false, 'error' => 'Unknown tool.'];
 }

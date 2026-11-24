@@ -18,3 +18,6 @@ if (PHP_SAPI !== 'cli') {
 require __DIR__ . '/routines.php';
 $sent = simko_routines_run();
 echo 'delivered ' . $sent . PHP_EOL;
+// Scheduled tasks (platform.tasks; does nothing while the flag is off).
+require_once __DIR__ . '/tasks.php';
+echo 'tasks ran ' . simko_tasks_run() . PHP_EOL;

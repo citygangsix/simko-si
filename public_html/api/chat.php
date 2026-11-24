@@ -10,6 +10,8 @@ require_once __DIR__ . '/files.php';
 require_once __DIR__ . '/stream.php';
 require_once __DIR__ . '/calendar-tools.php';
 require_once __DIR__ . '/agent-tools.php';
+require_once __DIR__ . '/projects.php';
+require_once __DIR__ . '/mcp.php';
 
 $body = simko_require_post_json();
 $user = simko_require_user();
@@ -87,6 +89,12 @@ $agentNote = simko_agent_apply_approved((int) $user['id'], $body);
 if ($agentNote !== '') {
     $system .= "\n\n" . $agentNote;
 }
+// P0: an approved MCP connector write runs once here, on the turn after Approve.
+$p0Child = !empty($body['child_id']);
+$mcpNote = $p0Child ? '' : simko_mcp_apply_approved((int) $user['id'], $body);
+if ($mcpNote !== '') {
+    $system .= "\n\n" . $mcpNote;
+}
 $agentIsChild = !empty($body['child_id']);
 $agentDeep = !empty($body['deep_search']);
 $agentSchemas = (simko_calendar_connected((int) $user['id']) || $agentNote !== ''
@@ -95,6 +103,22 @@ $agentSchemas = (simko_calendar_connected((int) $user['id']) || $agentNote !== '
     : [];
 if ($agentSchemas !== [] && !$agentIsChild) {
     $system .= "\n\n" . simko_agent_system_note($agentSchemas);
+}
+// P0: project instructions + project file_search, and connected MCP read tools (Responses path only).
+$GLOBALS['simko_extra_tools'] = [];
+$projectId = (int) ($body['project_id'] ?? 0);
+if (!$p0Child && $projectId > 0 && simko_flag('projects')) {
+    $projectCtx = simko_project_chat_context((int) $user['id'], $projectId, (string) ($body['session_id'] ?? ''));
+    $system .= "\n\n" . $projectCtx['note'];
+    $GLOBALS['simko_extra_tools'] = array_merge($GLOBALS['simko_extra_tools'], $projectCtx['tools']);
+}
+if (!$p0Child && simko_flag('mcp')) {
+    $mcpRead = simko_mcp_read_tools((int) $user['id']);
+    $GLOBALS['simko_extra_tools'] = array_merge($GLOBALS['simko_extra_tools'], $mcpRead);
+    $mcpSystem = simko_mcp_system_note((int) $user['id']);
+    if ($mcpSystem !== '') {
+        $system .= "\n\n" . $mcpSystem;
+    }
 }
 // Last, so it wins over any earlier 'reply in English' line in the configured prompt.
 $system .= isset($langs[$lang])
@@ -175,6 +199,18 @@ if ($deep) {
 $messages[] = ['role' => 'user', 'content' => simko_flag('search')
     ? simko_attach_responses_multi($spoken, $files)
     : simko_attach_chat_multi($spoken, $files)];
+// P0: saved library files picked in the composer, sent by xAI file id (Responses path only).
+$libraryIds = $body['library_file_ids'] ?? [];
+if (!$p0Child && simko_flag('library') && is_array($libraryIds) && $libraryIds !== []) {
+    if (!simko_flag('search')) {
+        simko_fail(400, 'Saved files are not available in this chat mode yet.');
+    }
+    $lastIndex = count($messages) - 1;
+    $messages[$lastIndex]['content'] = simko_library_merge_content(
+        $messages[$lastIndex]['content'],
+        simko_library_chat_parts((int) $user['id'], $libraryIds, (string) ($body['session_id'] ?? ''))
+    );
+}
 if (count($messages) > 41) {
     $messages = array_merge([$messages[0]], array_slice($messages, -40));
 }

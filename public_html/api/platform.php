@@ -27,6 +27,12 @@ if ($op === 'oauth-start') {
 $user = simko_require_user();
 $userId = (int) $user['id'];
 
+// P0 project workspaces, saved files, scheduled tasks, MCP connectors (each behind its own flag).
+if (preg_match('/^(project|library|task|mcp)-[a-z-]+$/', $op)) {
+    require_once __DIR__ . '/p0-routes.php';
+    simko_p0_route($op, $user, $body);
+}
+
 if (str_starts_with($op, 'code-') || $op === 'cursor-check') {
     if (!simko_flag('code')) {
         simko_fail(404, 'The Code tab is turned off.');
