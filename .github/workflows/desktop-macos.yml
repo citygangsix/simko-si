@@ -12,7 +12,7 @@ permissions:
   contents: read
 jobs:
   mac:
-    runs-on: macos-14   # Apple Silicon (arm64)
+    runs-on: macos-latest   # Apple Silicon (arm64); macos-14 is retired ("configuration not supported")
     timeout-minutes: 60
     defaults:
       run:
