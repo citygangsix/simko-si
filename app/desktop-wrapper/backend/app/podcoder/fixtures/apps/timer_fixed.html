@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Countdown</title></head><body>
+<h1>Countdown Timer</h1>
+<label for="secs">Seconds</label> <input type="number" id="secs" value="10">
+<button id="start">Start</button> <button id="pause">Pause</button>
+<div id="time">00:10</div>
+<script>
+let left = 10, t = null, started = false;
+function show() { const m = Math.floor(left / 60), s = left % 60; document.getElementById('time').textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0'); }
+document.getElementById('start').addEventListener('click', function () {
+  if (!started) { left = Math.max(parseInt(document.getElementById('secs').value) || 0, 1) * 60; started = true; }
+  clearInterval(t); show();
+  t = setInterval(function () { if (left > 0) { left--; show(); } else clearInterval(t); }, 1000);
+});
+document.getElementById('pause').addEventListener('click', function () { clearInterval(t); });
+</script></body></html>

@@ -1,0 +1,12 @@
+{
+  "id": "reef-video",
+  "enabled": false,
+  "execute": false,
+  "gate": "SIMCO_CONFIRM must be the exact word RENT, and even then this build does not run the render",
+  "precondition": "Unload Ollama and Granite before any video step. Do not load Granite and Wan together.",
+  "steps": [
+    {"name": "wan22", "model": "Wan 2.2", "resolution": "720p", "from": "reference frame"},
+    {"name": "upscale", "model": "SeedVR2 or Real-ESRGAN", "output": "2160x2160"},
+    {"name": "encode", "codec": "hevc", "bit_depth": 10, "bitrate": "10Mbps", "fallback": "h264", "loop": "seamless"}
+  ]
+}

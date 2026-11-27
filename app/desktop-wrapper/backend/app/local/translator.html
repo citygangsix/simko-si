@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Chat Translator</title>
+<script>
+(function () {
+  var id = "reef-live";
+  try {
+    var saved = localStorage.getItem("simcoTheme");
+    if (saved) id = saved;
+  } catch (e) {}
+  document.documentElement.setAttribute("data-theme", id);
+  var link = document.createElement("link");
+  link.id = "themeStylesheet";
+  link.rel = "stylesheet";
+  link.href = "/themes/" + encodeURIComponent(id) + "/theme.css";
+  document.head.appendChild(link);
+})();
+</script>
+<style>
+body{background:#222;color:#eee;font-family:system-ui;padding:1rem;min-height:100vh}
+#transcript{white-space:pre-wrap;margin-bottom:1rem;background:#333;border:1px solid #444;padding:1rem;max-height:400px;overflow-y:auto}
+#chat-input{display:flex;margin-top:1rem}
+#everyday{flex:1;padding:0.5rem;border:1px solid #444;background:#333;color:#eee;font-size:1rem}
+#go{padding:0.5rem 1rem;background:#444;color:#eee;border:none}
+#feature, #seed{padding:0.5rem;background:#333;color:#eee;border:1px solid #444}
+#targets-panel{margin-top:1rem;background:#333;padding:0.5rem;border:1px solid #444;max-width:300px}
+#targets-note{font-size:0.9rem;color:#aaa;margin-top:0.5rem}
+button{background:#444;color:#eee;border:none;padding:0.5rem 1rem;margin-left:0.5rem}
+button:disabled,textarea:disabled,select:disabled{opacity:.45}
+.bubble-user{flex:1;margin-bottom:0.5rem;background:#005;color:#fff;padding:0.5rem 0.8rem;border-radius:4px;text-align:left}
+.bubble-assistant{flex:1;margin-bottom:0.5rem;background:#060;color:#0f0;padding:0.5rem 0.8rem;border-radius:4px;text-align:left}
+</style>
+</head>
+<script src="simco-client.js"></script>
+<script src="/themes/theme-host.js"></script>
+<body>
+<div id="transcript"></div>
+<div id="chat-input">
+<textarea id="everyday" rows="1" placeholder="Type your message..." disabled></textarea>
+<button id="go" disabled>Send (locked)</button>
+</div>
+
+<div id="rent-ui">
+  <label>Offer ID: <input id="offerId" type="text" placeholder="auto" readonly></label>
+  <label>GPU: <input id="gpuLabel" type="text" placeholder="RTX 3090" readonly></label>
+  <label>Price per hour: <input id="priceHr" type="number" step="0.01" placeholder="$0.10"></label>
+  <label>Region: <input id="region" type="text" placeholder="us-east-1" readonly></label>
+  <button id="previewRent">Preview Rent</button>
+  <button id="confirmRent" disabled>Confirm Rent</button>
+  <div id="rentPreview" style="margin-top:0.5rem;"></div>
+  <div id="rentConfirm" style="display:none; margin-top:0.5rem;">
+    <p id="confirmText"></p>
+    <button id="rentConfirmBtn">Confirm (Dry-run)</button>
+    <button id="cancelRent">Cancel</button>
+  </div>
+  <button id="doRentDry" style="margin-top:0.5rem;">Dry-run Rent</button>
+  <label style="display:block;margin-top:0.5rem;">
+    <input id="rentWords" type="checkbox">
+    I confirm RENT. Install runs next. No destroy.
+  </label>
+  <label>Instance ID (optional): <input id="instanceId" type="text" placeholder="new instance only"></label>
+  <label>SSH host: <input id="sshHost" type="text" placeholder="SSH of this computer only"></label>
+  <label>SSH port: <input id="sshPort" type="number" value="22"></label>
+  <label>SSH user: <input id="sshUser" type="text" value="root"></label>
+  <label>This computer:
+    <select id="rolePreset">
+      <option value="coding" selected>Coding computer — Ollama + Granite + Aider only</option>
+      <option value="video">Media computer — ComfyUI + Wan 2.2 5B only</option>
+      <option value="image">Media computer — ComfyUI only, no Wan</option>
+    </select>
+  </label>
+  <p id="roleSplit">Separate rents. A coding computer does not download ComfyUI. A media computer does not install Granite. Pick one stack per machine.</p>
+  <label>inet_down Mbps: <input id="inetDown" type="number" value="1200"></label>
+  <label>inet_up Mbps: <input id="inetUp" type="number" value="800"></label>
+  <label>Disk GB: <input id="diskGb" type="number" value="150"></label>
+  <div id="offerList" style="margin-top:0.5rem;font-size:0.9rem;"></div>
+  <p id="installBanner">Coding computer: after Confirm Rent, install Ollama + Granite + Aider only, then chat/calc.</p>
+  <button id="installStack" type="button">Install coding computer only</button>
+  <pre id="installOut" style="margin-top:0.5rem;max-height:160px;overflow:auto;background:#111;padding:0.5rem;"></pre>
+</div>
+
+<select id="feature" disabled>
+<option value="auto">Auto</option>
+<option value="fe_shell">Shell</option>
+<option value="mul">Multiply</option>
+<option value="mul_multi">Multiply Multi</option>
+<option value="div">Divide</option>
+<option value="add">Add</option>
+<option value="sub">Subtract</option>
+<option value="decimal">Decimal</option>
+</select>
+<textarea id="seed" rows="1" placeholder="Optional seed" style="margin-top:0.5rem;" disabled></textarea>
+<label style="display:block;margin-top:0.4rem;"><input id="showRaw" type="checkbox"> Show raw model output</label>
+<div id="product-panel" style="margin-top:1rem;padding:0.75rem;border:1px solid #444;">
+  <h4>Same app</h4>
+  <label>Compute
+    <select id="computeMode">
+      <option value="cloud">cloud granite4.2:8b-q8_0</option>
+      <option value="local">local Aspire granite4.2:8b Q4</option>
+    </select>
+  </label>
+  <button id="saveCompute" type="button">Save compute</button>
+  <p id="computeLine"></p>
+  <h4>Sessions</h4>
+  <input id="sessionUser" type="text" placeholder="user" value="joseph">
+  <button id="newSession" type="button">New session</button>
+  <pre id="sessionOut" style="max-height:80px;overflow:auto;"></pre>
+  <h4>Lifebook memory</h4>
+  <select id="lifeCategory"></select>
+  <input id="lifeNote" type="text" placeholder="note">
+  <button id="saveMemory" type="button">Save note</button>
+  <h4>Vault</h4>
+  <input id="vaultPass" type="password" placeholder="passphrase" autocomplete="new-password">
+  <input id="vaultEmail" type="text" placeholder="email" autocomplete="off">
+  <input id="vaultUserName" type="text" placeholder="username" autocomplete="off">
+  <input id="vaultSecret" type="password" placeholder="password" autocomplete="new-password">
+  <input id="vaultEin" type="password" placeholder="EIN" autocomplete="off">
+  <input id="vaultSsn" type="password" placeholder="SSN" autocomplete="off">
+  <button id="saveVault" type="button">Store encrypted</button>
+  <p id="vaultLine"></p>
+  <h4>Media computer gallery</h4>
+  <p id="vramWarn">ComfyUI is a separate rent from the coding computer. Do not reuse the coding SSH host. A later one-computer layout is optional and is not the default.</p>
+  <label><input id="includeWan" type="checkbox" checked> Include Wan 2.2 5B on this media computer</label>
+  <button id="installComfy" type="button">Install media computer only</button>
+  <button id="wanPrompt" type="button">Everyday → Wan A1</button>
+  <div id="galleryGrid" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem;"></div>
+  <pre id="galleryOut" style="max-height:120px;overflow:auto;"></pre>
+</div>
+
+<div id="targets-panel">
+<h4>Ollama Target</h4>
+<label>Label: <input id="targetLabel" type="text" style="width:100%;margin-bottom:0.5rem;"></label>
+<label>Host: <input id="targetHost" type="text" style="width:100%;margin-bottom:0.5rem;"></label>
+<label>Base URL: <input id="ollamaBase" type="text" style="width:100%;margin-bottom:0.5rem;"></label>
+<p id="targets-note">Note: A browser on another machine needs a public mapped Ollama port or SSH tunnel; localhost works when the page is opened on the GPU box itself.</p>
+<button id="saveTarget">Save target</button>
+</div>
+
+
+<div id="mission-panel" style="margin-top:1rem;padding:0.75rem;border:1px solid #444;border-radius:8px;">
+  <h4>Autonomous mission</h4>
+  <p style="font-size:0.9rem;color:#aaa;">Locked until Install smoke passes. POSTs mission to podcoder :8787 /api/mission. allowRent false — no real rent.</p>
+  <button id="runMission" type="button" disabled>Run autonomous mission</button>
+  <pre id="missionOut" style="margin-top:0.5rem;max-height:180px;overflow:auto;background:#111;padding:0.5rem;"></pre>
+</div>
+
+<div id="systemOut" style="display:none;"></div>
+<div id="userOut" style="display:none;"></div>
+<div id="jsonOut" style="display:none;"></div>
+
+<script>
+const SYSTEM = "You are a senior front-end engineer. Return exactly one complete HTML5 document starting with <!DOCTYPE html> and ending with </html>. One file with inline CSS and exactly one <script> before </body>. No markdown fences. No commentary outside the HTML.";
+const USER_OPENER = "First character of your reply must be < of <!DOCTYPE html>. Zero prose before that.";
+
+function detectIntent(text) {
+  text = text.toLowerCase().trim();
+  if (text.includes("now do division")) return "div";
+  const keywords = {
+    mul_multi: ["multi-digit", "multidigit", "multi digit", "\\d+\\*\\d+", "12\\*3", "10\\*10"],
+    fe_shell: ["front end", "frontend", "make a calculator", "build a calculator", "fe shell", "shell", "baseline"],
+    decimal: ["leading decimal", "decimal", ".5", "0.5", "decimal point", "dot"],
+    div: ["division", "divide", "dividing"],
+    mul: ["multiply", "multiplication", "times", "\\d+\\*\\d+", "7\\*8", "7x8", "mul"],
+    add: ["addition", "add", "plus", "sum"],
+    sub: ["subtraction", "subtract", "minus", "sub"]
+  };
+  if (keywords.mul_multi.some(re => new RegExp(re).test(text))) return "mul_multi";
+  if (keywords.fe_shell.some(w => text.includes(w))) return "fe_shell";
+  if (keywords.decimal.some(w => text.includes(w))) return "decimal";
+  if (keywords.div.some(w => text.includes(w))) return "div";
+  if (keywords.mul.some(w => text.includes(w))) {
+    if (keywords.div.some(w => text.includes(w))) return "mul"; // rule: mul takes precedence when both present
+    return "mul";
+  }
+  if (keywords.add.some(w => text.includes(w))) return "add";
+  if (keywords.sub.some(w => text.includes(w))) return "sub";
+  return null;
+}
+
+const features = {
+  fe_shell: "Rewrite into one complete HTML5 calculator front end with digits/ops/C/= and display id display.",
+  mul: "Rewrite so multiplication (*) works. Keep prior gates working.",
+  mul_multi: "Rewrite so multi-digit APPEND and multiplication work.",
+  div: "Rewrite so division (/) works. Keep multiplication and multi-digit append working.",
+  add: "Rewrite so addition (+) works. Keep mul, multi-digit, division working.",
+  sub: "Rewrite so subtraction (-) works. Keep mul, multi-digit, division, addition working.",
+  decimal: "Rewrite so leading decimal input works (.5 becomes 0.5). Keep prior arithmetic gates."
+};
+
+function buildPayload(feature, everyday, optionalSeed) {
+  let userText = USER_OPENER + "\n\n";
+  if (feature in features) {
+    userText += features[feature] + "\n";
+  }
+  userText += "Mandatory: use Number() or parseFloat() for numeric conversion. Use a fresh/waitingForOperand flag when an operand is pending.\n";
+  userText += "Acceptance: The output must be ONLY the raw HTML document (no extra explanation). The calculator must evaluate expressions correctly with all supported operations. Do not call any network APIs. All logic is client-side.\n";
+  if (optionalSeed !== null && optionalSeed !== undefined && optionalSeed.trim() !== "") {
+    userText += "Current file:\n" + optionalSeed + "\n";
+  }
+  userText += "Output ONLY the raw HTML document.";
+
+  const messages = [
+    { role: "system", content: SYSTEM },
+    { role: "user", content: userText }
+  ];
+
+  const numPredict = feature === "mul_multi" ? 8192 : 4096;
+  const options = {
+    temperature: 1.0,
+    top_p: 0.95,
+    num_ctx: 8192,
+    num_predict: numPredict
+  };
+  const payload = {
+    model: window.podcoderModel || "granite4.2:8b-q8_0",
+    think: false,
+    stream: true,
+    messages,
+    options
+  };
+  return payload;
+}
+
+window.detectIntent = detectIntent;
+window.buildPayload = buildPayload;
+
+let translator_targets = [];
+let translator_active_target = null;
+let translator_ollama_target = null;
+
+function loadTargets() {
+  const raw = localStorage.getItem('translator_targets');
+  if (raw) {
+    try {
+      translator_targets = JSON.parse(raw);
+    } catch (e) {
+      translator_targets = [];
+    }
+  }
+  if (translator_targets.length === 0) {
+    translator_targets.push({ label: "This computer", host: "127.0.0.1", baseUrl: "http://127.0.0.1:11434" });
+  }
+  const panel = document.getElementById('targets-panel');
+  const labelInput = document.getElementById('targetLabel');
+  const hostInput = document.getElementById('targetHost');
+  const baseInput = document.getElementById('ollamaBase');
+  
+  const idx = translator_active_target ? translator_active_target.index : 0;
+  if (idx < translator_targets.length) {
+    translator_active_target = translator_targets[idx];
+    translator_ollama_target = translator_active_target;
+  } else {
+    translator_active_target = translator_targets[0];
+    translator_ollama_target = translator_targets[0];
+  }
+  
+  labelInput.value = translator_active_target.label;
+  hostInput.value = translator_active_target.host;
+  baseInput.value = translator_active_target.baseUrl;
+}
+
+function saveTarget() {
+  const label = document.getElementById('targetLabel').value.trim();
+  const host = document.getElementById('targetHost').value.trim();
+  const baseUrl = document.getElementById('ollamaBase').value.trim();
+  
+  if (!label || !host || !baseUrl) return;
+  
+  const idx = translator_targets.findIndex(t => t.label === label && t.host === host && t.baseUrl === baseUrl);
+  if (idx >= 0) {
+    translator_targets[idx] = { label, host, baseUrl };
+    translator_active_target = translator_targets[idx];
+    translator_ollama_target = translator_targets[idx];
+  } else {
+    translator_targets.push({ label, host, baseUrl });
+    translator_active_target = translator_targets[translator_targets.length - 1];
+    translator_ollama_target = translator_targets[translator_targets.length - 1];
+  }
+  
+  localStorage.setItem('translator_targets', JSON.stringify(translator_targets));
+}
+
+function appendBubble(role, text) {
+  const div = document.createElement('div');
+  div.className = `bubble-${role}`;
+  div.textContent = text;
+  document.getElementById('transcript').appendChild(div);
+  document.getElementById('transcript').scrollTop = document.getElementById('transcript').scrollHeight;
+}
+
+async function previewRent() {
+  try {
+    const response = await fetch(location.origin + '/api/offers');
+    const data = await response.json();
+    const first = (data.offers || [])[0];
+    if (first && !document.getElementById('offerId').value) {
+      document.getElementById('offerId').value = first.id || '';
+    }
+  } catch (e) {}
+  const offerId = document.getElementById('offerId').value || 'auto';
+  const gpu = document.getElementById('gpuLabel').value || 'RTX 3090';
+  const priceHr = document.getElementById('priceHr').value;
+  const region = document.getElementById('region').value || 'us-east-1';
+  const price_hr = priceHr ? parseFloat(priceHr) : 0;
+  const rentObj = {
+    offer_id: offerId,
+    gpu: gpu,
+    price_hr: price_hr,
+    region: region,
+    dry_run: true
+  };
+  // Fill rentPreview
+  document.getElementById('rentPreview').textContent = JSON.stringify(rentObj);
+  // Enable confirmRent
+  const confirmBtn = document.getElementById('confirmRent');
+  if (confirmBtn) confirmBtn.disabled = false;
+  // Show rentConfirm
+  const rentConfirmDiv = document.getElementById('rentConfirm');
+  if (rentConfirmDiv) rentConfirmDiv.style.display = 'block';
+  // Update confirm text
+  const confirmP = rentConfirmDiv.querySelector('#confirmText');
+  if (confirmP) confirmP.textContent = `Confirm rent for ${offerId}, ${gpu}, ${price_hr} per hour in ${region} (dry run).`;
+}
+
+async function doRentDry() {
+  const offerId = document.getElementById('offerId').value || 'auto';
+  const gpu = document.getElementById('gpuLabel').value || 'RTX 3090';
+  const priceHr = document.getElementById('priceHr').value;
+  const region = document.getElementById('region').value || 'us-east-1';
+  const price_hr = priceHr ? parseFloat(priceHr) : 0;
+  const rentObj = {
+    offer_id: offerId,
+    gpu: gpu,
+    price_hr: price_hr,
+    region: region,
+    dry_run: true
+  };
+  window.__lastRentDryRun = rentObj;
+  try {
+    const response = await fetch(location.origin + '/api/rent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ offer_id: offerId, gpu: gpu, price_hr: price_hr, region: region, dry_run: true, confirm: '' })
+    });
+    const data = await response.json();
+    window.__lastRentDryRun = data.rented === false ? rentObj : rentObj;
+    document.getElementById('rentPreview').textContent = JSON.stringify(data, null, 2);
+  } catch (e) {}
+  // Append to localStorage translator_rent_log array
+  const logKey = 'translator_rent_log';
+  let log = [];
+  if (localStorage.getItem(logKey)) {
+    try { log = JSON.parse(localStorage.getItem(logKey)); } catch (e) { log = []; }
+  }
+  log.push(rentObj);
+  localStorage.setItem(logKey, JSON.stringify(log));
+  // AppendBubble assistant text "Dry-run"
+  appendBubble('assistant', 'Dry-run. Install not started. Chat/calc stays locked.');
+  // Hide rentConfirm
+  const rentConfirmDiv = document.getElementById('rentConfirm');
+  if (rentConfirmDiv) rentConfirmDiv.style.display = 'none';
+}
+
+function cancelRent() {
+  const rentConfirmDiv = document.getElementById('rentConfirm');
+  if (rentConfirmDiv) rentConfirmDiv.style.display = 'none';
+}
+
+// Attach event listeners
+let stackReady = false;
+let installRunning = false;
+let installPoll = null;
+
+function codingAllowed() {
+  return stackReady && !installRunning;
+}
+
+function setCodingEnabled(on) {
+  ['go', 'everyday', 'feature', 'runMission', 'seed'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !on;
+  });
+  const go = document.getElementById('go');
+  if (go) go.textContent = on ? 'Send' : 'Send (locked)';
+}
+
+function applyInstallStatus(st) {
+  const status = st && st.status;
+  installRunning = status === 'running' || status === 'already_running';
+  stackReady = !!(st && st.coding_allowed);
+  setCodingEnabled(codingAllowed());
+  const inst = document.getElementById('installStack');
+  const confirmBtn = document.getElementById('confirmRent');
+  if (inst) inst.disabled = !!installRunning;
+  if (confirmBtn && installRunning) confirmBtn.disabled = true;
+  const out = document.getElementById('installOut');
+  if (out && st) out.textContent = JSON.stringify(st, null, 2);
+  const banner = document.getElementById('installBanner');
+  if (!banner) return;
+  if (stackReady) banner.textContent = 'Install smoke passed. Chat/calc unlocked.';
+  else if (installRunning) banner.textContent = 'Installing… translator paused until Ollama+Granite+Aider smoke passes.';
+  else banner.textContent = 'After Confirm Rent → Install runs (Ollama+Granite+Aider smoke) → then chat/calc.';
+}
+
+async function refreshInstall() {
+  try {
+    const response = await fetch(location.origin + '/api/install/status');
+    const st = await response.json();
+    applyInstallStatus(st);
+    if (installPoll && st && st.status && st.status !== 'running') {
+      clearInterval(installPoll);
+      installPoll = null;
+    }
+  } catch (e) {
+    setCodingEnabled(false);
+  }
+}
+
+function pollInstall() {
+  if (installPoll) clearInterval(installPoll);
+  installRunning = true;
+  setCodingEnabled(false);
+  refreshInstall();
+  installPoll = setInterval(refreshInstall, 2000);
+}
+
+function rentBody(dry) {
+  const price = parseFloat(document.getElementById('priceHr').value || '0');
+  return {
+    offer_id: document.getElementById('offerId').value || 'auto',
+    gpu: document.getElementById('gpuLabel').value || 'RTX 3090',
+    price_hr: price || 0,
+    region: document.getElementById('region').value || '',
+    instance_id: (document.getElementById('instanceId').value || '').trim(),
+    confirm: dry ? '' : 'RENT',
+    dry_run: !!dry,
+    ssh_host: (document.getElementById('sshHost').value || '').trim(),
+    ssh_port: parseInt(document.getElementById('sshPort').value || '22', 10) || 22,
+    ssh_user: (document.getElementById('sshUser').value || 'root').trim() || 'root',
+    role: (document.getElementById('rolePreset') && document.getElementById('rolePreset').value) || 'coding',
+    inet_down: parseFloat(document.getElementById('inetDown').value || '0') || 0,
+    inet_up: parseFloat(document.getElementById('inetUp').value || '0') || 0,
+    disk_gb: parseInt(document.getElementById('diskGb').value || '150', 10) || 150
+  };
+}
+
+async function confirmLiveRent() {
+  const words = document.getElementById('rentWords');
+  if (!words || !words.checked) {
+    appendBubble('assistant', 'Check the RENT confirmation before Confirm Rent.');
+    try { await fetch(location.origin + '/api/offers'); } catch (e) {}
+    return;
+  }
+  if (installRunning) return;
+  const body = rentBody(false);
+  try {
+    const response = await fetch(location.origin + '/api/rent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await response.json();
+    document.getElementById('rentPreview').textContent = JSON.stringify(data, null, 2);
+    appendBubble('assistant', data.message || data.error || ('Rent ' + (data.install || '')));
+    if (data.install === 'started' || data.install === 'already_running') pollInstall();
+    else applyInstallStatus({ status: 'idle', coding_allowed: false, install: data.install });
+  } catch (e) {
+    appendBubble('assistant', 'Confirm Rent failed: ' + String(e));
+  }
+}
+
+async function installStack() {
+  if (installRunning) return;
+  const body = rentBody(false);
+  try {
+    const response = await fetch(location.origin + '/api/install', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await response.json();
+    const out = document.getElementById('installOut');
+    if (out) out.textContent = JSON.stringify(data, null, 2);
+    appendBubble('assistant', data.message || data.error || ('Install ' + (data.install || '')));
+    if (data.install === 'started' || data.install === 'already_running') pollInstall();
+  } catch (e) {
+    appendBubble('assistant', 'Install stack failed: ' + String(e));
+  }
+}
+
+document.getElementById('previewRent').addEventListener('click', previewRent);
+document.getElementById('doRentDry').addEventListener('click', doRentDry);
+document.getElementById('rentConfirmBtn').addEventListener('click', doRentDry);
+document.getElementById('cancelRent').addEventListener('click', cancelRent);
+document.getElementById('confirmRent').addEventListener('click', confirmLiveRent);
+document.getElementById('installStack').addEventListener('click', installStack);
+
+document.getElementById('saveTarget').addEventListener('click', saveTarget);
+
+let isSending = false;
+let sendingAssistantBubble = null;
+
+async function sendToCloud(payload, target) {
+  if (!codingAllowed()) return;
+  if (isSending) return;
+  isSending = true;
+  
+  const noteDiv = document.createElement('div');
+  noteDiv.className = 'bubble-assistant';
+  noteDiv.textContent = 'Sending…';
+  document.getElementById('transcript').appendChild(noteDiv);
+  document.getElementById('transcript').scrollTop = document.getElementById('transcript').scrollHeight;
+  
+  const baseUrl = target.baseUrl.replace(/\/+$/, ''); // trim trailing slash
+  const url = `${baseUrl}/api/chat`;
+  
+  const body = {
+    model: payload.model,
+    think: payload.think,
+    stream: payload.stream,
+    messages: payload.messages,
+    options: payload.options
+  };
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      keepalive: true // for streaming
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const chunks = [];
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    
+    let done = false;
+    while (!done) {
+      const { done: readDone, value } = await reader.read();
+      if (readDone) break;
+      chunks.push(decoder.decode(value, { stream: true }));
+    }
+    
+    const fullText = chunks.join('');
+    let everydayLine = '';
+    try {
+      const rev = await fetch(location.origin + '/api/translate/reverse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          html: fullText,
+          response: fullText,
+          feature: window.lastFeature || '',
+          ask: window.lastAsk || ''
+        })
+      });
+      const revData = await rev.json();
+      if (revData && revData.everyday) everydayLine = revData.everyday;
+    } catch (ignore) {}
+    const showRaw = document.getElementById('showRaw') && document.getElementById('showRaw').checked;
+    const shown = everydayLine || 'Granite didn\'t finish / failed this step — the reply had no everyday line. Try again or use Aider once.';
+    if (sendingAssistantBubble) {
+      sendingAssistantBubble.textContent = shown;
+      if (showRaw && fullText && fullText !== shown) {
+        const raw = document.createElement('div');
+        raw.className = 'bubble-assistant';
+        raw.textContent = fullText;
+        document.getElementById('transcript').appendChild(raw);
+      }
+    } else {
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble-assistant';
+      bubble.textContent = shown;
+      document.getElementById('transcript').appendChild(bubble);
+      document.getElementById('transcript').scrollTop = document.getElementById('transcript').scrollHeight;
+    }
+    
+    isSending = false;
+  } catch (err) {
+    const errorMsg = err.message || 'Failed to send to cloud';
+    if (sendingAssistantBubble) {
+      sendingAssistantBubble.textContent = errorMsg;
+    } else {
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble-assistant';
+      bubble.textContent = errorMsg;
+      document.getElementById('transcript').appendChild(bubble);
+      document.getElementById('transcript').scrollTop = document.getElementById('transcript').scrollHeight;
+    }
+    isSending = false;
+  }
+}
+
+document.getElementById('go').addEventListener('click', async () => {
+  if (!codingAllowed()) {
+    appendBubble('assistant', 'Chat/calc locked until Install smoke passes.');
+    try { await fetch(location.origin + '/api/install/status'); } catch (e) {}
+    return;
+  }
+  const everydayText = document.getElementById('everyday').value.trim();
+  const featureSelect = document.getElementById('feature').value;
+  const seedEl = document.getElementById('seed');
+  const seedValue = seedEl.value.trim();
+  let seedValueOrNull = null;
+  if (seedValue !== "") seedValueOrNull = seedValue;
+
+  let featureId;
+  if (featureSelect === "auto") {
+    const detected = detectIntent(everydayText);
+    if (detected === null) {
+      appendBubble('user', everydayText);
+      appendBubble('assistant', 'Error: Could not detect intent.');
+      document.getElementById('jsonOut').textContent = "Error: Could not detect intent.";
+      return;
+    }
+    featureId = detected;
+  } else {
+    featureId = featureSelect;
+  }
+
+  window.lastFeature = featureId;
+  window.lastAsk = everydayText;
+  if (!(featureId in features)) {
+    appendBubble('user', everydayText);
+    appendBubble('assistant', 'Error: Invalid feature.');
+    document.getElementById('jsonOut').textContent = "Error: Invalid feature.";
+    return;
+  }
+
+  // Show user bubble first
+  appendBubble('user', everydayText);
+  
+  const payload = buildPayload(featureId, everydayText, seedValueOrNull);
+  
+  // Show initial assistant reply from local fallback (for immediate feedback)
+  const assistantText = payload.messages[1].content.replace(/\n/g, '<br>');
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble-assistant';
+  bubble.textContent = assistantText;
+  document.getElementById('transcript').appendChild(bubble);
+  document.getElementById('transcript').scrollTop = document.getElementById('transcript').scrollHeight;
+  
+  // Also fill hidden outputs
+  if (document.getElementById('systemOut')) document.getElementById('systemOut').textContent = SYSTEM;
+  if (document.getElementById('userOut')) document.getElementById('userOut').textContent = payload.messages[1].content;
+  if (document.getElementById('jsonOut')) document.getElementById('jsonOut').textContent = JSON.stringify(payload, null, 2);
+  
+  // Send to cloud if active target exists and stream is true
+  if (translator_ollama_target && payload.stream) {
+    sendingAssistantBubble = bubble; // reuse the local assistant bubble as placeholder
+    sendToCloud(payload, translator_ollama_target).then(() => {
+      // cloud response already appended/updated
+    });
+  }
+  
+  document.getElementById('everyday').value = '';
+  document.getElementById('everyday').focus();
+});
+
+document.getElementById('everyday').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    document.getElementById('go').click();
+  }
+});
+
+
+// Autonomous mission: POST /api/mission + poll status (no Vast rent)
+(function(){
+  const btn = document.getElementById('runMission');
+  const out = document.getElementById('missionOut');
+  if (!btn || !out) return;
+  let pollTimer = null;
+
+  function missionBase() {
+    const baseEl = document.getElementById('ollamaBase');
+    // Prefer same-origin (podcoder_http serves UI); else derive from picker host on :8787
+    try {
+      if (location.port === '8787' || location.pathname.indexOf('translator') >= 0) {
+        return location.origin;
+      }
+    } catch (e) {}
+    const hostEl = document.getElementById('targetHost');
+    const host = (hostEl && hostEl.value || '127.0.0.1').trim() || '127.0.0.1';
+    return 'http://' + host + ':8787';
+  }
+
+  function renderStatus(st) {
+    out.textContent = JSON.stringify(st, null, 2);
+  }
+
+  async function pollStatus(base, id) {
+    try {
+      const r = await fetch(base + '/api/mission/' + encodeURIComponent(id) + '/status');
+      if (!r.ok) {
+        const r2 = await fetch(base + '/api/status');
+        if (r2.ok) return await r2.json();
+        return null;
+      }
+      return await r.json();
+    } catch (e) {
+      return { status: 'error', error: String(e) };
+    }
+  }
+
+  btn.addEventListener('click', async function(){
+    if (typeof codingAllowed === 'function' && !codingAllowed()) {
+      out.textContent = 'Chat/calc locked until Install smoke passes.';
+      try { await fetch(location.origin + '/api/install/status'); } catch (e) {}
+      return;
+    }
+    const everydayEl = document.getElementById('everyday');
+    const everyday = ((everydayEl && everydayEl.value) || '').trim() || 'add a status line that shows last mission id';
+    const mission = {
+      id: 'mission-' + Date.now(),
+      everyday: everyday,
+      template: 'translator-everyday-typea-master-batch.json',
+      workspace: '/opt/podcoder/missions/workspace-live',
+      model: window.podcoderModel || 'granite4.2:8b-q8_0',
+      seed: '/opt/podcoder/seeds/translator.html',
+      allowAider: true,
+      allowRent: false,
+      graniteFirst: true,
+      minRawFailsBeforeAider: 2,
+      neverLeadWithAider: true,
+      dryVerify: false,
+      force: true,
+      oneShot: true,
+      batchId: 'batch-adhoc',
+      maxSeconds: 120,
+      abortSeconds: 75
+    };
+    const base = missionBase();
+    out.textContent = 'POST ' + base + '/api/mission ...\n' + JSON.stringify(mission, null, 2);
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    try {
+      const resp = await fetch(base + '/api/mission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mission)
+      });
+      const ack = await resp.json();
+      out.textContent = JSON.stringify(ack, null, 2);
+      if (typeof appendBubble === 'function') {
+        appendBubble('assistant', 'Mission submitted: ' + (ack.id || mission.id) + ' — polling status…');
+      }
+      const id = ack.id || mission.id;
+      let n = 0;
+      pollTimer = setInterval(async function(){
+        n += 1;
+        const st = await pollStatus(base, id);
+        if (st) {
+          renderStatus(st);
+          if (st.status && st.status !== 'running') {
+            clearInterval(pollTimer); pollTimer = null;
+            if (typeof appendBubble === 'function') {
+              appendBubble('assistant', st.everyday_line || ('Mission ' + st.status + ': ' + id));
+            }
+          }
+        }
+        if (n > 180) { clearInterval(pollTimer); pollTimer = null; }
+      }, 2000);
+    } catch (e) {
+      out.textContent = 'POST failed: ' + String(e) + '\nIs podcoder_http on :8787?';
+      if (typeof appendBubble === 'function') {
+        appendBubble('assistant', 'Mission POST failed: ' + String(e));
+      }
+    }
+    try {
+      const logKey = 'translator_mission_log';
+      let arr = [];
+      try { arr = JSON.parse(localStorage.getItem(logKey)||'[]'); } catch (e2) { arr = []; }
+      if (!Array.isArray(arr)) arr = [];
+      arr.push(mission);
+      localStorage.setItem(logKey, JSON.stringify(arr));
+    } catch (e) {}
+  });
+})();
+
+async function refreshOffers() {
+  const box = document.getElementById('offerList');
+  if (!box) return;
+  try {
+    const response = await fetch(location.origin + '/api/offers');
+    const data = await response.json();
+    const lines = (data.offers || []).map((row) => {
+      const flag = row.recommended ? 'RENTABLE' : 'BLOCKED';
+      return flag + ' ' + (row.gpu || '') + ' down ' + row.inet_down + ' up ' + row.inet_up + ' disk ' + row.disk_gb + 'GB — ' + (row.note || row.reject_reason || '');
+    });
+    box.textContent = lines.join('\n');
+  } catch (e) {
+    box.textContent = 'Offer list unavailable';
+  }
+}
+
+async function refreshCompute() {
+  try {
+    const response = await fetch(location.origin + '/api/compute');
+    const data = await response.json();
+    window.podcoderModel = data.model || 'granite4.2:8b-q8_0';
+    const line = document.getElementById('computeLine');
+    if (line) line.textContent = (data.compute || 'cloud') + ' · ' + window.podcoderModel;
+    const select = document.getElementById('computeMode');
+    if (select && data.compute) select.value = data.compute;
+  } catch (e) {}
+}
+
+async function refreshGallery() {
+  const out = document.getElementById('galleryOut');
+  const grid = document.getElementById('galleryGrid');
+  try {
+    const response = await fetch(location.origin + '/api/gallery');
+    const data = await response.json();
+    if (out) out.textContent = (data.vram_rule || '') + '\n' + (data.images || 0) + ' images, ' + (data.videos || 0) + ' videos';
+    if (!grid) return;
+    grid.textContent = '';
+    (data.items || []).forEach((item) => {
+      if (item.kind === 'image') {
+        const img = document.createElement('img');
+        img.src = item.url;
+        img.alt = item.name;
+        img.style.maxWidth = '180px';
+        img.style.cursor = 'pointer';
+        img.addEventListener('click', () => window.open(item.url, '_blank'));
+        grid.appendChild(img);
+      } else if (item.kind === 'video') {
+        const video = document.createElement('video');
+        video.src = item.url;
+        video.controls = true;
+        video.style.maxWidth = '280px';
+        grid.appendChild(video);
+      }
+    });
+  } catch (e) {
+    if (out) out.textContent = 'Gallery unavailable until the pod tunnel on :8787 is up.';
+  }
+}
+
+function fillLifeCategories() {
+  const select = document.getElementById('lifeCategory');
+  if (!select) return;
+  fetch(location.origin + '/api/memory', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ op: 'list', user: document.getElementById('sessionUser').value || 'joseph' })
+  }).then((r) => r.json()).then((data) => {
+    select.innerHTML = '';
+    (data.categories || []).forEach((row) => {
+      const opt = document.createElement('option');
+      opt.value = row.id;
+      opt.textContent = row.label;
+      select.appendChild(opt);
+    });
+  }).catch(() => {});
+}
+
+document.getElementById('feature').addEventListener('change', () => {
+  window.lastFeature = document.getElementById('feature').value;
+});
+document.getElementById('showRaw').addEventListener('change', () => {
+  document.body.dataset.showRaw = document.getElementById('showRaw').checked ? 'yes' : 'no';
+});
+
+document.getElementById('rolePreset').addEventListener('change', () => {
+  const role = document.getElementById('rolePreset').value;
+  const banner = document.getElementById('installBanner');
+  const button = document.getElementById('installStack');
+  const wan = document.getElementById('includeWan');
+  if (role === 'video') {
+    banner.textContent = 'Media computer only: ComfyUI + Wan 2.2 5B. No Granite on this machine. Use a different SSH host from the coding computer.';
+    button.textContent = 'Install media computer only';
+    if (wan) wan.checked = true;
+  } else if (role === 'image') {
+    banner.textContent = 'Media computer only: ComfyUI, no Wan and no Granite. Use a different SSH host from the coding computer.';
+    button.textContent = 'Install media computer only';
+    if (wan) wan.checked = false;
+  } else {
+    banner.textContent = 'Coding computer only: Ollama + Granite + Aider, then chat/calc. ComfyUI is a separate rent.';
+    button.textContent = 'Install coding computer only';
+  }
+});
+
+document.getElementById('saveCompute').addEventListener('click', async () => {
+  const compute = document.getElementById('computeMode').value;
+  const response = await fetch(location.origin + '/api/compute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ compute: compute })
+  });
+  const data = await response.json();
+  window.podcoderModel = data.model;
+  document.getElementById('computeLine').textContent = (data.compute || '') + ' · ' + (data.model || '');
+});
+
+document.getElementById('newSession').addEventListener('click', async () => {
+  const user = document.getElementById('sessionUser').value || 'joseph';
+  const response = await fetch(location.origin + '/api/sessions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ op: 'create', user: user, title: 'chat' })
+  });
+  document.getElementById('sessionOut').textContent = JSON.stringify(await response.json(), null, 2);
+});
+
+document.getElementById('saveMemory').addEventListener('click', async () => {
+  await fetch(location.origin + '/api/memory', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      op: 'add',
+      user: document.getElementById('sessionUser').value || 'joseph',
+      category: document.getElementById('lifeCategory').value,
+      note: document.getElementById('lifeNote').value
+    })
+  });
+  document.getElementById('lifeNote').value = '';
+});
+
+document.getElementById('saveVault').addEventListener('click', async () => {
+  const response = await fetch(location.origin + '/api/vault', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      op: 'put',
+      user: document.getElementById('sessionUser').value || 'joseph',
+      passphrase: document.getElementById('vaultPass').value,
+      secrets: {
+        email: document.getElementById('vaultEmail').value,
+        username: document.getElementById('vaultUserName').value,
+        password: document.getElementById('vaultSecret').value,
+        ein: document.getElementById('vaultEin').value,
+        ssn: document.getElementById('vaultSsn').value
+      }
+    })
+  });
+  const data = await response.json();
+  document.getElementById('vaultLine').textContent = data.ok ? ('Stored fields: ' + (data.stored || []).join(', ')) : (data.error || 'vault failed');
+  document.getElementById('vaultSecret').value = '';
+  document.getElementById('vaultSsn').value = '';
+  document.getElementById('vaultEin').value = '';
+});
+
+document.getElementById('installComfy').addEventListener('click', async () => {
+  const picked = (document.getElementById('rolePreset') && document.getElementById('rolePreset').value) || 'coding';
+  if (picked === 'coding') {
+    appendBubble('assistant', 'Coding computers install Ollama, Granite, and Aider only. Choose a media computer and a different SSH host for ComfyUI.');
+    return;
+  }
+  const body = rentBody(false);
+  body.confirm = 'INSTALL_COMFY';
+  body.role = (document.getElementById('includeWan') && document.getElementById('includeWan').checked) ? 'video' : 'image';
+  if (picked === 'image') body.role = 'image';
+  try {
+    const response = await fetch(location.origin + '/api/install/comfyui', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await response.json();
+    const installOut = document.getElementById('installOut');
+    if (installOut) installOut.textContent = JSON.stringify(data, null, 2);
+    appendBubble('assistant', data.message || data.error || ('ComfyUI ' + (data.install || '')));
+    if (data.install === 'started' || data.install === 'already_running') pollInstall();
+  } catch (e) {
+    appendBubble('assistant', 'Install ComfyUI failed: ' + String(e));
+  }
+});
+
+document.getElementById('wanPrompt').addEventListener('click', async () => {
+  const text = document.getElementById('everyday').value || '';
+  const response = await fetch(location.origin + '/api/translate/wan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: text })
+  });
+  const data = await response.json();
+  document.getElementById('galleryOut').textContent = JSON.stringify(data.a1 || data, null, 2);
+  refreshGallery();
+});
+
+// Initialize UI. Chat/calc stay locked until Install smoke passes.
+loadTargets();
+setCodingEnabled(false);
+refreshInstall();
+refreshOffers();
+refreshCompute();
+refreshGallery();
+fillLifeCategories();
+</script>
+</body>
+</html>

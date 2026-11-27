@@ -1,0 +1,2 @@
+esprima 4.0.1 (BSD-2-Clause), vendored unmodified from PyPI (https://pypi.org/project/esprima/) for the JS syntax gate when Node is absent.
+Copyright JS Foundation and other contributors; Python port Copyright German M. Bravo (Kronuz).

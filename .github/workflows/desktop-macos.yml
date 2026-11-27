@@ -1,0 +1,59 @@
+# Simko SI desktop for macOS: unsigned build on GitHub's free macOS runner (free because this repo is public).
+# No Apple Developer account (no paid cert): the .app gets an ad-hoc signature ("-") and is not notarized.
+# First open on a Mac: right-click the app > Open > Open (or System Settings > Privacy & Security > Open Anyway).
+# Runs only on the cursor/simkosi-mac-ci branch or by hand; never on main.
+name: desktop-macos
+on:
+  push:
+    branches: [cursor/simkosi-mac-ci]
+    paths: [".github/workflows/desktop-macos.yml", "app/desktop-wrapper/**"]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  mac:
+    runs-on: macos-14   # Apple Silicon (arm64)
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: app/desktop-wrapper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Python sidecar (PyInstaller builds for the runner's own OS/arch)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements-desktop.txt pyinstaller httpx beautifulsoup4 zstandard
+          pyinstaller --noconfirm --distpath out --workpath build/pyi backend/simko-backend.spec
+          mkdir -p src-tauri/binaries
+          cp out/simko-backend src-tauri/binaries/simko-backend-aarch64-apple-darwin
+          chmod +x src-tauri/binaries/simko-backend-aarch64-apple-darwin
+      - name: Sidecar self-check
+        run: ./out/simko-backend --selftest
+      - name: Tauri bundle (.app + .dmg, unsigned / ad-hoc)
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+        run: |
+          npm ci
+          npx tauri build --bundles app,dmg --config src-tauri/tauri.macos.conf.json
+          ls -la src-tauri/target/release/bundle/dmg/ src-tauri/target/release/bundle/macos/
+          shasum -a 256 src-tauri/target/release/bundle/dmg/*.dmg
+      - name: Smoke test (launch the sidecar from the .app bundle, wait for the local engine)
+        run: |
+          APP=$(ls -d src-tauri/target/release/bundle/macos/*.app | head -1)
+          BIN="$APP/Contents/MacOS/simko-backend"
+          ls -la "$APP/Contents/MacOS/"
+          ("$BIN" > /tmp/sidecar.log 2>&1 &)
+          for i in $(seq 1 60); do curl -fsS -o /dev/null http://127.0.0.1:8788/ && { echo "engine up after ${i}s"; exit 0; }; sleep 1; done
+          cat /tmp/sidecar.log; exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simko-si-macos-arm64-unsigned
+          path: |
+            app/desktop-wrapper/src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "No IPC commands are exposed; the UI talks to the local backend over HTTP.",
+  "windows": ["main"],
+  "permissions": []
+}

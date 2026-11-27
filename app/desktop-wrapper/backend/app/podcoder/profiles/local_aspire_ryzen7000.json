@@ -1,0 +1,10 @@
+{
+  "id": "local_aspire_ryzen7000",
+  "compute": "local",
+  "label": "Aspire Ryzen 7000 CPU/iGPU",
+  "model": "granite4.2:8b",
+  "quant": "Q4",
+  "device": "cpu_igpu",
+  "install": "install-local-aspire.sh",
+  "note": "Q4 for a smaller Aspire (~8GB or ~16GB). A ~32GB Aspire uses profiles/local_ram32_q5.json. Do not pull granite4.2:8b-q8_0 here."
+}

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Simko SI setup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body { font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: #e8f6fb;
+         background: #03141c url("/coral-reef-bg-sm.jpg") center/cover fixed; }
+  main { max-width: 760px; margin: 0 auto; padding: 28px 18px 60px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  p.sub { margin: 0 0 22px; opacity: .85; }
+  .card { background: rgba(3, 24, 34, .86); border: 1px solid rgba(120, 220, 240, .25); border-radius: 14px;
+          padding: 16px 18px; margin: 0 0 14px; }
+  .card h2 { font-size: 17px; margin: 0 0 6px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  input[type=password] { flex: 1 1 260px; padding: 10px 12px; border-radius: 10px; border: 1px solid #3c7f90;
+          background: #021017; color: #e8f6fb; font-size: 15px; }
+  button { padding: 9px 16px; border-radius: 10px; border: 0; background: #25b6d2; color: #02141b; font-weight: 600;
+           font-size: 14px; cursor: pointer; }
+  button.secondary { background: transparent; color: #9fe6f5; border: 1px solid #3c7f90; }
+  button:disabled { opacity: .5; cursor: default; }
+  .step { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 0;
+          border-top: 1px solid rgba(120, 220, 240, .15); }
+  .step:first-of-type { border-top: 0; }
+  .step .t { font-weight: 600; }
+  .step .w, .step .m { font-size: 13px; opacity: .8; }
+  .step .err { font-size: 13px; color: #ffb4a8; }
+  .badge { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: #0d3a47; margin-left: 6px; }
+  .badge.Ready { background: #1f6b3a; } .badge.Failed { background: #7a2a22; }
+  .bar { grid-column: 1 / -1; height: 6px; background: #0d2c36; border-radius: 4px; overflow: hidden; display: none; }
+  .bar > i { display: block; height: 100%; width: 0; background: #25b6d2; }
+  .note { font-size: 13px; opacity: .8; margin-top: 8px; }
+  #keyMsg { font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Welcome to Simko SI</h1>
+  <p class="sub">Everything installs from here, into your own user folder. No terminal and no admin password.</p>
+
+  <section class="card" id="keyCard">
+    <h2>1. Your xAI (Grok) key <span class="badge" id="keyBadge">Needed</span></h2>
+    <div class="row">
+      <input type="password" id="key" autocomplete="off" spellcheck="false" placeholder="Paste your xAI API key"/>
+      <button id="saveKey">Save key</button>
+      <button class="secondary" id="clearKey" hidden>Remove key</button>
+    </div>
+    <div id="keyMsg" class="note">Saved in this computer's secure password store. Simko SI never shows it again.</div>
+  </section>
+
+  <section class="card">
+    <h2>2. Downloads <span class="note" id="where"></span></h2>
+    <div id="steps"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="runCore">Install coding tools</button>
+      <button class="secondary" id="openLogs">Open logs folder</button>
+    </div>
+    <div class="note" id="video"></div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <button id="openApp">Open Simko SI</button>
+      <span class="note">Grok chat works as soon as your key is saved. The downloads are optional extras.</span>
+    </div>
+  </section>
+</main>
+<script>
+(function () {
+  var H = { "Content-Type": "application/json", "X-Simko-Desktop": "1" };
+  function post(url, body) {
+    return fetch(url, { method: "POST", headers: H, body: JSON.stringify(body || {}) }).then(function (r) { return r.json(); });
+  }
+  function mb(n) { return n ? (n / 1048576).toFixed(n > 1073741824 ? 0 : 1) + " MB" : ""; }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  function render(st) {
+    document.getElementById("where").textContent = "(" + st.os + ", files go to " + st.data_dir + ")";
+    document.getElementById("video").textContent = st.video || "";
+    var kb = document.getElementById("keyBadge");
+    kb.textContent = st.key.set ? "Saved" : "Needed";
+    kb.className = "badge" + (st.key.set ? " Ready" : "");
+    document.getElementById("clearKey").hidden = !st.key.set;
+    var box = document.getElementById("steps");
+    box.textContent = "";
+    st.steps.forEach(function (s) {
+      var row = el("div", "step");
+      var left = el("div");
+      var t = el("div", "t", s.title);
+      var badge = el("span", "badge " + s.stage, s.stage);
+      t.appendChild(badge);
+      left.appendChild(t);
+      left.appendChild(el("div", "w", s.why + " " + (s.optional ? "Optional, " : "") + s.size + "."));
+      if (s.running || s.stage === "Downloading" || s.stage === "Installing") left.appendChild(el("div", "m", (s.message || "") + (s.total ? " (" + mb(s.done) + " of " + mb(s.total) + ")" : "")));
+      if (s.stage === "Failed" && s.error) left.appendChild(el("div", "err", s.error));
+      row.appendChild(left);
+      var b = el("button", s.stage === "Ready" ? "secondary" : "", s.stage === "Ready" ? "Installed" : (s.stage === "Failed" || s.stage === "Stopped" ? "Try again" : "Download"));
+      b.disabled = s.running || s.stage === "Ready";
+      b.setAttribute("data-step", s.id);
+      b.onclick = function () { b.disabled = true; post("/api/simkosi/setup/run", { step: s.id }).then(refresh); };
+      row.appendChild(b);
+      var bar = el("div", "bar"); var fill = el("i"); bar.appendChild(fill);
+      if (s.running && s.total) { bar.style.display = "block"; fill.style.width = Math.min(100, 100 * (s.done || 0) / s.total) + "%"; }
+      row.appendChild(bar);
+      box.appendChild(row);
+    });
+  }
+  function refresh() { return fetch("/api/simkosi/setup").then(function (r) { return r.json(); }).then(render).catch(function () {}); }
+
+  document.getElementById("saveKey").onclick = function () {
+    var input = document.getElementById("key");
+    post("/api/simkosi/key", { key: input.value }).then(function (r) {
+      input.value = "";
+      document.getElementById("keyMsg").textContent = r.ok ? "Key saved." : (r.error || "Could not save the key.");
+      refresh();
+    });
+  };
+  document.getElementById("clearKey").onclick = function () { post("/api/simkosi/key", { clear: true }).then(refresh); };
+  document.getElementById("runCore").onclick = function () { post("/api/simkosi/setup/run", { step: "aider" }).then(refresh); };
+  document.getElementById("openLogs").onclick = function () { post("/api/simkosi/open-logs", {}); };
+  document.getElementById("openApp").onclick = function () { location.href = "/"; };
+  refresh();
+  setInterval(refresh, 1500);
+})();
+</script>
+</body>
+</html>

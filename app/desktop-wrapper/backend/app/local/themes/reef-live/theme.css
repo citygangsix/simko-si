@@ -1,0 +1,199 @@
+/* Reef Live. Native reef plates plus a vector motion layer. No stretched 3840. */
+html[data-theme="reef-live"] body {
+  color: #12343f;
+  background-color: #0a6e96;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-image: url("/themes/reef-live/bg/landscape-1280.jpg");
+  background-image: image-set(
+    url("/themes/reef-live/bg/landscape-640.avif") type("image/avif") 1x,
+    url("/themes/reef-live/bg/landscape-1280.avif") type("image/avif") 2x,
+    url("/themes/reef-live/bg/landscape-640.webp") type("image/webp") 1x,
+    url("/themes/reef-live/bg/landscape-1280.webp") type("image/webp") 2x,
+    url("/themes/reef-live/bg/landscape-640.jpg") 1x,
+    url("/themes/reef-live/bg/landscape-1280.jpg") 2x
+  );
+}
+@media (max-width: 640px), (max-height: 560px) {
+  html[data-theme="reef-live"] body {
+    background-image: url("/themes/reef-live/bg/portrait-1280.jpg");
+    background-image: image-set(
+      url("/themes/reef-live/bg/portrait-640.avif") type("image/avif") 1x,
+      url("/themes/reef-live/bg/portrait-1280.avif") type("image/avif") 2x,
+      url("/themes/reef-live/bg/portrait-640.webp") type("image/webp") 1x,
+      url("/themes/reef-live/bg/portrait-1280.webp") type("image/webp") 2x,
+      url("/themes/reef-live/bg/portrait-640.jpg") 1x,
+      url("/themes/reef-live/bg/portrait-1280.jpg") 2x
+    );
+  }
+}
+html[data-theme="reef-live"] .turtle-stage { display: none !important; }
+html[data-theme="reef-live"] #turtleScreen { background: transparent; }
+html[data-theme="reef-live"] #turtleCard {
+  width: min(28rem, 100%);
+  padding: 0.75rem 0.85rem 0.7rem;
+  background: rgba(214, 244, 236, 0.46);
+  border-color: rgba(255, 255, 255, 0.78);
+  color: #12343f;
+  backdrop-filter: blur(8px);
+}
+html[data-theme="reef-live"] #turtleCard h2 { font-size: 1.35rem; margin: 0; color: #12343f; }
+html[data-theme="reef-live"] #turtleLog { min-height: 0; background: rgba(255, 255, 255, 0.55); color: #12343f; }
+html[data-theme="reef-live"] #turtleDetails { margin: 0.35rem 0; color: #12343f; }
+html[data-theme="reef-live"] #shellMark {
+  display: inline-flex;
+  color: #f4efe4;
+  filter: drop-shadow(0 1px 1px rgba(8, 40, 48, 0.35));
+}
+html[data-theme="reef-live"] #chats,
+html[data-theme="reef-live"] #listDock,
+html[data-theme="reef-live"] #threadHead,
+html[data-theme="reef-live"] #drawer,
+html[data-theme="reef-live"] #input-bubble,
+html[data-theme="reef-live"] #turtleCard,
+html[data-theme="reef-live"] #sessionList button {
+  background: rgba(214, 244, 236, 0.38);
+  border-color: rgba(255, 255, 255, 0.72);
+  color: #12343f;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+html[data-theme="reef-live"] #threadTitle,
+html[data-theme="reef-live"] #turtleCard h2,
+html[data-theme="reef-live"] #turtleCard p,
+html[data-theme="reef-live"] #advancedLink,
+html[data-theme="reef-live"] #sheetBar,
+html[data-theme="reef-live"] #lifebook,
+html[data-theme="reef-live"] #lifeLast {
+  color: #12343f;
+}
+html[data-theme="reef-live"] .bubble,
+html[data-theme="reef-live"] #reply-bubble {
+  background: rgba(255, 255, 255, 0.94);
+  color: #14323c;
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 22px rgba(8, 40, 48, 0.08);
+}
+html[data-theme="reef-live"] #reply-bubble:empty::before,
+html[data-theme="reef-live"] textarea::placeholder,
+html[data-theme="reef-live"] #chatSearch::placeholder {
+  color: #5d7c86;
+}
+html[data-theme="reef-live"] #chatSearch,
+html[data-theme="reef-live"] #auth-bar input,
+html[data-theme="reef-live"] #hostUrl,
+html[data-theme="reef-live"] #turtleLog,
+html[data-theme="reef-live"] #relay-sheet select,
+html[data-theme="reef-live"] #rent-sheet input[type="text"] {
+  background: rgba(255, 255, 255, 0.72);
+  color: #12343f;
+  border-color: rgba(255, 255, 255, 0.8);
+}
+html[data-theme="reef-live"] #input-bubble {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.46);
+}
+html[data-theme="reef-live"] #go,
+html[data-theme="reef-live"] #turtleAskSend {
+  background: #2f7de1;
+  border-color: #9ec7ff;
+  color: #fff;
+}
+html[data-theme="reef-live"] button {
+  color: #12343f;
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+html[data-theme="reef-live"] #newChat,
+html[data-theme="reef-live"] #searchChats,
+html[data-theme="reef-live"] #sendToChat {
+  background: rgba(255, 255, 255, 0.55);
+  color: #12343f;
+}
+html[data-theme="reef-live"] #turtleScreen {
+  background: rgba(8, 48, 58, 0.16);
+}
+html[data-theme="reef-live"] #themeStage {
+  display: block;
+}
+html[data-theme="reef-live"] #reefPlate,
+html[data-theme="reef-live"] #reefPlate img,
+html[data-theme="reef-live"] #reefCaustics,
+html[data-theme="reef-live"] #reefVectors {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+html[data-theme="reef-live"] #reefPlate img { object-fit: cover; display: block; }
+html[data-theme="reef-live"] #reefCaustics,
+html[data-theme="reef-live"] #reefVectors { pointer-events: none; }
+html.reef-plate-on[data-theme="reef-live"] body { background-image: none; }
+html[data-theme="reef-live"] #themeStage .reef-bubble { animation: none; }
+html[data-theme="reef-live"] #themeStage .caustic { animation: reef-caustic 6.5s ease-in-out infinite; }
+html[data-theme="reef-live"] #themeStage .reef-bubble { animation: reef-rise 9s linear infinite; }
+html[data-theme="reef-live"] #themeStage .kelp { animation: reef-sway 5.5s ease-in-out infinite; transform-origin: bottom center; }
+html[data-theme="reef-live"] #themeStage .fish { animation: reef-swim 7s ease-in-out infinite; }
+html[data-theme="reef-live"] #themeStage .turtle { animation: reef-glide 9s ease-in-out infinite; }
+html[data-theme="reef-live"] #themeStage .reef-mover { transform-box: fill-box; }
+@keyframes reef-ray {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.62; }
+}
+@keyframes reef-caustic {
+  0%, 100% { transform: translateX(0); opacity: 0.35; }
+  50% { transform: translateX(28px); opacity: 0.7; }
+}
+@keyframes reef-rise {
+  0% { transform: translateY(20px); opacity: 0; }
+  12% { opacity: 0.75; }
+  100% { transform: translateY(-340px); opacity: 0; }
+}
+@keyframes reef-sway {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(7deg); }
+}
+@keyframes reef-swim {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(22px, -8px); }
+}
+@keyframes reef-glide {
+  0%, 100% { transform: translate(0, 0) rotate(-8deg); }
+  50% { transform: translate(-20px, 10px) rotate(6deg); }
+}
+html[data-motion="off"] #themeStage,
+html[data-motion="off"] #themeStage * {
+  animation-play-state: paused !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="reef-live"] #themeStage,
+  html[data-theme="reef-live"] #themeStage * {
+    animation: none !important;
+  }
+}
+
+/* Keep the reef plate behind the messenger. The stage is decoration only:
+   it sits under the topbar, drawer, and chat panes and never takes taps. */
+html[data-theme="reef-live"] #themeStage { z-index: 0; }
+html[data-theme="reef-live"] #themeStage,
+html[data-theme="reef-live"] #themeStage * { pointer-events: none; }
+html[data-theme="reef-live"] #topbar,
+html[data-theme="reef-live"] #drawer,
+html[data-theme="reef-live"] #app,
+html[data-theme="reef-live"] #foldGap { position: relative; z-index: 1; }
+
+/* Real reef loops. The video sits over the still plate; while it plays the
+   cartoon vector layer and canvas rays are hidden so nothing is painted twice. */
+html[data-theme="reef-live"] #reefVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  display: block;
+  pointer-events: none;
+  background: transparent;
+}
+html.reef-video-on[data-theme="reef-live"] #reefVectors,
+html.reef-video-on[data-theme="reef-live"] #reefCaustics { display: none; }

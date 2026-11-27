@@ -1,0 +1,21 @@
+/* Reef Still. The static reef photograph and glass panels, with the creature layer off. */
+html[data-theme="reef-still"] body {
+  background-color: #03141c;
+  background-image: url("/coral-reef-bg.jpg");
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+}
+@media (max-width: 640px), (max-height: 560px) {
+  html[data-theme="reef-still"] body {
+    background-image: url("/coral-reef-bg-sm.jpg");
+  }
+}
+html[data-theme="reef-still"] #themeStage,
+html[data-theme="reef-still"] #shellMark {
+  display: none !important;
+}
+html[data-theme="reef-still"] #themeStage,
+html[data-theme="reef-still"] #themeStage * {
+  animation: none !important;
+}

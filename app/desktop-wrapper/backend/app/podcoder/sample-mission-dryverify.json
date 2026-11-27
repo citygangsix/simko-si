@@ -1,0 +1,12 @@
+{
+  "id": "mission-batch7-dryverify",
+  "everyday": "dry verify onpod runner skeleton",
+  "template": "translator-everyday-typea-master-batch.json",
+  "workspace": "/opt/podcoder/missions/mission-batch7-dryverify/workspace",
+  "model": "granite4.2:8b-q8_0",
+  "seed": "/opt/podcoder/seeds/translator.html",
+  "allowAider": false,
+  "allowRent": false,
+  "batchId": "batch-7-onpod-runner",
+  "dryVerify": true
+}

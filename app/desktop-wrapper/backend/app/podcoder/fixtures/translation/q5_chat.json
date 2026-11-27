@@ -1,0 +1,12 @@
+{
+  "profile": "granite-q5-chat",
+  "text": "make multiply show 7 times 8",
+  "model": "granite4.2:8b-q5_0",
+  "stop": ["<|end_of_text|>"],
+  "marker": "<|start_of_role|>user<|end_of_role|>",
+  "api": "/api/chat",
+  "show": {"template": "{{ if .System }}<|start_of_role|>system<|end_of_role|>{{ .System }}<|end_of_text|>{{ end }}", "model": "granite4.2:8b-q5_0"},
+  "raw": "<|start_of_role|>assistant<|end_of_role|>Here's an updated calculator page. Digits, operators, Clear, and Equals sit on the display.<|end_of_text|>",
+  "feature": "fe_shell",
+  "everyday_contains": "calculator"
+}

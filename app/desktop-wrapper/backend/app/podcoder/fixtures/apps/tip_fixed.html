@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Tip Calculator</title></head><body>
+<h1>Tip Calculator</h1>
+<label for="bill">Bill amount</label> <input type="number" id="bill">
+<label for="tip">Tip percent</label> <input type="number" id="tip">
+<button id="calc">Calculate</button>
+<p>Total: <span id="total">0.00</span></p>
+<script>
+document.getElementById('calc').addEventListener('click', function () {
+  const bill = parseFloat(document.getElementById('bill').value) || 0;
+  const pct = parseFloat(document.getElementById('tip').value) || 0;
+  document.getElementById('total').textContent = (bill + bill * pct / 100).toFixed(2);
+});
+</script></body></html>

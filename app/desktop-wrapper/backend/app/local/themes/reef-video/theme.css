@@ -1,0 +1,2 @@
+/* Reef Video is a disabled slot. This build does not render a video. */
+html[data-theme="reef-video"] #themeStage { display: none !important; }
