@@ -14,7 +14,7 @@ import threading
 import time
 from pathlib import Path
 
-VERSION = "0.2.0"
+VERSION = "0.2.2"  # Keep in sync with src-tauri/tauri.conf.json
 BASE = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent)) / "app"
 sys.path[:0] = [str(BASE / "podcoder"), str(BASE / "local")]
 

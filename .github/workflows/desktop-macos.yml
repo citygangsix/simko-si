@@ -47,9 +47,27 @@ jobs:
           APP=$(ls -d src-tauri/target/release/bundle/macos/*.app | head -1)
           BIN="$APP/Contents/MacOS/simko-backend"
           ls -la "$APP/Contents/MacOS/"
+          VER=$("$BIN" --version | tr -d '[:space:]')
+          echo "sidecar --version: $VER"
+          if [ "$VER" != "0.2.2" ]; then echo "engine version mismatch: expected 0.2.2, got $VER"; exit 1; fi
           # The backend quits when its stdin closes (that is how it notices the app closed), so hold stdin open.
           (sleep 900 | "$BIN" > /tmp/sidecar.log 2>&1 &)
-          for i in $(seq 1 60); do grep -q "^SIMKOSI_READY" /tmp/sidecar.log && curl -fsS -o /dev/null "$(sed -n 's/^SIMKOSI_READY .*\"url\": *\"\([^\"]*\)\".*/\1/p' /tmp/sidecar.log | head -1)" && { cat /tmp/sidecar.log; echo "engine up after ${i}s"; exit 0; }; sleep 1; done
+          for i in $(seq 1 60); do
+            if grep -q "^SIMKOSI_READY" /tmp/sidecar.log; then
+              if ! grep -q '"version": "0.2.2"' /tmp/sidecar.log; then
+                echo "SIMKOSI_READY version mismatch (expected 0.2.2):"
+                cat /tmp/sidecar.log
+                exit 1
+              fi
+              URL=$(grep '^SIMKOSI_READY' /tmp/sidecar.log | head -1 | grep -oE 'http://127\.0\.0\.1:[0-9]+[^"]*')
+              echo "engine url: $URL"
+              curl -fsS -o /dev/null "$URL" || { echo "engine url not reachable: $URL"; cat /tmp/sidecar.log; exit 1; }
+              cat /tmp/sidecar.log
+              echo "engine 0.2.2 up after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
           cat /tmp/sidecar.log; exit 1
       - uses: actions/upload-artifact@v4
         with:
